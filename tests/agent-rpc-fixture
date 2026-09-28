@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""Deterministic local fixture; never launches a model or reads user sessions."""
+import json
+import os
+import sys
+
+for line in sys.stdin:
+    message = json.loads(line)
+    if "id" not in message or message.get("method") == "silent":
+        continue
+    if message["method"] == "fail":
+        reply = {"id": message["id"], "error": {"code": -1, "message": "Rejected fixture"}}
+    else:
+        reply = {"id": message["id"], "result": message.get("params", {})}
+    data = (json.dumps(reply, ensure_ascii=False) + "\n").encode()
+    for offset in range(0, len(data), 3):
+        os.write(1, data[offset:offset + 3])
