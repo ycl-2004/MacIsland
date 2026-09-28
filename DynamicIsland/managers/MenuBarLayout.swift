@@ -44,20 +44,22 @@ final class MenuBarLayout: ObservableObject {
 
     private init() {}
 
-    /// How far right content of `contentWidth`, centred in `screenFrame`, has to
-    /// move so its left edge clears menus ending at `menusRightEdge`.
+    /// How far right content of `contentWidth`, centred in `screenFrame` and
+    /// then moved `centerShift` to the right, has to move so its left edge
+    /// clears menus ending at `menusRightEdge`.
     ///
     /// Zero when nothing is covered. Capped at the room remaining on the right,
     /// because a shift that pushes the content off the far edge has traded one
     /// covered thing for another.
     nonisolated static func clearanceOffset(
         contentWidth: CGFloat,
+        centerShift: CGFloat,
         screenFrame: CGRect,
         menusRightEdge: CGFloat,
         gap: CGFloat
     ) -> CGFloat {
         guard contentWidth > 0 else { return 0 }
-        let contentLeftEdge = screenFrame.midX - contentWidth / 2
+        let contentLeftEdge = screenFrame.midX - contentWidth / 2 + centerShift
         let overlap = (menusRightEdge + gap) - contentLeftEdge
         guard overlap > 0 else { return 0 }
         let rightHeadroom = max(0, screenFrame.maxX - (contentLeftEdge + contentWidth))

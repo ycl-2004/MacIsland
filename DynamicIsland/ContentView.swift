@@ -57,6 +57,8 @@ struct ContentView: View {
     /// compared against the frontmost app's menus. Only the *size* is read --
     /// the offset that follows does not change it, so there is no feedback.
     @State private var closedContentWidth: CGFloat = 0
+    /// What the closed live activity asks for through `ClosedNotchCenterShiftKey`.
+    @State private var closedNotchCenterShift: CGFloat = 0
     @ObservedObject var capsLockManager = CapsLockManager.shared
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
@@ -370,6 +372,15 @@ struct ContentView: View {
         return screen.safeAreaInsets.top <= 0
     }
 
+    /// How far right the whole notch moves so a live activity with uneven wings
+    /// keeps its middle section on the camera housing. Without a housing to
+    /// clear -- a screen with no notch, or the island floating below the menu
+    /// bar -- the notch stays centred, where it looks balanced.
+    private var notchCenterShift: CGFloat {
+        guard !isIslandMode, !isNonNotchScreen else { return 0 }
+        return closedNotchCenterShift
+    }
+
     /// Whether the global sneak peek is visible on this specific screen.
     private var isSneakPeekVisibleOnCurrentScreen: Bool {
         guard coordinator.sneakPeek.show else { return false }
@@ -575,38 +586,66 @@ struct ContentView: View {
         installRootLifecycleHandlers(on: rootBodyView)
     }
 
-    private var mainLayoutBase: some View {
+    private var notchShadowColor: Color {
+        let isShadowActive = (vm.notchState == .open || isHovering) && Defaults[.enableShadow]
+        return isShadowActive ? .black.opacity(0.6) : .clear
+    }
+
+    private var notchShadowRadius: CGFloat {
+        Defaults[.cornerRadiusScaling] ? 10 : 5
+    }
+
+    private var notchHorizontalInset: CGFloat {
+        isConnectivityHUDVisible ? 0 : notchHorizontalPadding
+    }
+
+    private var notchOpenPadding: CGFloat {
+        vm.notchState == .open ? 12 : 0
+    }
+
+    private var notchTopBleedPadding: CGFloat {
+        isIslandMode ? 0 : notchTopScreenBleedAmount
+    }
+
+    private var islandShadowInset: CGFloat {
+        isIslandMode ? dynamicIslandShadowInset : 0
+    }
+
+    @ViewBuilder
+    private var notchTopBleedOverlay: some View {
+        if !isIslandMode {
+            Rectangle()
+                .fill(.black)
+                .frame(height: notchTopScreenBleedAmount)
+        }
+    }
+
+    private var mainNotchSurface: some View {
         NotchLayout()
             .frame(alignment: .top)
-            // Connectivity HUD metrics already describe the complete surface.
-            // Applying the regular closed-notch inset here makes that surface
-            // wider than both the root view and its NSWindow, clipping both sides.
-            .padding(.horizontal, isConnectivityHUDVisible ? 0 : notchHorizontalPadding)
-            .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
+            .padding(.horizontal, notchHorizontalInset)
+            .padding([.horizontal, .bottom], notchOpenPadding)
             .background(.black)
             .clipShape(resolvedClipShape)
-            // Keep the anti-gap fill outside the clipped notch. The window sits
-            // this far above screen.maxY, so placing the spacer after clipShape
-            // leaves the notch's top corners anchored to the visible screen edge.
-            .padding(.top, isIslandMode ? 0 : notchTopScreenBleedAmount)
+    }
+
+    private var mainNotchWithBleed: some View {
+        mainNotchSurface
+            .padding(.top, notchTopBleedPadding)
             .overlay(alignment: .top) {
-                if !isIslandMode {
-                    Rectangle()
-                        .fill(.black)
-                        .frame(height: notchTopScreenBleedAmount)
-                }
+                notchTopBleedOverlay
             }
             .compositingGroup()
+    }
+
+    private var mainLayoutBase: some View {
+        mainNotchWithBleed
             .shadow(
-                color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
-                    ? .black.opacity(0.6)
-                    : .clear,
-                radius: Defaults[.cornerRadiusScaling] ? 10 : 5
+                color: notchShadowColor,
+                radius: notchShadowRadius
             )
-            // Extra horizontal inset for Dynamic Island mode so the shadow
-            // is not clipped by the outer frame constraint
-            .padding(.horizontal, isIslandMode ? dynamicIslandShadowInset : 0)
-            .padding(.bottom, isIslandMode ? dynamicIslandShadowInset : 0)
+            .padding(.horizontal, islandShadowInset)
+            .padding(.bottom, islandShadowInset)
             .padding(.top, pillTopOffset)
             .accessibilityIdentifier("AtollNotch")
     }
@@ -619,23 +658,27 @@ struct ContentView: View {
         return Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
     }
 
-    private var configuredMainLayout: some View {
-        mainLayoutBase
-            .conditionalModifier(!useModernCloseAnimation) { view in
-                view
+    private func applyMainLayoutAnimations<V: View>(to view: V) -> some View {
+        view
+            .conditionalModifier(!useModernCloseAnimation) { content in
+                content
                     .animation(Animation.bouncy.speed(1.2), value: isHovering)
                     .animation(notchStateAnimation, value: vm.notchState)
                     .animation(.smooth, value: gestureProgress)
                     .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
             }
-            .conditionalModifier(useModernCloseAnimation) { view in
-                view
+            .conditionalModifier(useModernCloseAnimation) { content in
+                content
                     .animation(Animation.bouncy.speed(1.2), value: isHovering)
                     .animation(notchStateAnimation, value: vm.notchState)
                     .animation(.smooth, value: gestureProgress)
             }
-            .conditionalModifier(interactionsEnabled) { view in
-                view
+    }
+
+    private func applyMainLayoutInteractions<V: View>(to view: V) -> some View {
+        view
+            .conditionalModifier(interactionsEnabled) { content in
+                content
                     .contentShape(resolvedClipShape)
                     .onHover { hovering in
                         handleHover(hovering)
@@ -651,8 +694,8 @@ struct ContentView: View {
                         }
                         openNotch()
                     }
-                    .conditionalModifier(Defaults[.enableGestures]) { view in
-                        view
+                    .conditionalModifier(Defaults[.enableGestures]) { gestureContent in
+                        gestureContent
                             .panGesture(direction: .down) { translation, phase in
                                 handleDownGesture(translation: translation, phase: phase)
                             }
@@ -664,20 +707,28 @@ struct ContentView: View {
                             }
                     }
             }
-            .conditionalModifier((Defaults[.closeGestureEnabled] || Defaults[.reverseScrollGestures]) && Defaults[.enableGestures] && interactionsEnabled) { view in
-                view
+            .conditionalModifier((Defaults[.closeGestureEnabled] || Defaults[.reverseScrollGestures]) && Defaults[.enableGestures] && interactionsEnabled) { content in
+                content
                     .panGesture(direction: .up) { translation, phase in
                         handleUpGesture(translation: translation, phase: phase)
                     }
             }
+    }
+
+    private var hideUntilHoverOffsetY: CGFloat {
+        if shouldHideUntilHover && !isHovering {
+            return -(vm.closedNotchSize.height + pillTopOffset + notchShadowPadding + 10)
+        }
+        return 0
+    }
+
+    private var configuredMainLayout: some View {
+        applyMainLayoutInteractions(to: applyMainLayoutAnimations(to: mainLayoutBase))
             // Shadow bottom padding and hide-until-hover offset applied AFTER
             // interaction modifiers so .contentShape / .onHover only covers
             // the actual notch content, not the shadow clearance below it.
             .padding(.bottom, notchBottomPadding)
-            .offset(y: shouldHideUntilHover && !isHovering
-                ? -(vm.closedNotchSize.height + pillTopOffset + notchShadowPadding + 10)
-                : 0
-            )
+            .offset(y: hideUntilHoverOffsetY)
             .onAppear(perform: {
                 if coordinator.firstLaunch && !isConnectivityHUDVisible {
                     // Single open during first launch; closeHello() handles the timed close.
@@ -772,13 +823,31 @@ struct ContentView: View {
             }
     }
 
+    private var rootFrameMaxWidth: CGFloat {
+        let openExtra: CGFloat = vm.notchState == .open ? 24 : 0
+        let dynamicIslandExtra: CGFloat = isDynamicIslandMode ? dynamicIslandShadowInset * 2 : 0
+        return (dynamicNotchSize.width + openExtra + dynamicIslandExtra).rounded()
+    }
+
+    private var rootFrameMaxHeight: CGFloat {
+        let openExtra: CGFloat = vm.notchState == .open ? 12 : 0
+        let bleedExtra: CGFloat = isIslandMode ? 0 : notchTopScreenBleedAmount
+        let dynamicIslandExtra: CGFloat = isDynamicIslandMode ? (dynamicIslandTopOffset + dynamicIslandShadowInset * 2) : notchShadowPadding
+        return (dynamicNotchSize.height + openExtra + bleedExtra + dynamicIslandExtra).rounded()
+    }
+
     private var rootBodyView: some View {
         ZStack(alignment: .top) {
+            // Moves the drawn notch, its clip, shadow and hover shape together;
+            // an offset on the content alone would slide it out of the black.
             configuredMainLayout
+                .offset(x: notchCenterShift)
+                .animation(.smooth(duration: 0.25), value: notchCenterShift)
         }
+        .onPreferenceChange(ClosedNotchCenterShiftKey.self) { closedNotchCenterShift = $0 }
         .frame(
-            maxWidth: (dynamicNotchSize.width + (vm.notchState == .open ? 24 : 0) + (isDynamicIslandMode ? dynamicIslandShadowInset * 2 : 0)).rounded(),
-            maxHeight: (dynamicNotchSize.height + (vm.notchState == .open ? 12 : 0) + (isIslandMode ? 0 : notchTopScreenBleedAmount) + (isDynamicIslandMode ? dynamicIslandTopOffset + dynamicIslandShadowInset * 2 : notchShadowPadding)).rounded(),
+            maxWidth: rootFrameMaxWidth,
+            maxHeight: rootFrameMaxHeight,
             alignment: .top
         )
         // Same curve as the notch inside: the frame that centres the notch
@@ -958,6 +1027,7 @@ struct ContentView: View {
 
         return MenuBarLayout.clearanceOffset(
             contentWidth: closedContentWidth,
+            centerShift: notchCenterShift,
             screenFrame: screenFrame,
             menusRightEdge: menusRightEdge,
             gap: MenuBarLayout.clearanceGap

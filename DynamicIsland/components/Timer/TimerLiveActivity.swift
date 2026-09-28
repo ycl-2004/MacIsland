@@ -276,6 +276,7 @@ struct TimerLiveActivity: View {
         }
         .frame(height: adjustedNotchHeight, alignment: .center)
         .contentShape(Rectangle())
+        .preference(key: ClosedNotchCenterShiftKey.self, value: (rightWingWidth - leftWingWidth) / 2)
     }
 
     @ViewBuilder
@@ -319,8 +320,7 @@ struct TimerLiveActivity: View {
                             .padding(.leading, (ringOnRight || showsCountdown) ? inlineControlSpacing : 0)
                     }
                 }
-                // Tighter trailing margin so the countdown clears the notch region.
-                .padding(.trailing, wingPadding / 2 - 9)
+                .padding(.trailing, wingPadding / 2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             }
     }
@@ -388,15 +388,7 @@ struct TimerLiveActivity: View {
                     }
 
                     if showsBarHere {
-                        Capsule()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: barWidth, height: 3)
-                            .overlay(alignment: .leading) {
-                                Capsule()
-                                    .fill(glyphColor)
-                                    .frame(width: barWidth * max(0, CGFloat(clampedProgress)))
-                                    .animation(.smooth(duration: 0.25), value: clampedProgress)
-                            }
+                        progressBar(width: barWidth)
                     }
                 }
                 .padding(.leading, 12)
@@ -421,35 +413,37 @@ struct TimerLiveActivity: View {
     }
     
     private var countdownSection: some View {
-        let barWidth = max(countdownTextWidth, 1)
-        return VStack(spacing: 4) {
-            Text(timerManager.formattedRemainingTime())
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundColor(timerManager.isOvertime ? .red : .white)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .contentTransition(.numericText())
-                .animation(.smooth(duration: 0.25), value: timerManager.remainingTime)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-
-            if showsBarProgress {
-                Capsule()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: barWidth, height: 3)
-                    .overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(glyphColor)
-                            .frame(width: barWidth * max(0, CGFloat(clampedProgress)))
-                            .animation(.smooth(duration: 0.25), value: clampedProgress)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+        Text(timerManager.formattedRemainingTime())
+            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            .foregroundColor(timerManager.isOvertime ? .red : .white)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .contentTransition(.numericText())
+            .animation(.smooth(duration: 0.25), value: timerManager.remainingTime)
+            .overlay(alignment: .bottom) {
+                if showsBarProgress {
+                    // Hung just under the digits rather than stacked below them,
+                    // so the digits stay on the same midline as the icon and the
+                    // buttons instead of being pushed up by the bar.
+                    progressBar(width: max(countdownTextWidth, 1))
+                        .alignmentGuide(.bottom) { $0[.top] - 1 }
+                }
             }
-        }
-     // Note: rightWingView already applies a trailing wing padding, so no extra
-     // trailing padding here — a second one pushes the digits left and clips the
-     // hour under the notch while wasting space on the right.
-     .frame(width: countdownWidth,
-         height: notchContentHeight, alignment: .center)
+            // Note: rightWingView already applies a trailing wing padding, so no
+            // extra trailing padding here -- a second one would double it up.
+            .frame(width: countdownWidth, height: notchContentHeight, alignment: .trailing)
+    }
+
+    private func progressBar(width: CGFloat) -> some View {
+        Capsule()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: width, height: 3)
+            .overlay(alignment: .leading) {
+                Capsule()
+                    .fill(glyphColor)
+                    .frame(width: width * max(0, CGFloat(clampedProgress)))
+                    .animation(.smooth(duration: 0.25), value: clampedProgress)
+            }
     }
 
     @ViewBuilder

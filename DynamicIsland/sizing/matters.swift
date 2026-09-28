@@ -361,3 +361,19 @@ func getClosedNotchSize(screen: String? = nil) -> CGSize {
 
     return .init(width: notchWidth, height: notchHeight)
 }
+
+/// How far right the closed notch has to move so a live activity's middle
+/// section lands on the camera housing.
+///
+/// The notch is centred on the screen, so a live activity whose right wing is
+/// wider than its left puts its middle section left of the housing and slides
+/// the start of the right wing underneath it. The housing has no pixels -- no
+/// window level can draw over it -- so the content has to stay out of it. A
+/// live activity with uneven wings publishes half their difference; the
+/// default keeps the notch centred.
+struct ClosedNotchCenterShiftKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value += nextValue()
+    }
+}

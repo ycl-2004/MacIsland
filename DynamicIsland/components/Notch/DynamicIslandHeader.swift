@@ -98,19 +98,37 @@ struct DynamicIslandHeader: View {
 
         switch button {
         case .colorPicker:
-            base.popover(isPresented: $showColorPickerPopover, arrowEdge: .bottom) {
+            headerPopover(on: base, isPresented: $showColorPickerPopover) {
                 ColorPickerPopover()
             }
         case .timer:
-            base.popover(isPresented: $showTimerPopover, arrowEdge: .bottom) {
+            headerPopover(on: base, isPresented: $showTimerPopover) {
                 TimerPopover()
             }
         case .perAppVolume:
-            base.popover(isPresented: $showPerAppVolumePopover, arrowEdge: .bottom) {
+            headerPopover(on: base, isPresented: $showPerAppVolumePopover) {
                 PerAppVolumePopover()
             }
         case .mirror, .settings:
             base
+        }
+    }
+
+    /// A popover hanging off a header button.
+    ///
+    /// Popover content inherits this view's environment, including the gray
+    /// foreground the header sets for its tabs. Left alone, every unstyled
+    /// label -- and every `.primary` / `.secondary`, which are levels *of* the
+    /// inherited style -- came out that same gray, unreadable on the popover's
+    /// glass. Resetting to the system label colour here covers every popover.
+    private func headerPopover<Content: View>(
+        on base: some View,
+        isPresented: Binding<Bool>,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        base.popover(isPresented: isPresented, arrowEdge: .bottom) {
+            content()
+                .foregroundStyle(Color.primary)
         }
     }
 

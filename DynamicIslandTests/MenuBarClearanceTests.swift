@@ -7,9 +7,15 @@ final class MenuBarClearanceTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 1710, height: 1107)
     private let gap: CGFloat = 8
 
-    private func offset(contentWidth: CGFloat, menusEnd: CGFloat, screen: CGRect? = nil) -> CGFloat {
+    private func offset(
+        contentWidth: CGFloat,
+        menusEnd: CGFloat,
+        centerShift: CGFloat = 0,
+        screen: CGRect? = nil
+    ) -> CGFloat {
         MenuBarLayout.clearanceOffset(
             contentWidth: contentWidth,
+            centerShift: centerShift,
             screenFrame: screen ?? self.screen,
             menusRightEdge: menusEnd,
             gap: gap
@@ -52,6 +58,14 @@ final class MenuBarClearanceTests: XCTestCase {
         let headroom = screen.maxX - (screen.midX - wide / 2 + wide)
         XCTAssertEqual(offset(contentWidth: wide, menusEnd: 1000), headroom)
         XCTAssertEqual(headroom, 105)
+    }
+
+    func testANotchAlreadyShiftedRightIsMeasuredWhereItIs() {
+        // A lopsided activity moved 60pt right begins at 765, not 705: menus
+        // ending at 720 no longer reach it, and ones ending at 770 need only
+        // 5pt plus the gap.
+        XCTAssertEqual(offset(contentWidth: 300, menusEnd: 720, centerShift: 60), 0)
+        XCTAssertEqual(offset(contentWidth: 300, menusEnd: 770, centerShift: 60), 13)
     }
 
     func testContentFillingTheScreenNeverMoves() {

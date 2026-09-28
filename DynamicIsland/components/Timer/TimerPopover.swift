@@ -19,6 +19,10 @@
 import SwiftUI
 import Defaults
 
+/// Card fill that shows on both a light and a dark popover; a white tint only
+/// shows on dark.
+private let cardFill = Color.gray.opacity(0.15)
+
 struct TimerPopover: View {
     @ObservedObject var timerManager = TimerManager.shared
     @Default(.timerPresets) private var timerPresets
@@ -64,10 +68,9 @@ struct TimerPopover: View {
             VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
                 .cornerRadius(12)
         )
-        // The content is styled for the dark notch (white-on-dark cards), so the
-        // popover chrome must be dark too; under a light system appearance the
-        // light popover background left the text unreadable.
-        .preferredColorScheme(.dark)
+        // Follows the system appearance, like the Color Picker popover. The
+        // material is translucent, so a forced dark scheme put white text over
+        // whatever light wallpaper showed through it.
         .onAppear {
             syncCustomDuration(with: customTimerDuration)
         }
@@ -195,7 +198,7 @@ private struct ActiveTimerSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.white.opacity(0.08))
+        .background(cardFill)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .animation(.smooth, value: timerManager.isPaused)
     }
@@ -271,7 +274,7 @@ private struct CustomTimerSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.white.opacity(0.05))
+        .background(cardFill)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
     
@@ -321,7 +324,7 @@ private struct PresetList: View {
                     .foregroundStyle(.secondary)
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.white.opacity(0.05))
+                    .background(cardFill)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else {
                 ScrollView {
@@ -379,7 +382,7 @@ private struct TimerPresetRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isActive ? preset.color.opacity(0.18) : Color.white.opacity(0.05))
+                    .fill(isActive ? preset.color.opacity(0.18) : cardFill)
             )
         }
         .buttonStyle(.plain)
