@@ -24,7 +24,7 @@ class PrivacyConfigurationTests(unittest.TestCase):
         self.assertEqual(
             2,
             project.count(
-                'INFOPLIST_KEY_NSAppleEventsUsageDescription = "Atoll uses AppleScripts to control Apple Music.";'
+                'INFOPLIST_KEY_NSAppleEventsUsageDescription = "Atoll uses AppleScript to control Apple Music, and to bring back and type into your agent sessions in Terminal and Ghostty.";'
             ),
         )
 
