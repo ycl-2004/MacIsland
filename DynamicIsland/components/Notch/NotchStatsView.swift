@@ -88,7 +88,7 @@ struct NotchStatsView: View {
                 title: String(localized: "CPU"),
                 value: statsManager.cpuUsageString,
                 data: statsManager.cpuHistory,
-                color: .blue,
+                color: .statsCPU,
                 icon: "cpu",
                 rankingType: .cpu
             ))
@@ -99,7 +99,7 @@ struct NotchStatsView: View {
                 title: String(localized: "Memory"),
                 value: statsManager.memoryUsageString,
                 data: statsManager.memoryHistory,
-                color: .green,
+                color: .statsMemory,
                 icon: "memorychip",
                 rankingType: .memory
             ))
@@ -110,7 +110,7 @@ struct NotchStatsView: View {
                 title: String(localized: "GPU"),
                 value: statsManager.gpuUsageString,
                 data: statsManager.gpuHistory,
-                color: .purple,
+                color: .statsGPU,
                 icon: "display",
                 rankingType: .gpu
             ))
@@ -123,9 +123,9 @@ struct NotchStatsView: View {
                 negativeValue: "↑" + statsManager.networkUploadString,
                 positiveData: statsManager.networkDownloadHistory,
                 negativeData: statsManager.networkUploadHistory,
-                positiveColor: .orange,
-                negativeColor: .red,
-                color: .orange,
+                positiveColor: .statsNetworkDown,
+                negativeColor: .statsNetworkUp,
+                color: .statsNetworkDown,
                 icon: "network",
                 rankingType: .network
             ))
@@ -138,9 +138,9 @@ struct NotchStatsView: View {
                 negativeValue: String(localized: "W ") + statsManager.diskWriteString,
                 positiveData: statsManager.diskReadHistory,
                 negativeData: statsManager.diskWriteHistory,
-                positiveColor: .cyan,
-                negativeColor: .yellow,
-                color: .cyan,
+                positiveColor: .statsDiskRead,
+                negativeColor: .statsDiskWrite,
+                color: .statsDiskRead,
                 icon: "internaldrive",
                 rankingType: .disk
             ))
@@ -255,14 +255,14 @@ struct NotchStatsView: View {
                 }
             }
             .transition(.asymmetric(
-                insertion: .scale.combined(with: .opacity).animation(.easeInOut(duration: 0.4)),
-                removal: .scale.combined(with: .opacity).animation(.easeInOut(duration: 0.4))
+                insertion: .scale.combined(with: .opacity).animation(.notchRelaxed),
+                removal: .scale.combined(with: .opacity).animation(.notchRelaxed)
             ))
         } else {
             UnifiedStatsCard(graphData: graphData)
                 .transition(.asymmetric(
-                    insertion: .scale.combined(with: .opacity).animation(.easeInOut(duration: 0.4)),
-                    removal: .scale.combined(with: .opacity).animation(.easeInOut(duration: 0.4))
+                    insertion: .scale.combined(with: .opacity).animation(.notchRelaxed),
+                    removal: .scale.combined(with: .opacity).animation(.notchRelaxed)
                 ))
         }
     }
@@ -356,10 +356,10 @@ struct NotchStatsView: View {
                     statsGridLayout
                 }
                 .padding(12)
-                .animation(.easeInOut(duration: 0.4), value: availableGraphs.count)
+                .animation(.notchRelaxed, value: availableGraphs.count)
                 .transition(.asymmetric(
-                    insertion: .scale.combined(with: .opacity).animation(.easeInOut(duration: 0.4)),
-                    removal: .scale.combined(with: .opacity).animation(.easeInOut(duration: 0.4))
+                    insertion: .scale.combined(with: .opacity).animation(.notchRelaxed),
+                    removal: .scale.combined(with: .opacity).animation(.notchRelaxed)
                 ))
             }
         }
@@ -371,8 +371,8 @@ struct NotchStatsView: View {
             // Keep monitoring running when tab is not visible
             updateStatsPopoverState()
         }
-        .animation(.easeInOut(duration: 0.4), value: enableStatsFeature)
-        .animation(.easeInOut(duration: 0.4), value: availableGraphs.count)
+        .animation(.notchRelaxed, value: enableStatsFeature)
+        .animation(.notchRelaxed, value: availableGraphs.count)
         .onChange(of: showingCPUPopover) { _, newValue in
             updateStatsPopoverState()
         }
@@ -437,32 +437,34 @@ struct UnifiedStatsCard: View {
                 Text(graphData.title)
                     .font(.caption) // Match boring.notch font size
                     .fontWeight(.medium)
-                    .foregroundStyle(Color.white.opacity(0.8))
+                    .foregroundStyle(.inkSecondary)
                 
                 Spacer()
             }
             
-            // Values section - same height for every card so the grid boxes match
+            // Values section - same height for every card so the grid boxes match.
+            // Tabular digits, so a reading that ticks over every second keeps
+            // its width instead of jostling the text beside it.
             Group {
                 if let singleData = graphData as? SingleGraphData {
                     Text(singleData.value)
-                        .font(.caption) // Match boring.notch font size
+                        .font(.caption.monospacedDigit()) // Match boring.notch font size
                         .fontWeight(.bold)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.inkPrimary)
                         .frame(maxWidth: .infinity)
                 } else if let dualData = graphData as? DualGraphData {
                     HStack(spacing: 6) {
                         Text(dualData.positiveValue)
-                            .font(.caption)
+                            .font(.caption.monospacedDigit())
                             .fontWeight(.semibold)
                             .foregroundColor(dualData.positiveColor)
                         
                         Text("•")
                             .font(.caption2)
-                            .foregroundStyle(Color.white.opacity(0.45))
+                            .foregroundStyle(.inkQuaternary)
                         
                         Text(dualData.negativeValue)
-                            .font(.caption)
+                            .font(.caption.monospacedDigit())
                             .fontWeight(.semibold)
                             .foregroundColor(dualData.negativeColor)
                     }
@@ -489,26 +491,36 @@ struct UnifiedStatsCard: View {
             if graphData.rankingType != nil {
                 Text("Click for details")
                     .font(.caption2)
-                    .foregroundStyle(Color.white.opacity(0.75))
+                    .foregroundStyle(.inkSecondary)
                     .opacity(isHovered ? 1.0 : 0.0)
-                    .animation(.easeInOut(duration: 0.2), value: isHovered)
             }
         }
         .padding(8) // Match boring.notch padding - reduced from 10
+        // Hover lifts the surface rather than scaling the card: scaling
+        // re-rasterises the text and graph and leaves them soft mid-animation.
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.08))
+            RoundedRectangle(cornerRadius: NotchRadius.card, style: .continuous)
+                .fill(isHovered ? Color.fillCardHover : .fillCard)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(isHovered ? 0.45 : 0.18), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: NotchRadius.card, style: .continuous)
+                        .strokeBorder(isHovered ? Color.strokeRegular : .strokeHairline, lineWidth: 1)
                 )
         )
-        .scaleEffect(isHovered ? 1.02 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isHovered)
+        .animation(.notchQuick, value: isHovered)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onHover { hovering in
             isHovered = hovering
         }
+    }
+}
+
+/// How a metric's line and fill are drawn, shared by both graph kinds: a
+/// rounded line over an area that fades out towards the baseline.
+private enum GraphInk {
+    static let line = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
+
+    static func fill(_ color: Color, from start: UnitPoint, to end: UnitPoint) -> LinearGradient {
+        LinearGradient(colors: [color.opacity(0.28), color.opacity(0)], startPoint: start, endPoint: end)
     }
 }
 
@@ -537,7 +549,7 @@ struct MiniGraph: View {
                     }
                 }
             }
-            .stroke(color, lineWidth: 2)
+            .stroke(color, style: GraphInk.line)
             
             // Gradient fill
             Path { path in
@@ -556,13 +568,7 @@ struct MiniGraph: View {
                 path.addLine(to: CGPoint(x: geometry.size.width, y: geometry.size.height))
                 path.closeSubpath()
             }
-            .fill(
-                LinearGradient(
-                    gradient: Gradient(colors: [color.opacity(0.3), color.opacity(0.1)]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .fill(GraphInk.fill(color, from: .top, to: .bottom))
         }
     }
 }
@@ -592,7 +598,7 @@ struct DualQuadrantGraph: View {
                     path.move(to: CGPoint(x: 0, y: centerY))
                     path.addLine(to: CGPoint(x: geometry.size.width, y: centerY))
                 }
-                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                .stroke(.strokeHairline, lineWidth: 1)
                 
                 // Positive quadrant (upper half)
                 Path { path in
@@ -611,7 +617,7 @@ struct DualQuadrantGraph: View {
                         }
                     }
                 }
-                .stroke(positiveColor, lineWidth: 2)
+                .stroke(positiveColor, style: GraphInk.line)
                 
                 // Positive fill
                 Path { path in
@@ -630,13 +636,7 @@ struct DualQuadrantGraph: View {
                     path.addLine(to: CGPoint(x: geometry.size.width, y: centerY))
                     path.closeSubpath()
                 }
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [positiveColor.opacity(0.3), positiveColor.opacity(0.1)]),
-                        startPoint: .top,
-                        endPoint: .center
-                    )
-                )
+                .fill(GraphInk.fill(positiveColor, from: .top, to: .center))
                 
                 // Negative quadrant (lower half)
                 Path { path in
@@ -655,7 +655,7 @@ struct DualQuadrantGraph: View {
                         }
                     }
                 }
-                .stroke(negativeColor, lineWidth: 2)
+                .stroke(negativeColor, style: GraphInk.line)
                 
                 // Negative fill
                 Path { path in
@@ -674,13 +674,7 @@ struct DualQuadrantGraph: View {
                     path.addLine(to: CGPoint(x: geometry.size.width, y: centerY))
                     path.closeSubpath()
                 }
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [negativeColor.opacity(0.3), negativeColor.opacity(0.1)]),
-                        startPoint: .bottom,
-                        endPoint: .center
-                    )
-                )
+                .fill(GraphInk.fill(negativeColor, from: .bottom, to: .center))
             }
         }
     }

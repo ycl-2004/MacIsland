@@ -74,10 +74,10 @@ struct VolumeCapsuleSlider: View {
                 .foregroundStyle(tint.opacity(loudGlyphOpacity))
                 .frame(width: glyphSize + 4, alignment: .trailing)
         }
-        .animation(.easeOut(duration: 0.2), value: fraction)
+        .animation(.notchQuick, value: fraction)
         .saturation(trackSaturation)
-        .animation(.easeOut(duration: 0.2), value: trackSaturation)
-        .animation(.easeOut(duration: 0.2), value: fillOpacity)
+        .animation(.notchQuick, value: trackSaturation)
+        .animation(.notchQuick, value: fillOpacity)
         .accessibilityElement()
         .accessibilityLabel("Volume")
         .accessibilityValue("\(Int(round(fraction * 100)))%")
@@ -134,7 +134,7 @@ struct VolumeCapsuleSlider: View {
         .scaleEffect(x: 1, y: isDragging ? 1.14 : 1, anchor: .center)
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isDragging)
         .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.18)) {
+            withAnimation(.notchQuick) {
                 isHovering = hovering
             }
         }

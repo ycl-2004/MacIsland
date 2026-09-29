@@ -120,19 +120,27 @@ struct ShelfView: View {
 
     /// Background rounded rectangle panel providing visual boundaries and drop-targeting highlights.
     var panel: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(
-                vm.dragDetectorTargeting
-                    ? Color.accentColor.opacity(0.12)
-                    : Color.white.opacity(0.04)
-            )
+        RoundedRectangle(cornerRadius: NotchRadius.panel, style: .continuous)
+            .fill(vm.dragDetectorTargeting ? Color.accentColor.opacity(0.12) : .fillWell)
+            .overlay {
+                // An empty shelf is a faint grid of dots -- a place to put
+                // things -- that takes on the accent while a drag hovers over it.
+                // A fixed shape, so it is drawn once rather than per frame.
+                if tvm.isEmpty {
+                    DotGrid(pitch: 14, diameter: 2)
+                        .fill(vm.dragDetectorTargeting ? Color.accentColor.opacity(0.4) : .strokeHairline)
+                        .clipShape(RoundedRectangle(cornerRadius: NotchRadius.panel, style: .continuous))
+                        .allowsHitTesting(false)
+                }
+            }
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: NotchRadius.panel, style: .continuous)
                     .strokeBorder(
-                        vm.dragDetectorTargeting
-                            ? Color.accentColor
-                            : Color.white.opacity(0.12),
-                        lineWidth: vm.dragDetectorTargeting ? 1.5 : 1
+                        vm.dragDetectorTargeting ? Color.accentColor : .strokeRegular,
+                        style: StrokeStyle(
+                            lineWidth: vm.dragDetectorTargeting ? 1.5 : 1,
+                            dash: tvm.isEmpty && !vm.dragDetectorTargeting ? [4, 4] : []
+                        )
                     )
             )
             .overlay {
@@ -159,17 +167,22 @@ struct ShelfView: View {
         Group {
             if tvm.isEmpty {
                 VStack(spacing: 10) {
+                    // Leans toward a file dragged over the shelf, as if the
+                    // shelf were pulling it in.
                     Image(systemName: "tray.and.arrow.down")
                         .symbolVariant(.fill)
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.white, .gray)
+                        .foregroundStyle(vm.dragDetectorTargeting ? Color.accentColor : .inkSecondary, .inkTertiary)
                         .imageScale(.large)
-                    
+                        .scaleEffect(vm.dragDetectorTargeting ? 1.18 : 1)
+                        .offset(y: vm.dragDetectorTargeting ? -3 : 0)
+
                     Text("Drop files here")
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(vm.dragDetectorTargeting ? .inkSecondary : .inkTertiary)
                         .font(.system(.title3, design: .rounded))
                         .fontWeight(.medium)
                 }
+                .animation(.bouncy, value: vm.dragDetectorTargeting)
             } else {
                 ScrollView(.horizontal) {
                     HStack(spacing: spacing) {
@@ -216,5 +229,29 @@ struct ShelfView: View {
         .onAppear {
             ShelfStateViewModel.shared.cleanupInvalidItems()
         }
+    }
+}
+
+/// Dots on a square grid, centred in the rect so the margins match.
+private struct DotGrid: Shape {
+    let pitch: CGFloat
+    let diameter: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let columns = Int(rect.width / pitch)
+        let rows = Int(rect.height / pitch)
+        guard columns > 0, rows > 0 else { return path }
+        let origin = CGPoint(
+            x: rect.minX + (rect.width - CGFloat(columns - 1) * pitch) / 2,
+            y: rect.minY + (rect.height - CGFloat(rows - 1) * pitch) / 2
+        )
+        for row in 0..<rows {
+            for column in 0..<columns {
+                let center = CGPoint(x: origin.x + CGFloat(column) * pitch, y: origin.y + CGFloat(row) * pitch)
+                path.addEllipse(in: CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2, width: diameter, height: diameter))
+            }
+        }
+        return path
     }
 }

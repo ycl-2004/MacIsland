@@ -26,15 +26,43 @@ struct TabButton: View {
     let label: String
     let icon: String
     let selected: Bool
+    /// A dot in the tab's corner when something inside wants a look.
+    var badge: Color? = nil
     let onClick: () -> Void
-    
+
+    @State private var isHovering = false
+
     var body: some View {
         Button(action: onClick) {
             Image(systemName: icon)
+                // Room either side so the selection capsule reads as a pill
+                // around the glyph rather than a sliver behind it. The row's
+                // spacing gives the same amount back, so glyphs stay as far
+                // apart and the row grows only by the padding at its two ends.
+                .padding(.horizontal, Self.horizontalPadding)
+                .frame(height: 26)
                 .contentShape(Capsule())
+                .overlay(alignment: .topTrailing) {
+                    if let badge {
+                        Circle()
+                            .fill(badge)
+                            .frame(width: 5, height: 5)
+                            .offset(x: -3, y: 4)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
         }
         .buttonStyle(PlainButtonStyle())
+        .foregroundStyle(selected ? Color.inkPrimary : isHovering ? .inkSecondary : .inkTertiary)
+        .onHover { isHovering = $0 }
+        .animation(.notchQuick, value: isHovering)
+        .animation(.notchStandard, value: badge)
+        .help(label)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
+
+    static let horizontalPadding: CGFloat = 5
 }
 
 #Preview {

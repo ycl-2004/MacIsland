@@ -225,7 +225,7 @@ struct TimerLiveActivity: View {
     var body: some View {
         baseTimerLayout
         .onHover { hovering in
-            withAnimation(.smooth(duration: 0.18)) {
+            withAnimation(.notchQuick) {
                 isHovering = hovering
             }
         }
@@ -333,14 +333,14 @@ struct TimerLiveActivity: View {
         return ZStack {
             if ringWrapsIcon {
                 Circle()
-                    .stroke(Color.white.opacity(0.15), lineWidth: ringStrokeWidth)
+                    .stroke(.fillControl, lineWidth: ringStrokeWidth)
                     .frame(width: ringDiameter, height: ringDiameter)
 
                 Circle()
                     .trim(from: 0, to: clampedProgress)
                     .stroke(glyphColor, style: StrokeStyle(lineWidth: ringStrokeWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.smooth(duration: 0.25), value: clampedProgress)
+                    .animation(.notchStandard, value: clampedProgress)
                     .frame(width: ringDiameter, height: ringDiameter)
             }
 
@@ -379,7 +379,7 @@ struct TimerLiveActivity: View {
                             )
                         } else {
                             Text(timerManager.timerName)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.notch(.footnote, weight: .medium))
                                 .lineLimit(1)
                                 .foregroundStyle(.white)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -401,12 +401,12 @@ struct TimerLiveActivity: View {
         let diameter = max(min(notchContentHeight - 4, 26), 20)
         return ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.15), lineWidth: ringStrokeWidth)
+                .stroke(.fillControl, lineWidth: ringStrokeWidth)
             Circle()
                 .trim(from: 0, to: clampedProgress)
                 .stroke(glyphColor, style: StrokeStyle(lineWidth: ringStrokeWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .animation(.smooth(duration: 0.25), value: clampedProgress)
+                .animation(.notchStandard, value: clampedProgress)
         }
         .frame(width: diameter, height: diameter)
         .frame(width: ringWidth, height: notchContentHeight, alignment: .center)
@@ -415,11 +415,11 @@ struct TimerLiveActivity: View {
     private var countdownSection: some View {
         Text(timerManager.formattedRemainingTime())
             .font(.system(size: 13, weight: .semibold, design: .monospaced))
-            .foregroundColor(timerManager.isOvertime ? .red : .white)
+            .foregroundColor(timerManager.isOvertime ? .statusDanger : .inkPrimary)
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
             .contentTransition(.numericText())
-            .animation(.smooth(duration: 0.25), value: timerManager.remainingTime)
+            .animation(.notchStandard, value: timerManager.remainingTime)
             .overlay(alignment: .bottom) {
                 if showsBarProgress {
                     // Hung just under the digits rather than stacked below them,
@@ -436,13 +436,13 @@ struct TimerLiveActivity: View {
 
     private func progressBar(width: CGFloat) -> some View {
         Capsule()
-            .fill(Color.white.opacity(0.12))
+            .fill(.fillControl)
             .frame(width: width, height: 3)
             .overlay(alignment: .leading) {
                 Capsule()
                     .fill(glyphColor)
                     .frame(width: width * max(0, CGFloat(clampedProgress)))
-                    .animation(.smooth(duration: 0.25), value: clampedProgress)
+                    .animation(.notchStandard, value: clampedProgress)
             }
     }
 
@@ -453,7 +453,7 @@ struct TimerLiveActivity: View {
                 inlineControlButton(
                     icon: timerManager.isPaused ? "play.fill" : "pause.fill",
                     foreground: .white,
-                    background: Color.white.opacity(0.14),
+                    background: .fillControl,
                     help: timerManager.isPaused ? String(localized: "Resume") : String(localized: "Pause"),
                     action: togglePause
                 )
@@ -461,7 +461,7 @@ struct TimerLiveActivity: View {
                 inlineControlButton(
                     icon: "arrow.counterclockwise",
                     foreground: .white,
-                    background: Color.white.opacity(0.14),
+                    background: .fillControl,
                     help: String(localized: "Restart"),
                     action: timerManager.restartTimer
                 )
@@ -470,7 +470,7 @@ struct TimerLiveActivity: View {
             inlineControlButton(
                 icon: timerManager.isOvertime ? "stop.fill" : "xmark",
                 foreground: .white,
-                background: timerManager.isOvertime ? Color.red.opacity(0.24) : Color.white.opacity(0.14),
+                background: timerManager.isOvertime ? Color.statusDanger.opacity(0.24) : .fillControl,
                 help: timerManager.isOvertime ? String(localized: "Stop") : String(localized: "Cancel"),
                 action: stopTimer
             )

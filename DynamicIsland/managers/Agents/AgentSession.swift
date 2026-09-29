@@ -130,6 +130,11 @@ struct AgentSession: Identifiable, Equatable, Codable {
     /// surface, a Ghostty terminal id, a Terminal tty), once Atoll found it.
     var terminalPane: String? = nil
 
+    /// Stopped on something only the user can answer, in a session still running.
+    var isWaitingOnUser: Bool {
+        state.needsAttention && !isDisconnected
+    }
+
     /// Desktop apps have their own conversation UI; the notch follows terminals.
     /// A hook names the hosting app; a Codex thread without one says who started it.
     var isTerminalSession: Bool {

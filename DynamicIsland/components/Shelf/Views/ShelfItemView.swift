@@ -94,7 +94,7 @@ struct ShelfItemView: View {
                     // because this NSView sits on top of the cell and
                     // intercepts the mouse-tracking `.onHover` would need.
                     onHoverChange: { hovering in
-                        withAnimation(.smooth(duration: 0.15)) {
+                        withAnimation(.notchQuick) {
                             isHovering = hovering
                         }
                     },
@@ -160,7 +160,7 @@ struct ShelfItemView: View {
 
     private var textView: some View {
         Text(viewModel.displayName)
-            .font(.system(size: 12, weight: .medium))
+            .font(.notch(.footnote, weight: .medium))
             .foregroundStyle(Color.white)
             .lineLimit(2)
             .truncationMode(.middle)

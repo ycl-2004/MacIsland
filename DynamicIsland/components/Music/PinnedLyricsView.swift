@@ -31,7 +31,7 @@ struct PinnedLyricsModifier: ViewModifier {
     private var tint: Color {
         Defaults[.playerColorTinting]
             ? Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.6)
-            : .gray
+            : .inkSecondary
     }
 
     func body(content: Content) -> some View {
@@ -65,9 +65,9 @@ struct PinnedLyricsModifier: ViewModifier {
                         .lyricSweep(
                             progress: musicManager.currentLyricSweepProgress(at: timeline.date),
                             isCurrent: slot.isCurrent,
-                            sung: .white,
+                            sung: .inkPrimary,
                             unsung: tint.opacity(0.55),
-                            idle: .white.opacity(0.45)
+                            idle: .inkTertiary
                         )
                         .frame(height: PinnedLyricsView.rowHeight)
                 }

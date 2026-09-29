@@ -87,12 +87,9 @@ struct DynamicIslandHeader: View {
     @ViewBuilder
     private func headerButton(_ button: HeaderButton) -> some View {
         let base = Button(action: { perform(button) }) {
-            Capsule()
-                .fill(.black)
-                .frame(width: 30, height: 30)
-                .overlay {
-                    headerGlyph(button.glyph)
-                }
+            HeaderButtonFace {
+                headerGlyph(button.glyph)
+            }
         }
         .buttonStyle(PlainButtonStyle())
 
@@ -238,7 +235,7 @@ struct DynamicIslandHeader: View {
             .animation(.smooth.delay(0.1), value: vm.notchState)
             .zIndex(2)
         }
-        .foregroundColor(.gray)
+        .foregroundColor(.inkTertiary)
         .environmentObject(vm)
         .onChange(of: showColorPickerPopover) { _, isActive in
             popoverVisibilityChanged(isActive, flag: \.isColorPickerPopoverActive)
@@ -267,6 +264,22 @@ struct DynamicIslandHeader: View {
                 vm.isTimerPopoverActive = false
             }
         }
+    }
+}
+
+/// A header button's 30pt face, lit while the pointer is over it so the row
+/// answers before it is clicked.
+private struct HeaderButtonFace<Glyph: View>: View {
+    @ViewBuilder let glyph: Glyph
+    @State private var isHovering = false
+
+    var body: some View {
+        Capsule()
+            .fill(isHovering ? Color.fillControl : .black)
+            .frame(width: 30, height: 30)
+            .overlay { glyph }
+            .onHover { isHovering = $0 }
+            .animation(.notchQuick, value: isHovering)
     }
 }
 

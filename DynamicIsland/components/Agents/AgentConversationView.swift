@@ -38,7 +38,7 @@ struct AgentConversationView: View {
                     approvalView(approval)
                 }
                 if let error = service.errors[sessionID] ?? hostError {
-                    Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
+                    Text(error).font(.caption).foregroundStyle(.statusAttention).textSelection(.enabled)
                 } else if let notice = service.notices[sessionID] {
                     Text(notice).font(.caption).foregroundStyle(.secondary)
                 }
@@ -69,7 +69,7 @@ struct AgentConversationView: View {
             Image(systemName: session.source?.symbolName ?? "sparkles")
                 .font(.title2).foregroundStyle(session.source?.accentColor ?? .white)
                 .frame(width: 32, height: 32)
-                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+                .background(.fillCard, in: RoundedRectangle(cornerRadius: NotchRadius.control))
             VStack(alignment: .leading, spacing: 3) {
                 Text(session.displayTitle).font(.headline).lineLimit(1)
                 Text([session.source?.displayName, session.model, session.projectName].compactMap { $0 }.joined(separator: " · "))
@@ -89,7 +89,7 @@ struct AgentConversationView: View {
     private func connectionNote(_ session: AgentSession) -> some View {
         let route = service.route(for: session)
         return HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Circle().fill(route != nil ? Color.green : Color.secondary.opacity(0.6)).frame(width: 6, height: 6)
+            Circle().fill(route != nil ? Color.statusSuccess : Color.secondary.opacity(0.6)).frame(width: 6, height: 6)
             Text(connectionText(session, route: route)).font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -151,12 +151,12 @@ struct AgentConversationView: View {
                                 .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                                 .symbolEffect(.variableColor.iterative, isActive: true)
                             if !streamingText.isEmpty {
-                                Text(AgentMessageRow.markdown(streamingText)).font(.system(size: 13)).textSelection(.enabled)
+                                Text(AgentMessageRow.markdown(streamingText)).font(.notch(.body)).textSelection(.enabled)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                         .padding(10)
-                        .background(.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 10))
+                        .background(.fillCard, in: RoundedRectangle(cornerRadius: 10))
                     } else if session.state.isWorking, !session.isDisconnected {
                         Label(session.state.title, systemImage: session.state.symbolName)
                             .font(.caption).foregroundStyle(.secondary)
@@ -179,11 +179,11 @@ struct AgentConversationView: View {
         return VStack(alignment: .leading, spacing: 8) {
             if reachable {
                 TextField("Message this session…", text: draft, axis: .vertical)
-                    .textFieldStyle(.plain).lineLimit(2...4).font(.system(size: 13))
+                    .textFieldStyle(.plain).lineLimit(2...4).font(.notch(.body))
                     .focused($composerFocused)
                     .onSubmit { service.send(id: sessionID) }
                     .padding(10)
-                    .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                    .background(.fillCard, in: RoundedRectangle(cornerRadius: NotchRadius.control))
                     .accessibilityLabel("Message this session")
             }
             HStack {
@@ -202,7 +202,7 @@ struct AgentConversationView: View {
                 Spacer()
                 if reachable {
                     if draft.wrappedValue.count > AgentSession.messageCharacterLimit {
-                        Text("Message is too long").font(.caption).foregroundStyle(.orange)
+                        Text("Message is too long").font(.caption).foregroundStyle(.statusAttention)
                     }
                     if isSending { ProgressView().controlSize(.small) }
                     Button(isSending ? "Sending…" : "Send") { service.send(id: sessionID) }
@@ -229,7 +229,7 @@ struct AgentConversationView: View {
             }.controlSize(.small)
         }
         .padding(10)
-        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.statusAttention.opacity(0.12), in: RoundedRectangle(cornerRadius: NotchRadius.control))
     }
 
     private func openHost(_ session: AgentSession) {
@@ -263,10 +263,10 @@ private struct AgentMessageRow: View, Equatable {
             let kind = message.toolKind ?? .other
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: kind.symbolName).frame(width: 14)
-                (Text(kind.activityVerb + " ") + Text(message.text).font(.system(size: 11, design: .monospaced)))
+                (Text(kind.activityVerb + " ") + Text(message.text).font(.notch(.caption, design: .monospaced)))
                     .lineLimit(1).truncationMode(.middle)
             }
-            .font(.system(size: 11))
+            .font(.notch(.caption))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .help(message.text)
@@ -275,11 +275,11 @@ private struct AgentMessageRow: View, Equatable {
             VStack(alignment: .leading, spacing: 5) {
                 Text(isUser ? String(localized: "You") : agentName)
                     .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Text(Self.markdown(message.text)).font(.system(size: 13)).textSelection(.enabled)
+                Text(Self.markdown(message.text)).font(.notch(.body)).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(10)
-            .background(.white.opacity(isUser ? 0.045 : 0.075), in: RoundedRectangle(cornerRadius: 10))
+            .background(isUser ? Color.fillWell : .fillCard, in: RoundedRectangle(cornerRadius: 10))
         }
     }
 

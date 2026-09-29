@@ -140,6 +140,11 @@ struct SyncedLyricsStyle {
     var tint: Color = .white
     /// Shown when the track has no synced lyrics at all.
     var placeholder: String = "Show lyrics here"
+    /// The host's background, laid over the top and bottom edges so lines
+    /// scroll in and out instead of being cut off. Only for an opaque
+    /// background: there an overlay does it for free, where a mask would cost
+    /// an offscreen pass on every one of the list's 30fps redraws.
+    var edgeFade: Color? = nil
 }
 
 struct SyncedLyricsList: View {
@@ -165,8 +170,10 @@ struct SyncedLyricsList: View {
                         let current = musicManager.currentLyricIndex
                         let progress = musicManager.currentLyricSweepProgress(at: timeline.date)
 
+                        let currentPosition = lyrics.firstIndex { $0.index == current }
+
                         LazyVStack(alignment: .leading, spacing: style.lineSpacing) {
-                            ForEach(lyrics) { row in
+                            ForEach(Array(lyrics.enumerated()), id: \.element.id) { position, row in
                                 // Padding inside the width claim, not outside
                                 // it: the other order made each row the full
                                 // column wide *plus* its own insets, so long
@@ -174,6 +181,8 @@ struct SyncedLyricsList: View {
                                 lyricRow(row, isCurrent: row.index == current, progress: progress)
                                     .padding(.horizontal, style.horizontalPadding)
                                     .frame(maxWidth: .infinity, alignment: .leading)
+                                    .opacity(Self.depthOpacity(from: currentPosition, to: position))
+                                    .animation(.notchStandard, value: currentPosition)
                                     .id(row.index)
                             }
                         }
@@ -182,6 +191,18 @@ struct SyncedLyricsList: View {
                 }
             }
             .scrollIndicators(.never)
+            .overlay {
+                if let fade = style.edgeFade {
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [fade, fade.opacity(0)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: Self.edgeFadeHeight)
+                        Spacer(minLength: 0)
+                        LinearGradient(colors: [fade.opacity(0), fade], startPoint: .top, endPoint: .bottom)
+                            .frame(height: Self.edgeFadeHeight)
+                    }
+                    .allowsHitTesting(false)
+                }
+            }
             .onAppear {
                 lyrics = SyncedLyricsRows.rows(for: musicManager.syncedLyrics, duration: musicManager.songDuration)
                 // Nothing to animate away from: the list has only just appeared.
@@ -208,6 +229,20 @@ struct SyncedLyricsList: View {
                 // marked once it is known -- and it can arrive after the lyrics do.
                 lyrics = SyncedLyricsRows.rows(for: musicManager.syncedLyrics, duration: duration)
             }
+        }
+    }
+
+    private static let edgeFadeHeight: CGFloat = 18
+
+    /// Lines fade the further they sit from the one being sung, so the eye
+    /// lands on it first. Done with opacity rather than blur: the list redraws
+    /// continuously while a track plays, and blur would be recomputed with it.
+    static func depthOpacity(from current: Int?, to position: Int) -> Double {
+        guard let current else { return 1 }
+        switch abs(position - current) {
+        case 0, 1: return 1
+        case 2: return 0.7
+        default: return 0.45
         }
     }
 

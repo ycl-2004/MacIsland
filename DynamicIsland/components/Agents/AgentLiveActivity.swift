@@ -35,9 +35,9 @@ struct AgentLiveActivity: View {
                         HStack(spacing: 4) {
                             if store.activeSessionCount > 1 {
                                 Text("\(store.activeSessionCount)")
-                                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                    .font(.notch(.caption, weight: .semibold).monospacedDigit())
                                     // Not `.secondary`: the closed notch is not dark-schemed, so it renders near-black.
-                                    .foregroundStyle(.white.opacity(0.6))
+                                    .foregroundStyle(.inkSecondary)
                             }
                             statusIndicator(for: session.state)
                         }

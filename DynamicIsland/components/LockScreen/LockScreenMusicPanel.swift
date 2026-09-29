@@ -589,8 +589,11 @@ struct LockScreenMusicPanel: View {
     // MARK: - Progress Bar
     
     private var progressBar: some View {
+        // 30fps, the rate the notch's own progress bar runs at: smooth enough
+        // for a bar that moves a few points a second.
         TimelineView(
             .animation(
+                minimumInterval: 1.0 / 30.0,
                 paused: isProgressTimelinePaused
             )
         ) { timeline in
@@ -983,9 +986,10 @@ struct LockScreenMusicPanel: View {
             removal: .move(edge: .top).combined(with: .opacity)
         )
 
-        // Redraws each frame while playing so the highlight tracks the music
-        // rather than stepping a whole line at a time.
-        return TimelineView(.animation(paused: !musicManager.isPlaying)) { timeline in
+        // Redraws while playing so the highlight tracks the music rather than
+        // stepping a whole line at a time -- at 30fps, like the notch's sweep,
+        // rather than at the display's full refresh rate.
+        return TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !musicManager.isPlaying)) { timeline in
             let progress = musicManager.currentLyricSweepProgress(at: timeline.date)
 
             HStack(spacing: 8) {

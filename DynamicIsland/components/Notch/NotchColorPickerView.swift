@@ -80,12 +80,12 @@ struct NotchColorPickerView: View {
                         .foregroundColor(.primary)
                     
                     Text("Recent Colors")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.notch(.headline, weight: .semibold))
                         .foregroundColor(.primary)
                 }
                 
                 Text("\(colorPickerManager.colorHistory.count) colors")
-                    .font(.system(size: 12))
+                    .font(.notch(.footnote))
                     .foregroundColor(.secondary)
             }
             
@@ -99,12 +99,12 @@ struct NotchColorPickerView: View {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 12, weight: .medium))
                     Text("Pick Color")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.notch(.footnote, weight: .medium))
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.blue)
+                .background(Color.effectiveAccent)
                 .cornerRadius(8)
             }
             .buttonStyle(PlainButtonStyle())
@@ -125,11 +125,11 @@ struct NotchColorPickerView: View {
                 .foregroundColor(.secondary)
             
             Text("No Colors Yet")
-                .font(.system(size: 16, weight: .medium))
+                .font(.notch(.headline, weight: .medium))
                 .foregroundColor(.primary)
             
             Text("Click 'Pick Color' or use Cmd+Shift+P to start picking colors")
-                .font(.system(size: 12))
+                .font(.notch(.footnote))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
@@ -146,7 +146,7 @@ struct NotchColorPickerView: View {
                     isHovered: hoveredColorId == color.id
                 )
                 .onHover { isHovering in
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.notchQuick) {
                         if isHovering {
                             hoveredColorId = color.id
                             selectedColor = color
@@ -219,7 +219,7 @@ struct ColorCircleView: View {
                 )
                 .shadow(color: .black.opacity(0.3), radius: isHovered ? 4 : 2, x: 0, y: isHovered ? 2 : 1)
                 .scaleEffect(isHovered ? 1.1 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: isHovered)
+                .animation(.notchQuick, value: isHovered)
         }
         .frame(width: 32, height: 32)
     }
@@ -243,11 +243,11 @@ struct ColorInfoPopup: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Picked Color")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.notch(.footnote, weight: .semibold))
                         .foregroundColor(.primary)
                     
                     Text(timeAgoString(from: color.timestamp))
-                        .font(.system(size: 10))
+                        .font(.notch(.micro))
                         .foregroundColor(.secondary)
                 }
                 
@@ -279,7 +279,7 @@ struct ColorInfoPopup: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                .stroke(.strokeRegular, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.4), radius: 15, x: 0, y: 8)
     }
@@ -310,12 +310,12 @@ struct ColorFormatRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(format.name)
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .font(.notch(.micro, weight: .medium, design: .monospaced))
                 .foregroundColor(.secondary)
                 .frame(width: 40, alignment: .leading)
             
             Text(format.value)
-                .font(.system(size: 10, design: .monospaced))
+                .font(.notch(.micro, design: .monospaced))
                 .foregroundColor(.primary)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -328,7 +328,7 @@ struct ColorFormatRow: View {
                 }) {
                     Image(systemName: "doc.on.doc")
                         .font(.system(size: 10))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.effectiveAccent)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -337,10 +337,10 @@ struct ColorFormatRow: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isHovered ? Color.white.opacity(0.1) : Color.clear)
+                .fill(isHovered ? Color.fillCardHover : .clear)
         )
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.notchQuick) {
                 isHovered = hovering
             }
         }

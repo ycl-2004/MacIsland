@@ -21,6 +21,7 @@
  */
 
 import SwiftUI
+import Combine
 import Defaults
 import AppKit
 
@@ -48,6 +49,8 @@ struct TabSelectionView: View {
     @Default(.showStandardMediaControls) private var showStandardMediaControls
     @Default(.notchTabOrder) private var tabOrder
     @Namespace var animation
+    @State private var agentsNeedYou = false
+    @State private var shelfHasItems = false
     
     private var tabs: [TabModel] {
         var tabsArray: [TabModel] = []
@@ -75,21 +78,18 @@ struct TabSelectionView: View {
         return SavedRowOrder.apply(tabOrder, to: tabsArray, key: \.orderKey)
     }
     var body: some View {
-        ReorderableRow(items: tabs, spacing: 24, onReorder: { reordered in
+        ReorderableRow(items: tabs, spacing: 24 - 2 * TabButton.horizontalPadding, onReorder: { reordered in
             tabOrder = SavedRowOrder.merging(reordered.map(\.orderKey), into: tabOrder)
         }) { tab in
             let isSelected = isSelected(tab)
 
-            // Render the tab button
-            TabButton(label: tab.label, icon: tab.icon, selected: isSelected) {
+            TabButton(label: tab.label, icon: tab.icon, selected: isSelected, badge: badge(for: tab.view)) {
                 coordinator.currentView = tab.view
             }
-            .frame(height: 26)
-            .foregroundStyle(isSelected ? .white : .gray)
             .background {
                 if isSelected {
                     Capsule()
-                        .fill(Color(nsColor: .secondarySystemFill).opacity(0.25))
+                        .fill(.fillControl)
                         .matchedGeometryEffect(id: "capsule", in: animation)
                 } else {
                     Capsule()
@@ -102,6 +102,28 @@ struct TabSelectionView: View {
         .clipShape(Capsule())
         .onAppear {
             ensureValidSelection(with: tabs)
+        }
+        // Reduced to one Bool each before reaching state, so the row redraws
+        // when a dot comes or goes rather than on every session update.
+        .onReceive(
+            AgentSessionStore.shared.$sessions
+                .map { $0.contains { $0.isTerminalSession && $0.isWaitingOnUser } }
+                .removeDuplicates()
+        ) { agentsNeedYou = $0 }
+        .onReceive(
+            ShelfStateViewModel.shared.$items
+                .map { !$0.isEmpty }
+                .removeDuplicates()
+        ) { shelfHasItems = $0 }
+    }
+
+    /// Agents waiting on you get the attention colour; files resting on the
+    /// shelf only get a quiet dot, since they can sit there for days.
+    private func badge(for view: NotchViews) -> Color? {
+        switch view {
+        case .agents: return agentsNeedYou ? .statusAttention : nil
+        case .shelf: return shelfHasItems && coordinator.currentView != .shelf ? .inkTertiary : nil
+        default: return nil
         }
     }
 

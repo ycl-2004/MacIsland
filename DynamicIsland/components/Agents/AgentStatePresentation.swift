@@ -65,11 +65,13 @@ extension AgentState {
 
     var tint: Color {
         switch self {
-        case .needsAttention: return .orange
-        case .finished: return .green
-        case .failed: return .red
-        case .idle: return .secondary
-        case .thinking, .tool: return .white
+        case .needsAttention: return .statusAttention
+        case .finished: return .statusSuccess
+        case .failed: return .statusDanger
+        // Not `.secondary`: the closed notch is not dark-schemed, where that
+        // resolves near-black.
+        case .idle: return .inkTertiary
+        case .thinking, .tool: return .inkPrimary
         }
     }
 

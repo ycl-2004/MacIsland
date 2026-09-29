@@ -242,17 +242,18 @@ struct LyricsSidePanelView: View {
     private var artistLineColor: Color {
         Defaults[.playerColorTinting]
             ? Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.6)
-            : .gray
+            : .inkSecondary
     }
 
     /// The colour a line has yet to be sung in. Tinted rather than plain grey so
     /// the unsung remainder still reads as part of the current line.
     private var lyricsStyle: SyncedLyricsStyle {
         SyncedLyricsStyle(
-            sung: .white,
+            sung: .inkPrimary,
             unsung: artistLineColor.opacity(0.55),
-            idle: .white.opacity(0.5),
-            tint: artistLineColor
+            idle: .inkTertiary,
+            tint: artistLineColor,
+            edgeFade: .black
         )
     }
 
@@ -290,8 +291,8 @@ struct LyricsSidePanelView: View {
             }
         } label: {
             Image(systemName: pinLyricsWhenClosed ? "pin.fill" : "pin")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(pinLyricsWhenClosed ? artistLineColor : Color.white.opacity(0.5))
+                .font(.notch(.caption, weight: .semibold))
+                .foregroundStyle(pinLyricsWhenClosed ? artistLineColor : .inkTertiary)
                 .rotationEffect(.degrees(pinLyricsWhenClosed ? 0 : 45))
                 .frame(width: 20, height: 20)
                 .contentShape(Rectangle())
@@ -485,7 +486,7 @@ struct MusicControlsView: View {
                 font: .headline,
                 nsFont: .headline,
                 textColor: Defaults[.playerColorTinting] ? Color(nsColor: musicManager.avgColor)
-                    .ensureMinimumBrightness(factor: 0.6) : .gray,
+                    .ensureMinimumBrightness(factor: 0.6) : .inkSecondary,
                 frameWidth: width
             )
             .fontWeight(.medium)
@@ -505,7 +506,7 @@ struct MusicControlsView: View {
                     // during an intro there is no current line to blank out, so
                     // testing the text would miss it.
                     InstrumentalBreakNotes(fontSize: 10, weight: .regular)
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.inkSecondary)
                     .padding(.top, 2)
                     .transition(transition)
                 }
@@ -518,9 +519,9 @@ struct MusicControlsView: View {
 
                     MarqueeText(
                         lyricsBinding,
-                        font: .system(size: 12, weight: .regular),
+                        font: .notch(.footnote),
                         nsFont: .headline,
-                        textColor: .white.opacity(0.7),
+                        textColor: .inkSecondary,
                         minDuration: 0.35,
                         frameWidth: width
                     )
@@ -973,6 +974,30 @@ struct NotchHomeView: View {
             .combined(with: .move(edge: .top)))
         .blur(radius: vm.notchState == .closed ? 30 : 0)
         .padding(8) //Putting the main padding for home view here for consistency
+        .background { ambientTint }
+    }
+
+    /// A faint pool of the artwork's colour under the player, so the open
+    /// notch takes on a little of what is playing. It sits below the header,
+    /// so the black around the camera stays black, and it is a plain gradient
+    /// that only changes with the track or play state -- nothing redraws it
+    /// between songs. Grey artwork gets no wash: a tinted grey is only fog.
+    @ViewBuilder
+    private var ambientTint: some View {
+        if shouldShowMusicPlayer && Defaults[.lightingEffect] && vm.notchState == .open {
+            let artwork = musicManager.avgColor.usingColorSpace(.deviceRGB)
+            let saturation = Double(artwork?.saturationComponent ?? 0)
+            let strength = (musicManager.isPlaying ? 0.16 : 0.06) * min(1, saturation * 2)
+            RadialGradient(
+                colors: [Color(nsColor: musicManager.avgColor).opacity(strength), .clear],
+                center: .bottomLeading,
+                startRadius: 0,
+                endRadius: 320
+            )
+            .allowsHitTesting(false)
+            .animation(.notchRelaxed, value: strength)
+            .animation(.notchRelaxed, value: musicManager.avgColor)
+        }
     }
 
     private var sideLyricsContent: some View {
@@ -1096,7 +1121,7 @@ struct MusicSliderView: View {
             }
             .fontWeight(.medium)
             .foregroundColor(timeLabelColor)
-            .font(.system(size: 11, weight: .medium, design: .default).monospacedDigit())
+            .font(.notch(.caption, weight: .medium).monospacedDigit())
         }
     }
 
@@ -1174,7 +1199,7 @@ struct MusicSliderView: View {
                 let filledWidth = max(1, width) * progress
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(.gray.opacity(0.3))
+                        .fill(.fillControl)
                         .frame(height: trackHeight)
                         .cornerRadius(trackHeight / 2)
                         .transaction { $0.disablesAnimations = true }
@@ -1209,7 +1234,7 @@ struct MusicSliderView: View {
         }
         return Defaults[.playerColorTinting]
             ? Color(nsColor: color).ensureMinimumBrightness(factor: 0.6)
-            : .gray
+            : .inkTertiary
     }
 
     /// Whether the reported duration is one a track could actually have.
@@ -1247,7 +1272,7 @@ struct MusicSliderView: View {
     }
 
     private var inlineLabelFont: Font {
-        .system(size: 11, weight: .medium, design: .default).monospacedDigit()
+        .notch(.caption, weight: .medium).monospacedDigit()
     }
 
     private var sliderFrameHeight: CGFloat {
@@ -1290,6 +1315,12 @@ struct CustomSlider: View {
     var desaturatesWhenIdle: Bool = false
     
     @State private var isHovering: Bool = false
+    /// How far a drag has been pulled past either end, as a fraction of the
+    /// track. The track gives a little and springs back when let go.
+    @State private var overshoot: CGFloat = 0
+    /// Held apart from `overshoot` so the track keeps stretching from the end
+    /// it was pulled at while it springs back to rest.
+    @State private var stretchAnchor: UnitPoint = .leading
     @Default(.enableRealTimeWaveform) var enableRealTimeWaveform
     @Default(.enableWaveformScrubber) var enableWaveformScrubber
 
@@ -1329,7 +1360,7 @@ struct CustomSlider: View {
                     .transaction { $0.disablesAnimations = true }
                 } else {
                     Rectangle()
-                        .fill(.gray.opacity(0.3))
+                        .fill(.fillControl)
                         .frame(height: trackHeight)
                         .cornerRadius(trackHeight / 2)
                         .transaction { $0.disablesAnimations = true }
@@ -1353,6 +1384,7 @@ struct CustomSlider: View {
                 height: max(restingTrackHeight, draggingTrackHeight),
                 alignment: showScrubber ? .bottom : .center
             )
+            .scaleEffect(x: 1 + Self.stretch(for: overshoot), y: 1, anchor: stretchAnchor)
             .contentShape(Rectangle())
             .highPriorityGesture(
                 DragGesture(minimumDistance: 0)
@@ -1360,28 +1392,38 @@ struct CustomSlider: View {
                         withAnimation {
                             dragging = true
                         }
-                        let newValue = range.lowerBound + Double(gesture.location.x / width) * rangeSpan
+                        let fraction = gesture.location.x / max(1, width)
+                        let newValue = range.lowerBound + Double(fraction) * rangeSpan
                         value = min(max(newValue, range.lowerBound), range.upperBound)
+                        overshoot = fraction < 0 ? -fraction : max(0, fraction - 1)
+                        if overshoot > 0 { stretchAnchor = fraction < 0 ? .trailing : .leading }
                     }
                     .onEnded { _ in
                         onValueChange?(value)
                         dragging = false
                         lastDragged = Date()
+                        withAnimation(.bouncy) { overshoot = 0 }
                     }
             )
             .saturation(trackSaturation)
             // Kept well above the volume bar's resting brightness: a seek bar
             // that fades as far as that one reads as disabled rather than idle.
             .opacity(trackOpacity)
-            .animation(.easeOut(duration: 0.2), value: trackSaturation)
-            .animation(.easeOut(duration: 0.2), value: trackOpacity)
+            .animation(.notchQuick, value: trackSaturation)
+            .animation(.notchQuick, value: trackOpacity)
             .animation(.bouncy.speed(1.4), value: dragging)
             .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.notchQuick) {
                     isHovering = hovering
                 }
             }
         }
+    }
+
+    /// Rubber-band give for a pull past the end: eases toward a 4% stretch
+    /// however far the pointer goes.
+    private static func stretch(for overshoot: CGFloat) -> CGFloat {
+        0.04 * (1 - exp(-overshoot * 4))
     }
 }
 

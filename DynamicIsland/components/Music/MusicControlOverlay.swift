@@ -115,7 +115,7 @@ struct MusicControlOverlay: View {
                 icon: backwardConfig.icon,
                 frameSize: CGSize(width: buttonSide, height: buttonSide),
                 cornerRadius: buttonCornerRadius,
-                foregroundColor: .white.opacity(controlsEnabled ? 0.9 : 0.35),
+                foregroundColor: controlsEnabled ? .inkPrimary : .inkQuaternary,
                 pressEffect: backwardConfig.pressEffect,
                 symbolEffectStyle: backwardConfig.symbolEffect,
                 externalTriggerToken: backwardGestureTrigger?.token,
@@ -141,7 +141,7 @@ struct MusicControlOverlay: View {
                 icon: forwardConfig.icon,
                 frameSize: CGSize(width: buttonSide, height: buttonSide),
                 cornerRadius: buttonCornerRadius,
-                foregroundColor: .white.opacity(controlsEnabled ? 0.9 : 0.35),
+                foregroundColor: controlsEnabled ? .inkPrimary : .inkQuaternary,
                 pressEffect: forwardConfig.pressEffect,
                 symbolEffectStyle: forwardConfig.symbolEffect,
                 externalTriggerToken: forwardGestureTrigger?.token,
@@ -159,9 +159,9 @@ struct MusicControlOverlay: View {
             .fill(Color.black)
         }
         .compositingGroup()
-        .animation(.smooth(duration: 0.2), value: musicManager.isPlaying)
-        .animation(.smooth(duration: 0.2), value: musicSkipBehavior)
-        .animation(.smooth(duration: 0.2), value: controlsEnabled)
+        .animation(.notchQuick, value: musicManager.isPlaying)
+        .animation(.notchQuick, value: musicSkipBehavior)
+        .animation(.notchQuick, value: controlsEnabled)
     }
 
     private struct ButtonConfig {
@@ -200,7 +200,7 @@ private struct FloatingMediaButton: View {
                 .frame(width: frameSize.width, height: frameSize.height)
                 .background(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(isHovering && isEnabled ? Color.white.opacity(0.18) : .clear)
+                        .fill(isHovering && isEnabled ? Color.fillControlHover : .clear)
                 )
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
@@ -209,7 +209,7 @@ private struct FloatingMediaButton: View {
         .rotationEffect(.degrees(rotationAngle))
         .disabled(!isEnabled)
         .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.18)) {
+            withAnimation(.notchQuick) {
                 isHovering = hovering
             }
         }

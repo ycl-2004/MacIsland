@@ -67,31 +67,21 @@ struct FileShareView: View {
     private var dropArea: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(
-                    vm.dropZoneTargeting
-                        ? Color.accentColor.opacity(0.18)
-                        : Color.white.opacity(0.04)
-                )
+                .fill(vm.dropZoneTargeting ? Color.accentColor.opacity(0.18) : .fillWell)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .strokeBorder(
-                            vm.dropZoneTargeting
-                                ? Color.accentColor
-                                : Color.white.opacity(0.12),
+                            vm.dropZoneTargeting ? Color.accentColor : .strokeRegular,
                             lineWidth: vm.dropZoneTargeting ? 1.5 : 1
                         )
                 )
-                .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
 
             // Content
             VStack(spacing: 5) {
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(
-                            vm.dropZoneTargeting ? 0.11 : 0.09
-                        ))
+                        .fill(vm.dropZoneTargeting ? Color.fillCardHover : .fillCard)
                         .frame(width: 55, height: 55)
-                    Image(systemName: "square.and.arrow.up")
                     Group {
                         if let imgData = selectedProvider.imageData, let nsImg = NSImage(data: imgData) {
                             Image(nsImage: nsImg)
@@ -107,7 +97,7 @@ struct FileShareView: View {
                         }
                     }
                         .foregroundStyle(
-                            vm.dropZoneTargeting ? Color.accentColor : Color.gray
+                            vm.dropZoneTargeting ? Color.accentColor : .inkTertiary
                         )
                         .scaleEffect(
                             vm.dropZoneTargeting ? 1.06 : 1.0
@@ -117,7 +107,7 @@ struct FileShareView: View {
 
                 Text(selectedProvider.id)
                     .font(.system(.headline, design: .rounded))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(.inkSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -142,7 +132,7 @@ struct FileShareView: View {
                             .frame(width: 14, height: 14)
                             .padding(8)
                             .background(RoundedRectangle(cornerRadius: 8).fill(isSwitchHover ? Color(.windowBackgroundColor).opacity(0.12) : Color.clear))
-                            .foregroundColor(isSwitchHover ? .accentColor : .gray)
+                            .foregroundColor(isSwitchHover ? .accentColor : .inkTertiary)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .onHover { hovering in

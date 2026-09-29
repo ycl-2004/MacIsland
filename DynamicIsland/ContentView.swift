@@ -122,9 +122,7 @@ struct ContentView: View {
         // so the outer maxWidth frame doesn't clip the expanded content
         let airPodsListeningModeSneakActive = vm.notchState == .closed
             && coordinator.sneakPeek.show
-            && coordinator.sneakPeek.type == .bluetoothAudio
-            && coordinator.sneakPeek.value < 0
-            && AirPodsListeningMode.fromHUDSymbol(coordinator.sneakPeek.icon) != nil
+            && isAirPodsListeningModeSneak
         let inlineSneakPeekActive = vm.notchState == .closed
             && (
                 coordinator.expandingView.show
@@ -408,6 +406,46 @@ struct ContentView: View {
         )
     }
 
+    /// An AirPods listening-mode change, which always draws inline whatever
+    /// the HUD style, rather than a battery report.
+    private var isAirPodsListeningModeSneak: Bool {
+        coordinator.sneakPeek.type == .bluetoothAudio
+            && coordinator.sneakPeek.value < 0
+            && AirPodsListeningMode.fromHUDSymbol(coordinator.sneakPeek.icon) != nil
+    }
+
+    /// Whether this screen's sneak peek is drawn as an `InlineHUD`.
+    private var isInlineSneakPeekVisible: Bool {
+        let type = coordinator.sneakPeek.type
+        let hasOwnSurface = type == .music || type == .battery || type == .timer || type == .reminder
+        let isOutputLevel = type == .volume || type == .brightness || type == .backlight
+        return isSneakPeekVisibleOnCurrentScreen
+            && (Defaults[.inlineHUD] || isAirPodsListeningModeSneak)
+            && !hasOwnSurface
+            && (!isOutputLevel || vm.notchState == .closed)
+    }
+
+    private var isCapsLockInlineHUDVisible: Bool {
+        vm.notchState == .closed
+            && capsLockManager.isCapsLockActive
+            && Defaults[.enableCapsLockIndicator]
+            && !vm.hideOnClosed
+            && !lockScreenManager.isLocked
+    }
+
+    /// Closed content laid out as two wings either side of a lane that has to
+    /// sit on the camera housing: the connectivity HUD and every `InlineHUD`.
+    ///
+    /// Menu-bar clearance cannot help these. It slides the content inside a
+    /// notch whose black and clip stay put, so the lane leaves the housing,
+    /// the left wing goes behind the camera and the right one past the clip.
+    /// Chrome's menus, which run to within 40pt of the notch, did that to the
+    /// volume HUD: only its icon was left showing. Covering the menus while one
+    /// of these is up is the lesser failure.
+    private var isHousingCentredContentVisible: Bool {
+        isConnectivityHUDVisible || isInlineSneakPeekVisible || isCapsLockInlineHUDVisible
+    }
+
     /// Whether the fallback top-edge hover detector should run.
     /// This is only needed when the notch is fully hidden off-screen and
     /// regular `.onHover` hit-testing may not trigger reliably.
@@ -626,7 +664,30 @@ struct ContentView: View {
             .padding(.horizontal, notchHorizontalInset)
             .padding([.horizontal, .bottom], notchOpenPadding)
             .background(.black)
+            .overlay { openNotchRim }
             .clipShape(resolvedClipShape)
+    }
+
+    /// A half-point edge of light around the open notch, so its outline holds
+    /// against dark windows behind it. The clip below keeps only the inner half
+    /// of the 1pt stroke. It fades out toward the top, where the notch meets
+    /// the screen edge and has to disappear into the hardware, and it is not
+    /// drawn closed at all: there the notch must pass for the camera housing.
+    private var openNotchRim: some View {
+        resolvedClipShape
+            .stroke(
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.35),
+                        .init(color: .strokeRegular, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                lineWidth: 1
+            )
+            .opacity(vm.notchState == .open ? 1 : 0)
+            .allowsHitTesting(false)
     }
 
     private var mainNotchWithBleed: some View {
@@ -1020,6 +1081,7 @@ struct ContentView: View {
     private var menuBarClearanceOffset: CGFloat {
         guard vm.notchState == .closed,
               !vm.hideOnClosed,
+              !isHousingCentredContentVisible,
               closedContentWidth > 0,
               let menusRightEdge = menuBarLayout.appMenusRightEdge,
               let screenFrame = getScreenFrame(currentScreenName)
@@ -1079,9 +1141,6 @@ struct ContentView: View {
                       let canShowMusicDuringExpansion = !isCurrentScreenExpansionVisible
                           || currentScreenExpansionType == .music
                           || expansionMatchesSecondary
-                      let isAirPodsListeningModeSneak = coordinator.sneakPeek.type == .bluetoothAudio
-                          && coordinator.sneakPeek.value < 0
-                          && AirPodsListeningMode.fromHUDSymbol(coordinator.sneakPeek.icon) != nil
 
                       if currentScreenExpansionType == .battery
                             && isBatteryHUDVisibleOnCurrentScreen
@@ -1099,10 +1158,10 @@ struct ContentView: View {
                             styleOverride: batteryModel.activeTemporaryHUDKind.map { resolvedBatteryNotificationStyle(for: $0) }
                         )
                         .id(batteryModel.activeTemporaryHUDToken)
-                      } else if isSneakPeekVisibleOnCurrentScreen && (Defaults[.inlineHUD] || isAirPodsListeningModeSneak) && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .timer) && (coordinator.sneakPeek.type != .reminder) && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
+                      } else if isInlineSneakPeekVisible {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
-                      } else if vm.notchState == .closed && capsLockManager.isCapsLockActive && Defaults[.enableCapsLockIndicator] && !vm.hideOnClosed && !lockScreenManager.isLocked {
+                      } else if isCapsLockInlineHUDVisible {
                           InlineHUD(type: .constant(.capsLock), value: .constant(1.0), icon: .constant(""), hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(AnyTransition.move(edge: .trailing).combined(with: .opacity))
                       } else if agentActivityVisibleOnClosedNotch(urgentOnly: true) {
@@ -1153,10 +1212,10 @@ struct ContentView: View {
                                   HStack(alignment: .center) {
                                       Image(systemName: "music.note")
                                       GeometryReader { geo in
-                                          MarqueeText(.constant(musicManager.songTitle + " - " + musicManager.artistName), textColor: .gray, minDuration: 1, frameWidth: geo.size.width)
+                                          MarqueeText(.constant(musicManager.songTitle + " - " + musicManager.artistName), textColor: .inkTertiary, minDuration: 1, frameWidth: geo.size.width)
                                       }
                                   }
-                                  .foregroundStyle(.gray)
+                                  .foregroundStyle(.inkTertiary)
                                   .padding(.bottom, 10)
                               }
                           }
@@ -1208,11 +1267,7 @@ struct ContentView: View {
               }
               .pinnedLyrics(isVisible: pinnedLyricsVisible,
                   isContentHidden: isSneakPeekVisibleOnCurrentScreen || isConnectivityHUDVisible)
-              // A connectivity HUD must remain centred on the physical notch:
-              // its middle transparent lane is what keeps both wings visible.
-              // Menu-bar clearance would shift that lane underneath the camera
-              // housing and clip one of the two content areas.
-              .offset(x: isConnectivityHUDVisible ? 0 : menuBarClearanceOffset)
+              .offset(x: menuBarClearanceOffset)
               .animation(.smooth(duration: 0.25), value: menuBarClearanceOffset)
               .zIndex(2)
               
@@ -1248,7 +1303,7 @@ struct ContentView: View {
 
     private func reminderColor(for reminder: ReminderLiveActivityManager.ReminderEntry, now: Date) -> Color {
         if isReminderCritical(reminder, now: now) {
-            return .red
+            return .statusDanger
         }
         return Color(nsColor: reminder.event.calendar.color).ensureMinimumBrightness(factor: 0.7)
     }
@@ -2618,7 +2673,7 @@ private struct MusicTimerSupplementView: View {
         VStack(alignment: .trailing, spacing: showsBarProgress ? 4 : 0) {
             Text(countdownText)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundColor(timerManager.isOvertime ? .red : .white)
+                .foregroundColor(timerManager.isOvertime ? .statusDanger : .inkPrimary)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
                 .contentTransition(.numericText())
@@ -2636,7 +2691,7 @@ private struct MusicTimerSupplementView: View {
     private var ringView: some View {
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.18), lineWidth: 3)
+                .stroke(.fillControl, lineWidth: 3)
             Circle()
                 .trim(from: 0, to: clampedProgress)
                 .stroke(accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
@@ -2654,7 +2709,7 @@ private struct MusicTimerSupplementView: View {
 
     private var timerNameView: some View {
         Text(timerManager.timerName)
-            .font(.system(size: 12, weight: .medium))
+            .font(.notch(.footnote, weight: .medium))
             .foregroundColor(.white)
             .lineLimit(1)
             .frame(width: timerNameFrameWidth, alignment: .trailing)
@@ -2662,7 +2717,7 @@ private struct MusicTimerSupplementView: View {
 
     private func barView(width: CGFloat) -> some View {
         Capsule()
-            .fill(Color.white.opacity(0.15))
+            .fill(.fillControl)
             .frame(width: width, height: 4)
             .overlay(alignment: .leading) {
                 Capsule()
@@ -2698,7 +2753,7 @@ private struct MusicReminderSupplementView: View {
     private var ringCountdownView: some View {
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.15), lineWidth: 3)
+                .stroke(.fillControl, lineWidth: 3)
             Circle()
                 .trim(from: 0, to: progressValue)
                 .stroke(accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
@@ -2721,7 +2776,7 @@ private struct MusicReminderSupplementView: View {
 
     private var minutesCountdownView: some View {
         Text(minutesCountdownText)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.notch(.body, weight: .semibold))
             .foregroundColor(accent)
             .frame(width: minutesFrameWidth, alignment: .trailing)
             .frame(height: notchHeight, alignment: .center)
@@ -2760,7 +2815,7 @@ private struct MusicCapsLockLabelView: View {
 
     var body: some View {
         Text("Caps Lock")
-            .font(.system(size: 13, weight: .semibold))
+            .font(.notch(.body, weight: .semibold))
             .foregroundColor(color)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .trailing)

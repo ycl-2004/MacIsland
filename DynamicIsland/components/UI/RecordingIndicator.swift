@@ -18,60 +18,20 @@
 
 import SwiftUI
 
+/// The header's recording light: the same render-server `PulsingDot` the
+/// closed-notch recording indicators use, rather than a SwiftUI repeating
+/// animation with a blurred glow that redrew every frame while it showed.
 struct RecordingIndicator: View {
     @ObservedObject var recordingManager = ScreenRecordingManager.shared
-    @State private var isPulsing = false
-    
-    // MARK: - Configuration
-    private let indicatorSize: CGFloat = 6
-    private let glowSize: CGFloat = 2
-    private let animationDuration: Double = 0.8
-    
+
     var body: some View {
         Group {
             if recordingManager.isRecording {
-                ZStack {
-                    // Glow effect
-                    Circle()
-                        .fill(Color.red.opacity(0.3))
-                        .frame(width: indicatorSize + glowSize * 2, height: indicatorSize + glowSize * 2)
-                        .blur(radius: glowSize)
-                        .scaleEffect(isPulsing ? 1.2 : 1.0)
-                    
-                    // Main indicator dot
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: indicatorSize, height: indicatorSize)
-                        .opacity(isPulsing ? 1.0 : 0.6)
-                }
-                .onAppear {
-                    startPulsingAnimation()
-                }
-                .onDisappear {
-                    stopPulsingAnimation()
-                }
-                .transition(.asymmetric(
-                    insertion: .scale.combined(with: .opacity),
-                    removal: .scale.combined(with: .opacity)
-                ))
+                PulsingDot(color: .systemRed, diameter: 6)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: recordingManager.isRecording)
-    }
-    
-    // MARK: - Private Methods
-    
-    private func startPulsingAnimation() {
-        isPulsing = false
-        withAnimation(.easeInOut(duration: animationDuration).repeatForever(autoreverses: true)) {
-            isPulsing = true
-        }
-    }
-    
-    private func stopPulsingAnimation() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isPulsing = false
-        }
+        .animation(.notchStandard, value: recordingManager.isRecording)
     }
 }
 
@@ -106,78 +66,5 @@ struct RecordingIndicator_Previews: PreviewProvider {
             .background(Color.black)
             .previewDisplayName("Not Recording")
         }
-    }
-}
-
-// MARK: - Alternative Indicator Styles
-
-struct RecordingIndicatorLarge: View {
-    @ObservedObject var recordingManager = ScreenRecordingManager.shared
-    @State private var isPulsing = false
-    
-    private let indicatorSize: CGFloat = 10
-    private let glowSize: CGFloat = 3
-    
-    var body: some View {
-        Group {
-            if recordingManager.isRecording {
-                ZStack {
-                    // Outer glow
-                    Circle()
-                        .fill(Color.red.opacity(0.2))
-                        .frame(width: indicatorSize + glowSize * 4, height: indicatorSize + glowSize * 4)
-                        .blur(radius: glowSize)
-                        .scaleEffect(isPulsing ? 1.3 : 1.0)
-                    
-                    // Inner glow
-                    Circle()
-                        .fill(Color.red.opacity(0.4))
-                        .frame(width: indicatorSize + glowSize * 2, height: indicatorSize + glowSize * 2)
-                        .blur(radius: glowSize / 2)
-                        .scaleEffect(isPulsing ? 1.1 : 1.0)
-                    
-                    // Main indicator
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: indicatorSize, height: indicatorSize)
-                        .opacity(isPulsing ? 1.0 : 0.7)
-                }
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                        isPulsing = true
-                    }
-                }
-                .transition(.asymmetric(
-                    insertion: .scale.combined(with: .opacity),
-                    removal: .scale.combined(with: .opacity)
-                ))
-            }
-        }
-        .animation(.easeInOut(duration: 0.3), value: recordingManager.isRecording)
-    }
-}
-
-// MARK: - Subtle Indicator for Closed State
-
-struct RecordingIndicatorSubtle: View {
-    @ObservedObject var recordingManager = ScreenRecordingManager.shared
-    @State private var opacity: Double = 0.5
-    
-    var body: some View {
-        Group {
-            if recordingManager.isRecording {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 4, height: 4)
-                    .opacity(opacity)
-                    .onAppear {
-                        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                            opacity = 1.0
-                        }
-                    }
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: recordingManager.isRecording)
     }
 }

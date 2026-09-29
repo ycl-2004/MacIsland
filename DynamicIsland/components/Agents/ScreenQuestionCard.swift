@@ -24,7 +24,7 @@ struct ScreenQuestionCard: View {
                     Text("Asking \(backendName(manager.askedBackendID))…")
                         .foregroundStyle(.secondary)
                 }
-                .font(.system(size: 12))
+                .font(.notch(.footnote))
                 Spacer(minLength: 0)
                 HStack {
                     Spacer()
@@ -34,7 +34,7 @@ struct ScreenQuestionCard: View {
                 header(title: manager.askedQuestion)
                 ScrollView {
                     Text(Self.renderMarkdown(answer))
-                        .font(.system(size: 12))
+                        .font(.notch(.footnote))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -51,8 +51,8 @@ struct ScreenQuestionCard: View {
                 header(title: manager.askedQuestion.isEmpty ? String(localized: "Screen question") : manager.askedQuestion)
                 ScrollView {
                     Text(message)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.red.opacity(0.9))
+                        .font(.notch(.caption))
+                        .foregroundStyle(.statusDanger)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -69,7 +69,7 @@ struct ScreenQuestionCard: View {
         .padding(10)
         .frame(width: 300, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .topLeading)
-        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .background(.fillCard, in: RoundedRectangle(cornerRadius: NotchRadius.card))
         .onChange(of: manager.phase, initial: true) { _, phase in
             didCopy = false
             // Typing moves the pointer off the notch; keep it open until the question is sent.
@@ -91,7 +91,7 @@ struct ScreenQuestionCard: View {
                 }
                 TextField("Ask about this screenshot…", text: $manager.question, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+                    .font(.notch(.body))
                     .lineLimit(1...3)
                     .focused($isQuestionFocused)
                     .onSubmit { manager.ask() }
@@ -120,11 +120,11 @@ struct ScreenQuestionCard: View {
         HStack(spacing: 6) {
             if let source = manager.askedBackendID.flatMap(AgentSourceRegistry.source(id:)) {
                 Image(systemName: source.symbolName)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.notch(.caption, weight: .bold))
                     .foregroundStyle(source.accentColor)
             }
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.notch(.footnote, weight: .semibold))
                 .lineLimit(1)
         }
     }

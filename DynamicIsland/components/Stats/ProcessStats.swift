@@ -67,14 +67,4 @@ enum ProcessRankingType {
         case .disk: return "internaldrive"
         }
     }
-    
-    var color: Color {
-        switch self {
-        case .cpu: return .blue
-        case .memory: return .green
-        case .gpu: return .purple
-        case .network: return .orange
-        case .disk: return .cyan
-        }
-    }
 }

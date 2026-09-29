@@ -276,7 +276,7 @@ struct RulerTimerPicker: View {
                 startAction()
             }) {
                 Text(String(localized: "Start Timer"))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.notch(.callout, weight: .semibold, design: .rounded))
                     .foregroundStyle(tintColor)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
