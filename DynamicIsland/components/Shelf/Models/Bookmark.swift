@@ -123,20 +123,4 @@ struct Bookmark: Sendable, Equatable, Codable {
             FileManager.default.fileExists(atPath: url.path)
         }
     }
-
-    func withAccess<T: Sendable>(_ block: @Sendable (URL) async throws -> T) async rethrows -> T? {
-        let url = resolveURL()
-        guard let url = url else { return nil }
-        return try await url.accessSecurityScopedResource { url in
-            try await block(url)
-        }
-    }
-
-    func withAccess<T>(_ block: (URL) throws -> T) rethrows -> T? {
-        let url = resolveURL()
-        guard let url = url else { return nil }
-        return try url.accessSecurityScopedResource { url in
-            try block(url)
-        }
-    }
 }

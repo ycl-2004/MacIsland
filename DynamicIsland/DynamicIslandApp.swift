@@ -150,29 +150,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         installTopMenuItemsIfNeeded()
     }
 
-    func application(_ application: NSApplication, open urls: [URL]) {
-        _ = handleIncomingShelfURLs(urls)
-    }
-
-    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        handleIncomingShelfURLs([URL(fileURLWithPath: filename)])
-    }
-
-    private func handleIncomingShelfURLs(_ urls: [URL]) -> Bool {
-        let fileURLs = urls.filter(\.isFileURL)
-        guard !fileURLs.isEmpty else { return false }
-
-        Task { @MainActor [weak self] in
-            let items = await ShelfDropService.items(from: fileURLs)
-            guard !items.isEmpty else { return }
-
-            ShelfStateViewModel.shared.add(items)
-            self?.coordinator.currentView = .shelf
-        }
-
-        return true
-    }
-    
     /// Setup observers for music player state changes to restart AudioTap capture
     private func setupAudioTapMusicObservers() {
         // Registration is additive and this runs again every time the waveform setting is
@@ -738,11 +715,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             networkConnectivityManager.startMonitoring()
         }
 
-        // Setup Dropover-style Floating Shelf Manager if enabled by user preference
-        if Defaults[.enableShakeToSummon] {
-            FloatingShelfManager.shared.startMonitoring()
-        }
-
         // Setup Real-time Audio Waveform capture if enabled
         if Defaults[.enableRealTimeWaveform] {
             Task {
@@ -837,16 +809,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Defaults.publisher(.enableColorPickerFeature, options: []).sink { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateFeatureShortcutAvailability()
-            }
-        }.store(in: &cancellables)
-
-        Defaults.publisher(.enableShakeToSummon, options: []).sink { change in
-            Task { @MainActor in
-                if change.newValue {
-                    FloatingShelfManager.shared.startMonitoring()
-                } else {
-                    FloatingShelfManager.shared.stopMonitoring()
-                }
             }
         }.store(in: &cancellables)
 
@@ -1142,10 +1104,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         exportLogsItem.target = self
         toolsSubmenu.addItem(exportLogsItem)
 
-        let floatingShelfItem = NSMenuItem(title: "Toggle Floating Shelf (Dropover)", action: #selector(toggleFloatingShelf), keyEquivalent: "")
-        floatingShelfItem.target = self
-        toolsSubmenu.addItem(floatingShelfItem)
-
         toolsMenuItem.submenu = toolsSubmenu
         mainMenu.insertItem(toolsMenuItem, at: insertionIndex + 3)
 
@@ -1291,11 +1249,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
-    }
-
-    /// Toggles the on-screen visibility of the Dropover-style floating shelf window.
-    @objc private func toggleFloatingShelf() {
-        FloatingShelfManager.shared.toggle()
     }
 
     /// The notch on the screen under the pointer. With `showOnAllDisplays` each

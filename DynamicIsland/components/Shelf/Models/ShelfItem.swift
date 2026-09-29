@@ -145,80 +145,6 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
         return NSWorkspace.shared.icon(forFileType: "public.item")
     }
     
-    // Async methods to load display name and icon without blocking
-    func loadDisplayName() async -> String {
-        // If we have a cached name, return it
-        if let cached = cachedDisplayName, !cached.isEmpty {
-            return cached
-        }
-        // Otherwise try to resolve asynchronously
-        guard case .file(let bookmarkData) = kind else { return displayName }
-        let bookmark = Bookmark(data: bookmarkData)
-        let (url, _) = await bookmark.resolveAsync()
-        guard let resolvedURL = url else { return "" }
-        
-        // Perform file I/O off the main actor
-        return await Task.detached { [resolvedURL] in
-            if resolvedURL.pathExtension.lowercased() == "json" && resolvedURL.path.contains("TextBlocks") {
-                do {
-                    let data = try Data(contentsOf: resolvedURL)
-                    let decoder = JSONDecoder()
-                    decoder.dateDecodingStrategy = .iso8601
-                    struct TextBlockData: Codable {
-                        let content: String
-                        let title: String?
-                        var displayTitle: String {
-                            if let title = title, !title.isEmpty {
-                                return title
-                            }
-                            let firstLine = content.components(separatedBy: .newlines).first ?? content
-                            if firstLine.count > 50 {
-                                return String(firstLine.prefix(47)) + "..."
-                            }
-                            return firstLine
-                        }
-                    }
-                    if let textData = try? decoder.decode(TextBlockData.self, from: data) {
-                        return textData.displayTitle
-                    }
-                } catch {
-                    // Fall through
-                }
-            } else if resolvedURL.pathExtension.lowercased() == "webloc" && resolvedURL.path.contains("WebLocs") {
-                do {
-                    let data = try Data(contentsOf: resolvedURL)
-                    if let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-                       let urlString = plist["URL"] as? String {
-                        let title = plist["Title"] as? String
-                        return title ?? urlString
-                    }
-                } catch {
-                    // Fall through
-                }
-            }
-            return (try? resolvedURL.resourceValues(forKeys: [.localizedNameKey]).localizedName) ?? resolvedURL.lastPathComponent
-        }.value
-    }
-    
-    func loadIcon() async -> NSImage {
-        if let cachedData = cachedIconData, let cachedImage = NSImage(data: cachedData) {
-            return cachedImage
-        }
-        guard case .file(let bookmarkData) = kind else {
-            return Self.thumbnailSymbolImage(systemName: kind.iconSymbolName) ?? NSImage()
-        }
-        let bookmark = Bookmark(data: bookmarkData)
-        let (url, _) = await bookmark.resolveAsync()
-        guard let resolvedURL = url else {
-            return NSWorkspace.shared.icon(forFileType: "public.item")
-        }
-        
-        // Perform icon loading off the main actor
-        return await Task.detached { [resolvedURL] in
-            return NSWorkspace.shared.icon(forFile: resolvedURL.path)
-        }.value
-    }
-
     func cleanupStoredData() {
         // Only resolve bookmark for temporary items - persisted items don't need cleanup
         guard isTemporary, case .file = kind, let url = resolvedFileURL else { return }
@@ -269,8 +195,8 @@ extension ShelfItem {
     ///
     /// Deliberately does *not* stat the path: this is called once per menu entry
     /// while building the context menu, and a `fileExists` check per call would
-    /// stall the main actor on an unreachable network mount. Deleted files are
-    /// pruned asynchronously by `ShelfStateViewModel.cleanupInvalidItems()`.
+    /// stall the main actor on an unreachable network mount. Unavailable files
+    /// stay on the shelf so a disconnected volume does not erase saved items.
     var resolvedFileURL: URL? {
         guard case .file(let bookmarkData) = kind else { return nil }
         if let path = cachedPath, !path.isEmpty {

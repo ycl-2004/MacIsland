@@ -25,89 +25,145 @@ import AppKit
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
 
+/// A small, explicitly bounded LRU with at most two Quick Look requests running.
+/// Each visible card is a cancellable consumer; queued work with no consumers dies.
 actor ThumbnailService {
     static let shared = ThumbnailService()
+    static let maximumEntries = 48
+    static let maximumBytes = 8 * 1024 * 1024
+    static let maximumConcurrent = 2
 
-    private var cache: [String: NSImage] = [:]
-    private var pendingRequests: [String: Task<NSImage?, Never>] = [:]
-    private let thumbnailGenerator = QLThumbnailGenerator.shared
+    private struct Cached {
+        let image: NSImage
+        let bytes: Int
+    }
+    private struct Pending {
+        let id = UUID()
+        let request: QLThumbnailGenerator.Request
+        let url: URL
+        var consumers: [UUID: CheckedContinuation<NSImage?, Never>]
+        var lease: ShelfFileLease?
+        var timeout: Task<Void, Never>?
+    }
+    private var cache: [String: Cached] = [:]
+    private var lru: [String] = []
+    private var bytes = 0
+    private var pending: [String: Pending] = [:]
+    private var waiting: [String] = []
+    private var running: Set<String> = []
+    private let generator = QLThumbnailGenerator.shared
+    private let lifetime: ShelfFileLifetime
+    private let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .global(qos: .utility))
 
-    private init() {}
-    
+    init(lifetime: ShelfFileLifetime = .shared) {
+        self.lifetime = lifetime
+        pressure.setEventHandler { [weak self] in Task { await self?.clear() } }
+        pressure.resume()
+    }
+
+    deinit { pressure.cancel() }
+
     func thumbnail(for url: URL, size: CGSize) async -> NSImage? {
-        let cacheKey = "\(url.path)_\(size.width)x\(size.height)"
-        
-        if let cached = cache[cacheKey] {
-            return cached
+        guard !Task.isCancelled else { return nil }
+        let key = "\(url.standardizedFileURL.path)_\(size.width)x\(size.height)"
+        if let hit = cache[key] {
+            lru.removeAll { $0 == key }; lru.append(key)
+            return hit.image
         }
-        
-        if let pending = pendingRequests[cacheKey] {
-            return await pending.value
-        }
-        
-        let task = Task<NSImage?, Never> {
-            let thumbnail = await generateQuickLookThumbnail(for: url, size: size)
-            if let thumbnail = thumbnail {
-                cache[cacheKey] = thumbnail
-            }
-            pendingRequests[cacheKey] = nil
-            return thumbnail
-        }
-        
-        pendingRequests[cacheKey] = task
-        return await task.value
-    }
-    
-    func clearCache() {
-        cache.removeAll()
-    }
-    
-    func clearCache(for url: URL) {
-        cache = cache.filter { !$0.key.starts(with: url.path) }
-    }
-    
-    // MARK: - Private Methods
-    
-    private func generateQuickLookThumbnail(for url: URL, size: CGSize) async -> NSImage? {
-        let scale = await MainActor.run { NSScreen.main?.backingScaleFactor ?? 2.0 }
-        
-        return await url.accessSecurityScopedResource { scopedURL in
-            NSLog("🔐 ThumbnailService: obtaining security scope for \(scopedURL.path)")
-            let request = QLThumbnailGenerator.Request(
-                fileAt: scopedURL,
-                size: size,
-                scale: scale,
-                representationTypes: .all
-            )
-            request.iconMode = true
-
-            return await withCheckedContinuation { (continuation: CheckedContinuation<NSImage?, Never>) in
-                thumbnailGenerator.generateBestRepresentation(for: request) { representation, error in
-                    if let rep = representation {
-                        NSLog("🔍 ThumbnailService: generated thumbnail for \(scopedURL.path)")
-                        continuation.resume(returning: rep.nsImage)
-                    } else {
-                        if let err = error { 
-                            NSLog("⚠️ ThumbnailService: thumbnail error for \(scopedURL.path): \(err.localizedDescription)") 
-                        }
-                        continuation.resume(returning: nil)
-                    }
+        let id = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if Task.isCancelled { continuation.resume(returning: nil); return }
+                if pending[key] != nil {
+                    pending[key]?.consumers[id] = continuation
+                } else {
+                    let bounded = CGSize(width: min(128, size.width), height: min(128, size.height))
+                    let request = QLThumbnailGenerator.Request(fileAt: url, size: bounded, scale: 2, representationTypes: .all)
+                    request.iconMode = true
+                    pending[key] = Pending(request: request, url: url, consumers: [id: continuation])
+                    waiting.append(key)
                 }
+                startNext()
+            }
+        } onCancel: {
+            Task { await self.cancel(key: key, consumer: id) }
+        }
+    }
+
+    private func startNext() {
+        while running.count < Self.maximumConcurrent, !waiting.isEmpty {
+            let key = waiting.removeFirst()
+            guard var work = pending[key] else { continue }
+            running.insert(key)
+            work.lease = lifetime.acquire([work.url])
+            let request = work.request
+            let id = work.id
+            work.timeout = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled else { return }
+                await self?.complete(key: key, id: id, image: nil)
+            }
+            pending[key] = work
+            generator.generateBestRepresentation(for: request) { [weak self] representation, _ in
+                let image = representation.map { NSImage(cgImage: $0.cgImage, size: sizeForImage($0.cgImage)) }
+                Task { await self?.complete(key: key, id: id, image: image) }
             }
         }
     }
-}
 
-// MARK: - Extensions
+    private func complete(key: String, id: UUID, image: NSImage?) {
+        // Ignore callbacks from cancelled requests replaced under the same key.
+        guard let work = pending[key], work.id == id else { return }
+        pending[key] = nil
+        running.remove(key)
+        waiting.removeAll { $0 == key }
+        work.timeout?.cancel()
+        if image == nil { generator.cancel(work.request) }
+        work.lease?.finish()
+        if let image {
+            let cost = image.representations.reduce(0) { total, rep in
+                total + ((rep as? NSBitmapImageRep).map { $0.bytesPerRow * $0.pixelsHigh } ?? 0)
+            }
+            // CG-backed images can have non-bitmap representations; reserve RGBA bytes.
+            let reserved = max(cost, Int(image.size.width * image.size.height) * 4)
+            if reserved <= Self.maximumBytes {
+                while cache.count >= Self.maximumEntries || bytes + reserved > Self.maximumBytes {
+                    guard let oldest = lru.first else { break }
+                    lru.removeFirst()
+                    bytes -= cache.removeValue(forKey: oldest)?.bytes ?? 0
+                }
+                cache[key] = Cached(image: image, bytes: reserved)
+                lru.append(key)
+                bytes += reserved
+            }
+        }
+        work.consumers.values.forEach { $0.resume(returning: image) }
+        startNext()
+    }
 
-extension QLThumbnailRepresentation {
-    var nsImage: NSImage {
-        return NSImage(cgImage: self.cgImage, size: self.cgImage.size)
+    private func cancel(key: String, consumer: UUID) {
+        pending[key]?.consumers.removeValue(forKey: consumer)?.resume(returning: nil)
+        if let work = pending[key], work.consumers.isEmpty { complete(key: key, id: work.id, image: nil) }
+    }
+
+    func clear() {
+        cache.removeAll(); lru.removeAll(); bytes = 0
+        waiting.removeAll()
+        let work = pending
+        pending.removeAll(); running.removeAll()
+        for value in work.values {
+            value.timeout?.cancel()
+            generator.cancel(value.request)
+            value.lease?.finish()
+            value.consumers.values.forEach { $0.resume(returning: nil) }
+        }
+    }
+
+    func resourceCounts() -> (cached: Int, bytes: Int, running: Int, queued: Int) {
+        (cache.count, bytes, running.count, waiting.count)
     }
 }
 
-extension CGImage {
-    var size: NSSize {
-        return NSSize(width: self.width, height: self.height)
-    }
+private func sizeForImage(_ image: CGImage) -> NSSize {
+    NSSize(width: image.width, height: image.height)
 }

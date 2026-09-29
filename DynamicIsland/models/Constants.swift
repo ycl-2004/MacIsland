@@ -477,7 +477,6 @@ extension Defaults.Keys {
         //static let openLastTabByDefault = Key<Bool>("openLastTabByDefault", default: false)
     
         // MARK: Appearance
-    static let enableShakeToSummon = Key<Bool>("enableShakeToSummon", default: true)
         //static let alwaysShowTabs = Key<Bool>("alwaysShowTabs", default: true)
     static let showMirror = Key<Bool>("showMirror", default: false)
     static let mirrorShape = Key<MirrorShapeEnum>("mirrorShape", default: MirrorShapeEnum.rectangle)
@@ -661,8 +660,6 @@ extension Defaults.Keys {
         // MARK: Shelf
     static let dynamicShelf = Key<Bool>("dynamicShelf", default: true)
     static let openShelfByDefault = Key<Bool>("openShelfByDefault", default: true)
-        static let quickShareProvider = Key<String>("quickShareProvider", default: "AirDrop")
-        static let copyOnDrag = Key<Bool>("copyOnDrag", default: false)
         // Off by default: offering `.move` to another app lets Finder move the
         // original out from under the user when the destination is on the same
         // volume, which reads as data loss.

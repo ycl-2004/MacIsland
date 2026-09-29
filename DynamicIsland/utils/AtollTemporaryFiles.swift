@@ -36,20 +36,35 @@ enum AtollTemporaryFiles {
         removeLegacyFiles()
     }
 
-    /// Removes the entries of `area` that are not among `inUse`.
+    /// How old an entry has to be before `removeUnused` may take it. What is in
+    /// use is decided before the sweep runs, so a file written a moment ago --
+    /// a drop still on its way to becoming an item -- would otherwise look unused.
+    static let unusedEntryMinimumAge: TimeInterval = 60
+
+    /// Removes the entries of `area` that are not among `inUse` and older than
+    /// `unusedEntryMinimumAge`, then the area's folder and the root once
+    /// nothing is left in them.
     static func removeUnused(in area: Area, inUse: Set<URL>) {
-        removeEntries(of: root.appendingPathComponent(area.rawValue, isDirectory: true), notIn: inUse)
+        let folder = root.appendingPathComponent(area.rawValue, isDirectory: true)
+        removeEntries(of: folder, notIn: inUse, createdBefore: Date().addingTimeInterval(-unusedEntryMinimumAge))
+        // `rmdir` only removes an empty folder, so one a new file has just gone
+        // into stays.
+        rmdir(folder.path)
+        rmdir(root.path)
     }
 
-    /// Removes each entry of `folder` that neither is nor contains a file in `inUse`.
-    static func removeEntries(of folder: URL, notIn inUse: Set<URL>) {
+    /// Removes each entry of `folder` that neither is nor contains a file in
+    /// `inUse`, sparing entries created at or after `cutoff`.
+    static func removeEntries(of folder: URL, notIn inUse: Set<URL>, createdBefore cutoff: Date = .distantFuture) {
         let fm = FileManager.default
-        guard let entries = try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { return }
+        guard let entries = try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.creationDateKey]) else { return }
         // Bookmarks resolve to /private/var/…, the temporary folder reads /var/…
         let keep = Set(inUse.map { $0.resolvingSymlinksInPath().path })
         for entry in entries {
             let path = entry.resolvingSymlinksInPath().path
             guard !keep.contains(where: { $0 == path || $0.hasPrefix(path + "/") }) else { continue }
+            let created = (try? entry.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? .distantPast
+            guard created < cutoff else { continue }
             try? fm.removeItem(at: entry)
         }
     }

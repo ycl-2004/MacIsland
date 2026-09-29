@@ -26,6 +26,7 @@ import AppKit
 struct DragPreviewView: View {
     let thumbnail: NSImage?
     let displayName: String
+    var count: Int = 1
 
     var body: some View {
         VStack(alignment: .center, spacing: 4) {
@@ -47,5 +48,14 @@ struct DragPreviewView: View {
                 .frame(alignment: .top)
         }
         .frame(width: 105)
+        .overlay(alignment: .topTrailing) {
+            if count > 1 {
+                Text(count.formatted())
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(5)
+                    .background(.blue, in: Capsule())
+            }
+        }
     }
 }

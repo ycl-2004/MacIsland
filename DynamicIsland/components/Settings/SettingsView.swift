@@ -321,10 +321,8 @@ private enum SettingsSearchIndex {
         // Shelf
         SettingsSearchEntry(tab: .shelf, title: "Enable shelf", keywords: ["shelf", "dock"], highlightID: SettingsTab.shelf.highlightID(for: "Enable shelf")),
         SettingsSearchEntry(tab: .shelf, title: "Open shelf tab by default if items added", keywords: ["auto open", "shelf tab"], highlightID: SettingsTab.shelf.highlightID(for: "Open shelf tab by default if items added")),
-        SettingsSearchEntry(tab: .shelf, title: "Copy items on drag", keywords: ["shelf", "drag", "copy"], highlightID: SettingsTab.shelf.highlightID(for: "Copy items on drag")),
+        SettingsSearchEntry(tab: .shelf, title: "Allow moving files when dragging out", keywords: ["shelf", "drag", "move", "copy"], highlightID: SettingsTab.shelf.highlightID(for: "Allow moving files when dragging out")),
         SettingsSearchEntry(tab: .shelf, title: "Remove from shelf after dragging", keywords: ["shelf", "drag", "remove"], highlightID: SettingsTab.shelf.highlightID(for: "Remove from shelf after dragging")),
-        SettingsSearchEntry(tab: .shelf, title: "Enable shake-to-summon floating shelf", keywords: ["shelf", "floating", "shake", "dropover", "summon"], highlightID: SettingsTab.shelf.highlightID(for: "Enable shake-to-summon floating shelf")),
-        SettingsSearchEntry(tab: .shelf, title: "Quick Share Service", keywords: ["shelf", "share", "airdrop"], highlightID: SettingsTab.shelf.highlightID(for: "Quick Share Service")),
 
         // Appearance
         SettingsSearchEntry(tab: .appearance, title: "Main screen style", keywords: ["dynamic island", "pill", "non-notch", "display style", "notch style"], highlightID: SettingsTab.appearance.highlightID(for: "Main screen style")),
@@ -3057,10 +3055,9 @@ private final class SettingsLoopingPlayerController {
 }
 
 struct Shelf: View {
-    @Default(.quickShareProvider) var quickShareProvider
-    @Default(.copyOnDrag) var copyOnDrag
-    @Default(.autoRemoveShelfItems) var autoRemoveShelfItems
-    @StateObject private var quickShareService = QuickShareService.shared
+    @Default(.dynamicShelf) private var shelfEnabled
+    @ObservedObject private var shelfState = ShelfStateViewModel.shared
+    @State private var confirmingClear = false
     @ObservedObject private var fullDiskAccessPermission = FullDiskAccessPermissionStore.shared
     @ObservedObject private var shelfFolderAccessPermission = ShelfFolderAccessPermissionStore.shared
 
@@ -3070,14 +3067,6 @@ struct Shelf: View {
 
     private var canEnableShelf: Bool {
         fullDiskAccessPermission.isAuthorized || hasDocumentsAndDownloadsAccess
-    }
-
-    private var selectedProvider: QuickShareProvider? {
-        quickShareService.availableProviders.first(where: { $0.id == quickShareProvider })
-    }
-
-    init() {
-        QuickShareService.shared.ensureDiscovered()
     }
 
     private func highlightID(_ title: String) -> String {
@@ -3119,21 +3108,17 @@ struct Shelf: View {
             }
 
             Section {
-                Defaults.Toggle(key: .dynamicShelf) {
-                    Text("Enable shelf")
-                }
-                .disabled(!canEnableShelf)
+                Toggle("Enable shelf", isOn: Binding(get: { shelfEnabled }, set: { enabled in
+                    if !enabled && !shelfState.isEmpty { confirmingClear = true }
+                    else { shelfEnabled = enabled }
+                }))
+                .disabled(!canEnableShelf && !shelfEnabled)
                 .settingsHighlight(id: highlightID("Enable shelf"))
 
                 Defaults.Toggle(key: .openShelfByDefault) {
                     Text("Open shelf tab by default if items added")
                 }
                 .settingsHighlight(id: highlightID("Open shelf tab by default if items added"))
-
-                Defaults.Toggle(key: .copyOnDrag) {
-                    Text("Copy items on drag")
-                }
-                .settingsHighlight(id: highlightID("Copy items on drag"))
 
                 Defaults.Toggle(key: .allowMoveOnDrag) {
                     Text("Allow moving files when dragging out")
@@ -3144,56 +3129,20 @@ struct Shelf: View {
                     Text("Remove from shelf after dragging")
                 }
                 .settingsHighlight(id: highlightID("Remove from shelf after dragging"))
-
-                Defaults.Toggle(key: .enableShakeToSummon) {
-                    Text("Enable shake-to-summon floating shelf")
-                }
-                .settingsHighlight(id: highlightID("Enable shake-to-summon floating shelf"))
             } header: {
                 HStack {
                     Text("General")
                 }
             }
-
-            Section {
-                Picker("Quick Share Service", selection: $quickShareProvider) {
-                    ForEach(quickShareService.availableProviders, id: \.id) { provider in
-                        HStack {
-                            QuickShareProviderIconImage(provider: provider, size: 16)
-                            Text(provider.id)
-                        }
-                        .tag(provider.id)
-                    }
-                }
-                .pickerStyle(.menu)
-                .settingsHighlight(id: highlightID("Quick Share Service"))
-
-                if let selectedProvider {
-                    HStack {
-                        QuickShareProviderIconImage(provider: selectedProvider, size: 16)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Currently selected: \(selectedProvider.id)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("Files dropped on the shelf will be shared via this service")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            } header: {
-                HStack {
-                    Text("Quick Share")
-                }
-            } footer: {
-                Text("Choose which service to use when sharing files from the shelf. Drag files onto the shelf or click the shelf button to pick files.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Shelf")
+        .alert("Turn off Shelf and clear its items?", isPresented: $confirmingClear) {
+            Button("Cancel", role: .cancel) {}
+            Button("Turn Off and Clear", role: .destructive) { shelfEnabled = false }
+        } message: {
+            Text("This removes \(shelfState.items.count) items from Shelf. Your original files stay in place. Temporary copies still in use are cleaned up after the handoff.")
+        }
         .onAppear {
             fullDiskAccessPermission.refreshStatus()
             shelfFolderAccessPermission.refreshStatus()
@@ -6990,49 +6939,3 @@ struct AppIconImage: View {
     }
 }
 
-private struct QuickShareProviderIconImage: View {
-    let provider: QuickShareProvider
-    var size: CGFloat = 16
-
-    var body: some View {
-        Group {
-            if let imgData = provider.imageData, let nsImg = NSImage(data: imgData) {
-                Image(nsImage: nsImg.fitted(toSide: size))
-                    .clipShape(RoundedRectangle(cornerRadius: size * 0.2))
-            } else {
-                AppIconImage(
-                    bundleIdentifiers: provider.bundleIdentifiersFallback,
-                    symbolFallback: provider.symbolFallbackName,
-                    symbolColor: .accentColor,
-                    size: size
-                )
-            }
-        }
-        .frame(width: size, height: size)
-    }
-}
-
-private extension QuickShareProvider {
-    var bundleIdentifiersFallback: [String] {
-        switch id {
-        case "AirDrop":
-            return ["com.apple.finder"]
-        case "Mail":
-            return ["com.apple.mail"]
-        case "Messages":
-            return ["com.apple.MobileSMS", "com.apple.iChat"]
-        case "Notes":
-            return ["com.apple.Notes"]
-        case "Reminders":
-            return ["com.apple.reminders"]
-        case "Add to Safari Reading List":
-            return ["com.apple.Safari"]
-        default:
-            return []
-        }
-    }
-
-    var symbolFallbackName: String {
-        id == "System Share Menu" ? "square.and.arrow.up.on.square" : "square.and.arrow.up"
-    }
-}

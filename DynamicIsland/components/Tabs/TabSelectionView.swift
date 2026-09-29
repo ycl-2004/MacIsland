@@ -36,9 +36,6 @@ struct TabModel: Identifiable, Hashable {
 
 struct TabSelectionView: View {
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
-    @StateObject private var quickShareService = QuickShareService.shared
-    @Default(.quickShareProvider) private var quickShareProvider
-    @State private var showQuickSharePopover = false
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableAgentsFeature) private var enableAgentsFeature

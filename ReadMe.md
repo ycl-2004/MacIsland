@@ -69,7 +69,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 
 - **An AI agent cockpit on your hardware notch.** Instead of burying agent progress in hidden terminal tabs, active sessions from Claude Code, Codex, and Antigravity surface directly at the top of your display with live status, streaming output, and prompt controls.
 - **Instant visual queries with Ask About Screen.** Drag a selection marquee over any part of your display (`⌘⇧A`) and send it directly to an agent session without manually capturing screenshots, saving files, or switching contexts.
-- **Stripped of bloat, whisper quiet.** Removed unused clipboard history managers, embedded web terminals, orphaned background daemons, and keep-awake runners. Idle CPU and memory usage remain near zero.
+- **Stripped of bloat, whisper quiet.** Removed unused clipboard history managers, embedded web terminals, orphaned background daemons, and keep-awake runners. Background work is limited to enabled features; Shelf caches and thumbnail jobs have explicit limits.
 - **Polished daily driver utilities.** Seamless media playback for Apple Music, Spotify, TIDAL, YouTube Music, and NetEase; dynamic sweep-highlight lyrics; lock screen widgets; interactive ruler timer; and low-overhead hardware telemetry.
 - **Local-first privacy.** All agent communications, terminal conversations, and screen questions operate strictly on-device through local IPC and session files. No telemetry, no accounts, and no intermediate servers.
 
@@ -98,7 +98,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 - **Hardware telemetry**: Low-overhead SMC and IOReport sensors displaying per-core CPU usage, temperature, GPU load, unified memory pressure, network throughput, and disk I/O.
 - **Interactive ruler timer**: Scrollable ruler timer for quick Pomodoro intervals, countdowns, and stopwatch tracking.
 - **Screen color picker**: Fast color sampler with a 10× pixel-level loupe and one-click HEX clipboard copying.
-- **Shelf dock**: Drag-and-drop temporary file staging shelf accessible from the notch or terminal (`open -a Atoll /path/to/file`).
+- **Shelf dock**: Drag files, text, and links onto the notch to stage them. Turning Shelf off clears its items while keeping original files intact; temporary copies still being shared are retained until release. See [Shelf resource lifecycle](docs/shelf-lifecycle.md).
 - **Calendar glance**: Quick agenda view for upcoming calendar events.
 
 ---

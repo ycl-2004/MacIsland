@@ -22,6 +22,8 @@
 
 import Foundation
 import AppKit
+import Combine
+import Defaults
 
 @MainActor
 final class ShelfStateViewModel: ObservableObject {
@@ -29,51 +31,90 @@ final class ShelfStateViewModel: ObservableObject {
 
     @Published private(set) var items: [ShelfItem] = [] {
         didSet {
-            ShelfPersistenceService.shared.save(items)
+            if !ShelfPersistenceService.shared.save(items) {
+                report(ShelfPersistenceService.shared.lastError ?? String(localized: "Shelf changes could not be saved."), persistent: true)
+            }
             ShelfSelectionModel.shared.reconcileSelection(with: items)
+            removeUnusedTemporaryFiles()
+            if items.isEmpty { Task { await ThumbnailService.shared.clear() } }
         }
     }
 
-    @Published var isLoading: Bool = false
-
     var isEmpty: Bool { items.isEmpty }
+
+    @Published private(set) var feedback: String?
+    private var feedbackTask: Task<Void, Never>?
+    private var importTask: Task<Void, Never>?
+    private var importGeneration = UUID()
+    private var importQueue: [[NSItemProvider]] = []
+    var generation: UUID { importGeneration }
+
+    func report(_ message: String, persistent: Bool = false) {
+        feedbackTask?.cancel()
+        // A successful drop notice must not hide a failed save or recovery warning.
+        if let issue = ShelfPersistenceService.shared.lastError ?? ShelfPersistenceService.shared.recoveryWarning {
+            feedback = issue
+            return
+        }
+        if ShelfFileLifetime.shared.needsRecovery {
+            feedback = String(localized: "Temporary file records could not be read. Files have been kept for recovery.")
+            return
+        }
+        feedback = message
+        guard !persistent else { return }
+        feedbackTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            self?.feedback = nil
+        }
+    }
 
     // Queue for deferred bookmark updates to avoid publishing during view updates
     private var pendingBookmarkUpdates: [ShelfItem.ID: (bookmark: Data, path: String?, source: Data)] = [:]
     private var updateTask: Task<Void, Never>?
-    
-    // Cache for URL-to-item mapping to avoid resolving all bookmarks for lookup
-    private var urlToItemCache: [String: ShelfItem.ID] = [:]
-    private var urlCacheInvalidated = true
+    private var shelfSwitch: AnyCancellable?
 
     private init() {
         items = ShelfPersistenceService.shared.load()
+        feedback = ShelfPersistenceService.shared.lastError ?? ShelfPersistenceService.shared.recoveryWarning
+        if ShelfFileLifetime.shared.needsRecovery {
+            feedback = String(localized: "Temporary file records could not be read. Files have been kept for recovery.")
+        }
+        // Disable clears the list; the lifetime service keeps only files that
+        // are still in use or inside their handoff grace. Corrupt stores remain
+        // recoverable instead of being mistaken for an intentionally empty list.
+        shelfSwitch = Defaults.publisher(.dynamicShelf).sink { change in
+            guard !change.newValue else { return }
+            Task { @MainActor in ShelfStateViewModel.shared.removeAll() }
+        }
         backfillCachedPaths()
-        removeUnusedTemporaryFiles()
     }
 
-    /// Removes files the shelf made in an earlier run that no saved item uses
-    /// any more (left by a crash, or by items removed while it was not running).
+    /// Removes shelf temporary files no item uses: left by a crash, by items
+    /// removed while Atoll was not running, or handed to another app and past
+    /// their grace period.
     private func removeUnusedTemporaryFiles() {
-        let temporary = items.filter(\.isTemporary)
-        // Without a known path for every temporary item nothing can be ruled out.
-        guard temporary.allSatisfy({ $0.cachedPath != nil }) else { return }
-        let inUse = Set(temporary.compactMap { $0.cachedPath.map { URL(fileURLWithPath: $0) } })
-        Task.detached(priority: .utility) {
-            AtollTemporaryFiles.removeUnused(in: .shelf, inUse: inUse)
-        }
+        let unresolved = items.contains { $0.isTemporary && $0.cachedPath == nil }
+        ShelfFileLifetime.shared.setReferences(items.compactMap { $0.cachedPath.map { URL(fileURLWithPath: $0) } },
+            allowCleanup: !unresolved && ShelfPersistenceService.shared.permitsCleanup)
     }
 
     /// Resolves `cachedPath` for items persisted before the path cache existed,
     /// off the main actor. Once this lands, `identityKey` and `resolvedFileURL`
     /// never touch the disk on the main actor — which is what keeps an
     /// unreachable network mount from stalling the UI.
+    ///
+    /// The temporary-file sweep waits for it: until every item has a path, no
+    /// file can be ruled out.
     private func backfillCachedPaths() {
         let pending: [(ShelfItem.ID, Data)] = items.compactMap { item in
             guard item.cachedPath == nil, case .file(let data) = item.kind else { return nil }
             return (item.id, data)
         }
-        guard !pending.isEmpty else { return }
+        guard !pending.isEmpty else {
+            removeUnusedTemporaryFiles()
+            return
+        }
 
         Task.detached(priority: .utility) {
             var resolved: [ShelfItem.ID: String] = [:]
@@ -84,13 +125,14 @@ final class ShelfStateViewModel: ObservableObject {
                     sources[itemID] = data
                 }
             }
-            guard !resolved.isEmpty else { return }
             // Hand the closure immutable copies: capturing the `var`s directly is
             // already a warning and becomes an error in the Swift 6 language mode.
             let paths = resolved
             let bookmarks = sources
             await MainActor.run {
-                ShelfStateViewModel.shared.applyCachedPaths(paths, resolvedFrom: bookmarks)
+                let shelf = ShelfStateViewModel.shared
+                shelf.applyCachedPaths(paths, resolvedFrom: bookmarks)
+                shelf.removeUnusedTemporaryFiles()
             }
         }
     }
@@ -118,7 +160,6 @@ final class ShelfStateViewModel: ObservableObject {
         }
         if changed {
             items = updated
-            invalidateURLCache()
         }
     }
 
@@ -126,36 +167,49 @@ final class ShelfStateViewModel: ObservableObject {
         applyCachedPaths([itemID: path], resolvedFrom: [itemID: source])
     }
 
-    func add(_ newItems: [ShelfItem]) {
+    func add(_ newItems: [ShelfItem], ifUnchanged generation: UUID? = nil) {
         guard !newItems.isEmpty else { return }
+        guard (generation == nil || generation == importGeneration), Defaults[.dynamicShelf] else {
+            ShelfFileLifetime.shared.requestCleanup()
+            return
+        }
         var merged = items
         // Deduplicate by identityKey while preserving order (existing first)
         var seen: Set<String> = Set(merged.map { $0.identityKey })
-        var addedIDs: [String] = []
+        var added = false
         for it in newItems where seen.insert(it.identityKey).inserted {
             merged.append(it)
-            addedIDs.append(it.id.uuidString)
+            added = true
         }
         // Every duplicate-only drop would otherwise trigger a save and a publish.
-        guard !addedIDs.isEmpty else { return }
+        guard added else { return }
         items = merged
-        invalidateURLCache()
     }
 
+    /// Removes the reference; the lifetime service reclaims unused owned data.
     func remove(_ item: ShelfItem) {
-        item.cleanupStoredData()
         items.removeAll { $0.id == item.id }
-        invalidateURLCache()
     }
 
-    /// Removes all items currently on the shelf, cleaning up temporary files.
+    /// Takes items just dragged into another app off the shelf. Their temporary
+    /// files remain protected by the drag session's lease and handoff grace.
+    func removeAfterHandOff(_ handedOff: [ShelfItem]) {
+        let ids = Set(handedOff.map(\.id))
+        guard items.contains(where: { ids.contains($0.id) }) else { return }
+        items.removeAll { ids.contains($0.id) }
+    }
+
+    /// Active drags, shares and clipboard ownership retain their own file leases.
     func removeAll() {
-        guard !items.isEmpty else { return }
-        for item in items {
-            item.cleanupStoredData()
-        }
-        items.removeAll()
-        invalidateURLCache()
+        importGeneration = UUID()
+        importTask?.cancel()
+        importTask = nil
+        importQueue.removeAll()
+        updateTask?.cancel()
+        pendingBookmarkUpdates.removeAll()
+        if !items.isEmpty { items.removeAll() }
+        else { removeUnusedTemporaryFiles() }
+        Task { await ThumbnailService.shared.clear() }
     }
 
     /// Pass `path` whenever the caller already resolved the new bookmark —
@@ -168,8 +222,8 @@ final class ShelfStateViewModel: ObservableObject {
     /// rename cannot put the pre-rename bookmark and path back. Omit it for
     /// authoritative writes — the rename flow has already moved the file on disk,
     /// and its data is by definition the freshest, so discarding that write
-    /// because something else refreshed the bookmark while the save panel was
-    /// open would lose the rename instead of protecting it.
+    /// because something else refreshed the bookmark while the rename was being
+    /// typed would lose the rename instead of protecting it.
     func updateBookmark(for item: ShelfItem, bookmark: Data, path: String? = nil, resolvedFrom source: Data? = nil) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         guard case .file(let current) = items[idx].kind else { return }
@@ -181,8 +235,9 @@ final class ShelfStateViewModel: ObservableObject {
         var updated = items
         updated[idx].kind = .file(bookmark: bookmark)
         updated[idx].cachedPath = newPath
+        if let newPath { updated[idx].cachedDisplayName = URL(fileURLWithPath: newPath).lastPathComponent }
+        updated[idx].cachedIconData = nil
         items = updated
-        invalidateURLCache()
     }
 
     private func scheduleDeferredBookmarkUpdate(for item: ShelfItem, bookmark: Data, path: String?, resolvedFrom source: Data) {
@@ -217,43 +272,42 @@ final class ShelfStateViewModel: ObservableObject {
 
             guard changed else { return }
             self.items = updated
-            self.invalidateURLCache()
         }
     }
-
 
     func load(_ providers: [NSItemProvider]) {
-        guard !providers.isEmpty else { return }
-        isLoading = true
-        Task { [weak self] in
-            let dropped = await ShelfDropService.items(from: providers)
-            await MainActor.run {
-                self?.add(dropped)
-                self?.isLoading = false
+        guard !providers.isEmpty, Defaults[.dynamicShelf] else { return }
+        importQueue.append(providers)
+        guard importTask == nil else { return }
+        let generation = importGeneration
+        // One worker across all drops. Clearing cancels the active provider and
+        // releases queued batches rather than leaving a chain of waiting tasks.
+        importTask = Task { [weak self] in
+            defer { if self?.importGeneration == generation { self?.importTask = nil } }
+            while let self, !Task.isCancelled, self.importGeneration == generation, !self.importQueue.isEmpty {
+                let providers = self.importQueue.removeFirst()
+                let dropped = await ShelfDropService.items(from: providers)
+                guard !Task.isCancelled, self.importGeneration == generation, Defaults[.dynamicShelf] else {
+                    ShelfFileLifetime.shared.requestCleanup()
+                    return
+                }
+                let before = self.items.count
+                self.add(dropped, ifUnchanged: generation)
+                let added = self.items.count - before
+                let failures = providers.count - dropped.count
+                if failures > 0 {
+                    self.report(String(localized: "Added \(added) items. \(failures) items could not be read; try dropping them from Finder."))
+                } else if added == 0 {
+                    self.report(String(localized: "These items are already on the Shelf."))
+                } else {
+                    self.report(String(localized: "Added \(added) items to Shelf."))
+                }
             }
         }
     }
 
-    func cleanupInvalidItems() {
-        Task { [weak self] in
-            guard let self else { return }
-            var keep: [ShelfItem] = []
-            for item in self.items {
-                switch item.kind {
-                case .file(let data):
-                    let bookmark = Bookmark(data: data)
-                    if await bookmark.validate() {
-                        keep.append(item)
-                    } else {
-                        item.cleanupStoredData()
-                    }
-                default:
-                    keep.append(item)
-                }
-            }
-            await MainActor.run { self.items = keep }
-        }
-    }
+    // Unavailable volumes or revoked permissions must not erase saved items.
+    // File access is retried when the user opens, previews or shares an item.
 
     // Async version that resolves bookmark on background thread
     func resolveFileURLAsync(for item: ShelfItem) async -> URL? {
@@ -263,12 +317,10 @@ final class ShelfStateViewModel: ObservableObject {
         let path = result.url?.standardizedFileURL.path
         if let refreshed = result.refreshedData, refreshed != bookmarkData {
             NSLog("Bookmark for \(item) stale; refreshing")
-            await MainActor.run {
-                scheduleDeferredBookmarkUpdate(for: item, bookmark: refreshed, path: path, resolvedFrom: bookmarkData)
-            }
+            scheduleDeferredBookmarkUpdate(for: item, bookmark: refreshed, path: path, resolvedFrom: bookmarkData)
         } else if let path {
             // Self-healing: the file may have moved since the path was cached.
-            await MainActor.run { applyCachedPath(path, for: item.id, resolvedFrom: bookmarkData) }
+            applyCachedPath(path, for: item.id, resolvedFrom: bookmarkData)
         }
         return result.url
     }
@@ -281,61 +333,10 @@ final class ShelfStateViewModel: ObservableObject {
         let path = result.url?.standardizedFileURL.path
         if let refreshed = result.refreshedData, refreshed != bookmarkData {
             NSLog("Bookmark for \(item) stale; refreshing")
-            await MainActor.run {
-                updateBookmark(for: item, bookmark: refreshed, path: path, resolvedFrom: bookmarkData)
-            }
+            updateBookmark(for: item, bookmark: refreshed, path: path, resolvedFrom: bookmarkData)
         } else if let path {
-            await MainActor.run { applyCachedPath(path, for: item.id, resolvedFrom: bookmarkData) }
+            applyCachedPath(path, for: item.id, resolvedFrom: bookmarkData)
         }
         return result.url
-    }
-
-    // Find item by URL using cached mapping (avoids resolving all bookmarks)
-    func findItem(by url: URL) async -> ShelfItem? {
-        let path = url.standardizedFileURL.path
-        if urlCacheInvalidated {
-            await rebuildURLCache()
-        }
-        if let itemID = urlToItemCache[path],
-           let idx = items.firstIndex(where: { $0.id == itemID }) {
-            return items[idx]
-        }
-        // Fallback: async resolution for cache miss
-        for itm in items {
-            if case .file = itm.kind {
-                if let resolved = await resolveFileURLAsync(for: itm),
-                   resolved.standardizedFileURL.path == path {
-                    return itm
-                }
-            }
-        }
-        return nil
-    }
-
-    private func rebuildURLCache() async {
-        urlToItemCache.removeAll()
-        for item in items {
-            if case .file(let bookmarkData) = item.kind {
-                let bookmark = Bookmark(data: bookmarkData)
-                let result = await bookmark.resolveAsync()
-                if let url = result.url {
-                    urlToItemCache[url.standardizedFileURL.path] = item.id
-                }
-            }
-        }
-        urlCacheInvalidated = false
-    }
-    
-    private func invalidateURLCache() {
-        urlCacheInvalidated = true
-    }
-
-    // Async version - resolves file URLs without blocking
-    func resolveFileURLsAsync(for items: [ShelfItem]) async -> [URL] {
-        var urls: [URL] = []
-        for it in items {
-            if let u = await resolveFileURLAsync(for: it) { urls.append(u) }
-        }
-        return urls
     }
 }

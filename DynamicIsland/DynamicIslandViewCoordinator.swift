@@ -98,7 +98,9 @@ class DynamicIslandViewCoordinator: ObservableObject {
         didSet {
             if !alwaysShowTabs {
                 openLastTabByDefault = false
-                if TrayDrop.shared.isEmpty || !Defaults[.openShelfByDefault] {
+                // Set from the settings toggle, so always on the main thread.
+                let shelfIsEmpty = MainActor.assumeIsolated { ShelfStateViewModel.shared.isEmpty }
+                if shelfIsEmpty || !Defaults[.openShelfByDefault] {
                     currentView = .home
                 }
             }

@@ -26,71 +26,93 @@ import Foundation
 @_exported import struct Foundation.URL
 
 
+/// Saves the shelf list as `items.json`.
+///
+/// An empty shelf leaves nothing on disk: the file and its folder are removed
+/// as the last item goes (or when an empty list is found at launch) and come
+/// back with the next save that has something in it.
 final class ShelfPersistenceService {
     static let shared = ShelfPersistenceService()
 
-    private let fileURL: URL
+    private let directory: URL
+    private var fileURL: URL { directory.appendingPathComponent("items.json") }
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private(set) var needsRecovery = false
+    private(set) var lastError: String?
+    private var recoveryCopySaved = false
+    private var hasRecoveryCopy = false
+    var permitsCleanup: Bool { !needsRecovery && !hasRecoveryCopy && lastError == nil }
+    var recoveryWarning: String? {
+        needsRecovery || hasRecoveryCopy ? String(localized: "Some Shelf data could not be read. The original data has been kept.") : nil
+    }
 
-    private init() {
-        let fm = FileManager.default
-        let support = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let dir = (support ?? fm.temporaryDirectory).appendingPathComponent("DynamicIsland", isDirectory: true).appendingPathComponent("Shelf", isDirectory: true)
-        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        fileURL = dir.appendingPathComponent("items.json")
+    /// `directory` is only ever passed by tests: the default is the one the
+    /// running app uses, which a test must not touch.
+    init(directory: URL = ShelfPersistenceService.defaultDirectory) {
+        self.directory = directory
         encoder.outputFormatting = [.prettyPrinted]
-        decoder.dateDecodingStrategy = .iso8601
-        encoder.dateEncodingStrategy = .iso8601
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        hasRecoveryCopy = files.contains { $0.hasPrefix("items.recovery-") }
+    }
+
+    static var defaultDirectory: URL {
+        let fm = FileManager.default
+        let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
+        return support
+            .appendingPathComponent("DynamicIsland", isDirectory: true)
+            .appendingPathComponent("Shelf", isDirectory: true)
     }
 
     func load() -> [ShelfItem] {
-        guard let data = try? Data(contentsOf: fileURL) else { return [] }
-        
-        // Try to decode as array first (normal case)
-        if let items = try? decoder.decode([ShelfItem].self, from: data) {
-            return items
-        }
-        
-        // If array decoding fails, try to decode individual items
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
         do {
-            // Parse as JSON array to get individual item data
-            guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [Any] else {
-                print("⚠️ Shelf persistence file is not a valid JSON array")
-                return []
+            let data = try Data(contentsOf: fileURL)
+            if let items = try? decoder.decode([ShelfItem].self, from: data) {
+                if items.isEmpty { try removeStore() }
+                return items
             }
-            
-            var validItems: [ShelfItem] = []
-            var failedCount = 0
-            
-            for (index, jsonItem) in jsonArray.enumerated() {
-                do {
-                    let itemData = try JSONSerialization.data(withJSONObject: jsonItem)
-                    let item = try decoder.decode(ShelfItem.self, from: itemData)
-                    validItems.append(item)
-                } catch {
-                    failedCount += 1
-                    print("⚠️ Failed to decode shelf item at index \(index): \(error.localizedDescription)")
-                }
+            needsRecovery = true
+            lastError = String(localized: "Some Shelf data could not be read. The original data has been kept.")
+            guard let array = try JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
+            return array.compactMap { value in
+                guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]) else { return nil }
+                return try? decoder.decode(ShelfItem.self, from: data)
             }
-            
-            if failedCount > 0 {
-                print("📦 Successfully loaded \(validItems.count) shelf items, discarded \(failedCount) corrupted items")
-            }
-            
-            return validItems
         } catch {
-            print("❌ Failed to parse shelf persistence file: \(error.localizedDescription)")
+            needsRecovery = true
+            lastError = String(localized: "Some Shelf data could not be read. The original data has been kept.")
             return []
         }
     }
 
-    func save(_ items: [ShelfItem]) {
+    @discardableResult
+    func save(_ items: [ShelfItem]) -> Bool {
         do {
-            let data = try encoder.encode(items)
-            try data.write(to: fileURL, options: Data.WritingOptions.atomic)
+            if needsRecovery && !recoveryCopySaved {
+                // Preserve the exact source before any mutation overwrites it.
+                let backup = directory.appendingPathComponent("items.recovery-\(UUID().uuidString).json")
+                try FileManager.default.copyItem(at: fileURL, to: backup)
+                recoveryCopySaved = true
+                hasRecoveryCopy = true
+            }
+            if items.isEmpty { try removeStore() }
+            else {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try encoder.encode(items).write(to: fileURL, options: .atomic)
+            }
+            lastError = nil
+            return true
         } catch {
-            print("Failed to save shelf items: \(error.localizedDescription)")
+            lastError = String(localized: "Shelf changes could not be saved. Check available disk space and folder access.")
+            return false
         }
+    }
+
+    private func removeStore() throws {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: fileURL.path) { try fm.removeItem(at: fileURL) }
+        // Other files, including recovery copies, must remain intact.
+        rmdir(directory.path)
     }
 }

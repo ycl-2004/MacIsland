@@ -27,7 +27,6 @@ import UniformTypeIdentifiers
 enum TempFileType {
     case data(Data, suggestedName: String?)
     case text(String)
-    case url(URL)
 }
 
 class TemporaryFileStorageService {
@@ -35,51 +34,49 @@ class TemporaryFileStorageService {
     
     // MARK: - Public Interface
     
-    /// Creates a temporary file and tracks it for manual cleanup
+    /// Disk work runs outside the main actor; ordinary file drops stay as references.
     func createTempFile(for type: TempFileType) async -> URL? {
-        return await withCheckedContinuation { continuation in
-            let result = createTempFile(for: type)
-            continuation.resume(returning: result)
-        }
+        await Task.detached(priority: .utility) { self.writeTempFile(for: type) }.value
     }
-    
+
     func removeTemporaryFileIfNeeded(at url: URL) {
-        let tempDirectory = AtollTemporaryFiles.directory(.shelf)
+        guard ShelfFileLifetime.shared.owns(url) else { return }
+        ShelfFileLifetime.shared.requestCleanup()
+    }
 
-        // Bookmarks resolve to /private/var/…, the temporary folder reads /var/…
-        guard url.resolvingSymlinksInPath().path.hasPrefix(tempDirectory.resolvingSymlinksInPath().path) else {
-            print("Attempted to remove temporary file outside temp directory: \(url.path)")
-            return
-        }
-
-        let folderURL = url.deletingLastPathComponent()
-
+    /// Must be called inside an item-provider completion: its URL expires on return.
+    func copyProviderFile(_ source: URL, suggestedName: String?) -> URL? {
+        let folder = AtollTemporaryFiles.directory(.shelf).appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let name = Self.safeFilename(suggestedName ?? source.lastPathComponent)
+        let destination = folder.appendingPathComponent(name)
+        let lease = ShelfFileLifetime.shared.acquire([folder])
+        var copied = false
+        defer { lease.finish(handoff: copied) }
         do {
-            try FileManager.default.removeItem(at: url)
-            print("Deleted file: \(url.path)")
-
-            let contents = try FileManager.default.contentsOfDirectory(atPath: folderURL.path)
-            if contents.isEmpty {
-                try FileManager.default.removeItem(at: folderURL)
-                print("Folder was empty, deleted folder: \(folderURL.path)")
-            } else {
-                print("Folder not deleted — it still contains \(contents.count) item(s).")
-            }
-
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try source.accessSecurityScopedResource { try FileManager.default.copyItem(at: $0, to: destination) }
+            copied = true
+            return destination
         } catch {
-            print("Error: \(error.localizedDescription)")
+            try? FileManager.default.removeItem(at: folder)
+            return nil
         }
     }
-    
+
+    static func safeFilename(_ name: String) -> String {
+        let leaf = (name as NSString).lastPathComponent
+        return leaf.isEmpty || leaf == "." || leaf == ".." ? "Untitled.dat" : leaf
+    }
+
     // MARK: - Private Implementation
     
-    private func createTempFile(for type: TempFileType) -> URL? {
+    private func writeTempFile(for type: TempFileType) -> URL? {
         let tempDir = AtollTemporaryFiles.directory(.shelf)
         let uuid = UUID().uuidString
         
         switch type {
         case .data(let data, let suggestedName):
-            let filename = suggestedName ?? ".dat"
+            let filename = Self.safeFilename(suggestedName ?? "Untitled.dat")
             let dirURL = tempDir.appendingPathComponent(uuid, isDirectory: true)
             let fileURL = dirURL.appendingPathComponent(filename)
             
@@ -88,7 +85,7 @@ class TemporaryFileStorageService {
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
-                print("Error: \(error)")
+                try? FileManager.default.removeItem(at: dirURL)
                 return nil
             }
             
@@ -107,42 +104,18 @@ class TemporaryFileStorageService {
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
-                print("Error: \(error)")
+                try? FileManager.default.removeItem(at: dirURL)
                 return nil
             }
             
-        case .url(let url):
-            let filename = "\(url.host ?? uuid).webloc"
-            let dirURL = tempDir.appendingPathComponent(uuid, isDirectory: true)
-            let fileURL = dirURL.appendingPathComponent(filename)
-            
-            let weblocContent = createWeblocContent(for: url)
-            guard let data = weblocContent.data(using: String.Encoding.utf8) else {
-                print("❌ Failed to create webloc data")
-                return nil
-            }
-            
-            do {
-                try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
-                try data.write(to: fileURL)
-                return fileURL
-            } catch {
-                print("Error: \(error)")
-                return nil
-            }
         }
     }
     
-    private func createFile(at url: URL, data: Data) -> URL? {
-        do {
-            try data.write(to: url)
-            return url
-        } catch {
-            print("❌ Failed to create temp file at \(url.path): \(error)")
-            return nil
-        }
-    }
     func createZip(from urls: [URL], suggestedName: String? = nil) async -> URL? {
+        await Task.detached(priority: .utility) { self.writeZip(from: urls, suggestedName: suggestedName) }.value
+    }
+
+    private func writeZip(from urls: [URL], suggestedName: String?) -> URL? {
         let tempDir = AtollTemporaryFiles.directory(.shelf)
         let uuid = UUID().uuidString
         let workingDir = tempDir.appendingPathComponent("zip_\(uuid)", isDirectory: true)
@@ -152,6 +125,13 @@ class TemporaryFileStorageService {
         } catch {
             print("❌ Failed to create zip working directory: \(error)")
             return nil
+        }
+
+        let lease = ShelfFileLifetime.shared.acquire([workingDir])
+        var completed = false
+        defer {
+            if !completed { try? FileManager.default.removeItem(at: workingDir) }
+            lease.finish(handoff: completed)
         }
 
         // Helper to run zip process
@@ -184,6 +164,7 @@ class TemporaryFileStorageService {
                 let args = ["-r", "-q", archiveURL.path, baseName]
                 let ok = runZip(arguments: args, currentDirectory: parent)
                 if ok {
+                    completed = true
                     return archiveURL
                 } else {
                     return nil
@@ -197,6 +178,7 @@ class TemporaryFileStorageService {
                 let args = ["-j", "-q", archiveURL.path, baseName]
                 let ok = runZip(arguments: args, currentDirectory: parent)
                 if ok {
+                    completed = true
                     return archiveURL
                 } else {
                     return nil
@@ -216,11 +198,11 @@ class TemporaryFileStorageService {
                     try FileManager.default.copyItem(at: src, to: dest)
                 }
             } catch {
-                print("⚠️ Failed to copy \(src.path) to working dir: \(error)")
+                return nil
             }
         }
 
-        let archiveName = suggestedName ?? "Archive.zip"
+        let archiveName = Self.safeFilename(suggestedName ?? "Archive.zip")
         let archiveURL = workingDir.appendingPathComponent(archiveName)
         let args = ["-r", "-q", archiveURL.path, "."]
         let ok = runZip(arguments: args, currentDirectory: workingDir)
@@ -236,25 +218,10 @@ class TemporaryFileStorageService {
             } catch {
                 print("⚠️ Failed to cleanup working directory after zip: \(error)")
             }
+            completed = true
             return archiveURL
         } else {
             return nil
         }
-    }
-    
-    // MARK: - Content Creation Helpers
-    
-    
-    private func createWeblocContent(for url: URL) -> String {
-        return """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>URL</key>
-            <string>\(url.absoluteString)</string>
-        </dict>
-        </plist>
-        """
     }
 }

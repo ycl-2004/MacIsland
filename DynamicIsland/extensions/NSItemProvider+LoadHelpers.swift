@@ -37,47 +37,21 @@ extension NSItemProvider {
         return nil
     }
 
-    /// Loads raw data for the given type identifier
-    func loadData() async -> Data? {
-        guard hasItemConformingToTypeIdentifier(UTType.data.identifier) else { return nil }
-        
-        final class ProviderWrapper: @unchecked Sendable {
-            let provider: NSItemProvider
-            init(_ provider: NSItemProvider) { self.provider = provider }
-        }
-        let wrapper = ProviderWrapper(self)
-
-        return await withCheckedContinuation { (cont: CheckedContinuation<Data?, Never>) in
-            loadItem(forTypeIdentifier: UTType.data.identifier, options: nil) { item, error in
-                if let error {
-                    print("Error loading data for type \(UTType.data.identifier): \(error.localizedDescription)")
-                    cont.resume(returning: nil)
-                    return
-                }
-                if let url = item as? URL, let data = try? Data(contentsOf: url) {
-                    if !url.absoluteString.contains("com.apple.SwiftUI.filePromises") {
-                        cont.resume(returning: nil)
-                        return
-                    }
-                    wrapper.provider.suggestedName = wrapper.provider.suggestedName ?? url.lastPathComponent
-                    let fileManager = FileManager.default
-                    let folderURL = url.deletingLastPathComponent()
-                    do {
-                        try fileManager.removeItem(at: url)
-                        let contents = try fileManager.contentsOfDirectory(atPath: folderURL.path)
-                        if contents.isEmpty {
-                            try fileManager.removeItem(at: folderURL)
-                        }
-                    } catch {
-                        print("Error: \(error.localizedDescription)")
-                    }
-                    cont.resume(returning: data)
-                } else if let data = item as? Data {
-                    cont.resume(returning: data)
-                } else {
-                    cont.resume(returning: nil)
-                }
+    /// Copy within the completion; the provider owns and removes its source.
+    /// Loading a file representation avoids buffering a whole attachment in RAM.
+    func copyFileRepresentation() async -> URL? {
+        guard let type = registeredTypeIdentifiers.first(where: {
+            guard let type = UTType($0) else { return false }
+            return type.conforms(to: .data) && !type.conforms(to: .url)
+        }) else { return nil }
+        let name = suggestedName
+        return await providerValue { operation in
+            let progress = self.loadFileRepresentation(forTypeIdentifier: type) { url, _ in
+                guard !operation.isFinished, let url else { operation.finish(nil); return }
+                let copy = TemporaryFileStorageService.shared.copyProviderFile(url, suggestedName: name)
+                operation.finish(copy)
             }
+            operation.track(progress)
         }
     }
 
@@ -104,11 +78,11 @@ extension NSItemProvider {
 
     /// Loads a file URL from the provider for the given type identifier.
     func loadFileURL(typeIdentifier: String) async -> URL? {
-        await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
+        await providerValue { (cont: ProviderLoad<URL>) in
             loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
                 if let error {
                     print("❌ Error loading item for type \(typeIdentifier): \(error.localizedDescription)")
-                    cont.resume(returning: nil)
+                    cont.finish(nil)
                     return
                 }
                 var resolvedURL: URL?
@@ -116,59 +90,52 @@ extension NSItemProvider {
                     resolvedURL = url
                 } else if let data = item as? Data {
                     if let string = String(data: data, encoding: .utf8) {
-                        if let url = URL(string: string) {
-                            resolvedURL = url
-                        } else if string.hasPrefix("/") {
-                            resolvedURL = URL(fileURLWithPath: string)
-                        }
+                        if string.hasPrefix("/") { resolvedURL = URL(fileURLWithPath: string) }
+                        else { resolvedURL = URL(string: string) }
                     }
                     if resolvedURL == nil {
                         let bookmark = Bookmark(data: data)
-                        resolvedURL = bookmark.resolveURL()
+                        resolvedURL = bookmark.resolveWithoutMounting()
                     }
                 } else if let string = item as? String {
-                    if let url = URL(string: string) {
-                        resolvedURL = url
-                    } else if string.hasPrefix("/") {
-                        resolvedURL = URL(fileURLWithPath: string)
-                    }
+                    resolvedURL = string.hasPrefix("/") ? URL(fileURLWithPath: string) : URL(string: string)
                 }
-                cont.resume(returning: resolvedURL)
+                cont.finish(resolvedURL)
             }
         }
     }
 
     /// Loads a URL from the provider for the given type identifier.
     func loadURL(typeIdentifier: String) async -> URL? {
-        await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
+        await providerValue { (cont: ProviderLoad<URL>) in
             loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
                 if error != nil {
-                    cont.resume(returning: nil)
+                    cont.finish(nil)
                     return
                 }
                 if let url = item as? URL {
-                    cont.resume(returning: url)
+                    cont.finish(url)
                 } else if let data = item as? Data {
                     if let string = String(data: data, encoding: .utf8) {
                         if let url = URL(string: string) {
-                            cont.resume(returning: url)
+                            cont.finish(url)
                             return
                         } else if string.hasPrefix("/") {
-                            cont.resume(returning: URL(fileURLWithPath: string))
+                            cont.finish(URL(fileURLWithPath: string))
                             return
                         }
                     }
-                    cont.resume(returning: nil)
+                    cont.finish(nil)
                 } else if let string = item as? String {
                     if let url = URL(string: string) {
-                        cont.resume(returning: url)
+                        cont.finish(url)
                     } else if string.hasPrefix("/") {
-                        cont.resume(returning: URL(fileURLWithPath: string))
+                        cont.finish(URL(fileURLWithPath: string))
                     } else {
-                        cont.resume(returning: nil)
+                        cont.finish(nil)
                     }
                 } else {
-                    cont.resume(returning: nil)
+                    cont.finish(nil)
                 }
             }
         }
@@ -176,21 +143,78 @@ extension NSItemProvider {
 
     /// Loads text from the provider for the given type identifier.
     func loadText(typeIdentifier: String) async -> String? {
-        await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
+        await providerValue { (cont: ProviderLoad<String>) in
             loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
                 if error != nil {
-                    cont.resume(returning: nil)
+                    cont.finish(nil)
                     return
                 }
                 if let string = item as? String {
-                    cont.resume(returning: string)
+                    cont.finish(string)
                 } else if let data = item as? Data,
                           let string = String(data: data, encoding: .utf8) {
-                    cont.resume(returning: string)
+                    cont.finish(string)
                 } else {
-                    cont.resume(returning: nil)
+                    cont.finish(nil)
                 }
             }
         }
     }
+}
+
+/// Exactly-once completion, even when a provider hangs, cancels or replies late.
+/// Timers exist only while a provider is loading; cancellation releases the waiter.
+private final class ProviderLoad<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Value?, Never>?
+    private var finished = false
+    private var progress: Progress?
+    private var timeout: DispatchWorkItem?
+
+    var isFinished: Bool { lock.lock(); defer { lock.unlock() }; return finished }
+
+    func install(_ continuation: CheckedContinuation<Value?, Never>) -> Bool {
+        lock.lock()
+        guard !finished else { lock.unlock(); continuation.resume(returning: nil); return false }
+        self.continuation = continuation
+        let timeout = DispatchWorkItem { [weak self] in self?.finish(nil) }
+        self.timeout = timeout
+        lock.unlock()
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 30, execute: timeout)
+        return true
+    }
+
+    func track(_ progress: Progress) {
+        lock.lock()
+        let cancelled = finished
+        if !cancelled { self.progress = progress }
+        lock.unlock()
+        if cancelled { progress.cancel() }
+    }
+
+    func finish(_ value: Value?) {
+        lock.lock()
+        guard !finished else { lock.unlock(); return }
+        finished = true
+        let continuation = self.continuation
+        self.continuation = nil
+        let progress = self.progress
+        self.progress = nil
+        timeout?.cancel(); timeout = nil
+        lock.unlock()
+        if value == nil { progress?.cancel() }
+        continuation?.resume(returning: value)
+    }
+}
+
+private func providerValue<Value>(_ start: (ProviderLoad<Value>) -> Void) async -> Value? {
+    let operation = ProviderLoad<Value>()
+    return await withTaskCancellationHandler {
+        await withCheckedContinuation { continuation in
+            if operation.install(continuation) {
+                if Task.isCancelled { operation.finish(nil) }
+                else { start(operation) }
+            }
+        }
+    } onCancel: { operation.finish(nil) }
 }

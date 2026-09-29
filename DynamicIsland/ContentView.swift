@@ -453,6 +453,10 @@ struct ContentView: View {
         shouldHideUntilHover && !lockScreenManager.isLocked
     }
     
+    private var needsHoverPolling: Bool {
+        shouldUseHiddenEdgeHoverPolling || (isHovering && interactionsEnabled && !lockScreenManager.isLocked)
+    }
+
     /// Pill shape for Dynamic Island mode with animated corner radius transitions.
     private var currentPillShape: DynamicIslandPillShape {
         let radius: CGFloat
@@ -941,10 +945,14 @@ struct ContentView: View {
                     clearMusicControlVisibilityDeadline()
                 }
                 enqueueMusicControlWindowSync(forceRefresh: true)
-                startHiddenEdgeHoverPolling()
+                if needsHoverPolling { startHiddenEdgeHoverPolling() }
                 // Deterministic teardown for borderless panels (`.onDisappear` is
                 // unreliable); the window-cleanup path calls this before closing.
                 vm.onViewTeardown = { performViewTeardown() }
+            }
+            .onChange(of: needsHoverPolling) { _, needed in
+                if needed { startHiddenEdgeHoverPolling() }
+                else { stopHiddenEdgeHoverPolling() }
             }
             .onChange(of: vm.notchState) { _, state in
                 if state == .open {
@@ -1881,8 +1889,8 @@ struct ContentView: View {
 
                 try? await Task.sleep(for: .milliseconds(self.hiddenEdgeHoverPollingIntervalMs()))
             }
-
-            self.hiddenEdgeHoverPollingTask = nil
+            // stopHiddenEdgeHoverPolling clears the handle. A cancelled older
+            // task must not clear a replacement started by a later hover.
         }
     }
 

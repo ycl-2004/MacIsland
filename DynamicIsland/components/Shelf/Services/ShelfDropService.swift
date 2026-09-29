@@ -29,6 +29,7 @@ struct ShelfDropService {
         var results: [ShelfItem] = []
 
         for provider in providers {
+            guard !Task.isCancelled else { break }
             if let item = await processProvider(provider) {
                 results.append(item)
             }
@@ -73,15 +74,9 @@ struct ShelfDropService {
             return await ShelfItem(kind: .text(string: text), isTemporary: false)
         }
 
-        if let data = await provider.loadData() {
-            guard let tempDataURL = await TemporaryFileStorageService.shared.createTempFile(for: .data(data, suggestedName: provider.suggestedName)) else {
-                return nil
-            }
-            return await fileItem(for: tempDataURL, isTemporary: true)
-        }
-
-        if let fileURL = await provider.extractItem() {
-            return await fileItem(for: fileURL, isTemporary: false)
+        if let copy = await provider.copyFileRepresentation() {
+            if let item = await fileItem(for: copy, isTemporary: true) { return item }
+            TemporaryFileStorageService.shared.removeTemporaryFileIfNeeded(at: copy)
         }
 
         return nil
@@ -91,7 +86,8 @@ struct ShelfDropService {
     /// dedup, drag-out and the context menu never have to resolve the bookmark
     /// on the main actor.
     private static func fileItem(for url: URL, isTemporary: Bool) async -> ShelfItem? {
-        guard let bookmark = createBookmark(for: url) else { return nil }
+        guard url.isFileURL, FileManager.default.fileExists(atPath: url.path),
+              let bookmark = createBookmark(for: url) else { return nil }
         let standardized = url.standardizedFileURL
         let path = standardized.path
         let name = standardized.lastPathComponent

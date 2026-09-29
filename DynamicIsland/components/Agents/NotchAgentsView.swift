@@ -199,8 +199,8 @@ private struct AgentSessionCard: View {
                 }
                 Spacer(minLength: 0)
                 Label("Open conversation", systemImage: "bubble.left.and.bubble.right")
-                    .font(.notch(.micro, weight: .medium))
-                    .foregroundStyle(isHovering ? .inkSecondary : .inkQuaternary)
+                    .font(.notch(.footnote, weight: .medium))
+                    .foregroundStyle(isHovering ? .inkPrimary : .inkSecondary)
             }
             .padding(10)
             .frame(width: 210, alignment: .leading)

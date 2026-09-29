@@ -1,6 +1,443 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Drop to send · Click to choose files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop to send · Click to choose files"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖入发送 · 点击选文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖入傳送 · 點擊選擇檔案"
+          }
+        }
+      }
+    },
+    "Turn off Shelf and clear its items?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off Shelf and clear its items?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭 Shelf 并清空项目？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉 Shelf 並清空項目？"
+          }
+        }
+      }
+    },
+    "Turn Off and Clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Off and Clear"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭并清空"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉並清空"
+          }
+        }
+      }
+    },
+    "This removes %lld items from Shelf. Your original files stay in place. Temporary copies still in use are cleaned up after the handoff." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This removes %lld items from Shelf. Your original files stay in place. Temporary copies still in use are cleaned up after the handoff."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这会从 Shelf 移除 %lld 个项目，原始文件保留。仍在使用的临时副本会在交接完成后清理。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這會從 Shelf 移除 %lld 個項目，原始檔案保留。仍在使用的暫存副本會在交接完成後清理。"
+          }
+        }
+      }
+    },
+    "Some Shelf data could not be read. The original data has been kept." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some Shelf data could not be read. The original data has been kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分 Shelf 数据无法读取，原始数据已保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分 Shelf 資料無法讀取，原始資料已保留。"
+          }
+        }
+      }
+    },
+    "Temporary file records could not be read. Files have been kept for recovery." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporary file records could not be read. Files have been kept for recovery."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "临时文件记录无法读取，文件已保留以便恢复。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫存檔案記錄無法讀取，檔案已保留以便復原。"
+          }
+        }
+      }
+    },
+    "Shelf changes could not be saved. Check available disk space and folder access." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf changes could not be saved. Check available disk space and folder access."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf 修改无法保存，请检查磁盘空间和文件夹访问权限。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf 修改無法儲存，請檢查磁碟空間與資料夾存取權限。"
+          }
+        }
+      }
+    },
+    "Shelf changes could not be saved." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf changes could not be saved."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf 修改无法保存。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf 修改無法儲存。"
+          }
+        }
+      }
+    },
+    "Added %lld items. %lld items could not be read; try dropping them from Finder." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added %lld items. %lld items could not be read; try dropping them from Finder."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已添加 %lld 个项目。%lld 个项目无法读取，请尝试从访达拖入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已加入 %lld 個項目。%lld 個項目無法讀取，請嘗試從 Finder 拖入。"
+          }
+        }
+      }
+    },
+    "Added %lld items to Shelf." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added %lld items to Shelf."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已向 Shelf 添加 %lld 个项目。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已向 Shelf 加入 %lld 個項目。"
+          }
+        }
+      }
+    },
+    "These items are already on the Shelf." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These items are already on the Shelf."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些项目已在 Shelf 中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這些項目已在 Shelf 中。"
+          }
+        }
+      }
+    },
+    "Some items could not be copied. Check that the files are available." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some items could not be copied. Check that the files are available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分项目无法复制，请检查文件是否可用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分項目無法複製，請檢查檔案是否可用。"
+          }
+        }
+      }
+    },
+    "Some items could not be shared. Check that the files are available." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some items could not be shared. Check that the files are available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分项目无法分享，请检查文件是否可用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分項目無法分享，請檢查檔案是否可用。"
+          }
+        }
+      }
+    },
+    "Sharing failed. Your Shelf items have been kept." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sharing failed. Your Shelf items have been kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享失败，Shelf 项目已保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享失敗，Shelf 項目已保留。"
+          }
+        }
+      }
+    },
+    "Some items could not be read. AirDrop was not started." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some items could not be read. AirDrop was not started."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分项目无法读取，尚未启动隔空投送。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分項目無法讀取，尚未啟動 AirDrop。"
+          }
+        }
+      }
+    },
+    "AirDrop is unavailable for these items." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirDrop is unavailable for these items."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些项目无法通过隔空投送发送。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這些項目無法透過 AirDrop 傳送。"
+          }
+        }
+      }
+    },
+    "This file is unavailable. Check its location or reconnect the drive." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file is unavailable. Check its location or reconnect the drive."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件暂不可用，请检查位置或重新连接磁盘。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "檔案暫時無法使用，請檢查位置或重新連接磁碟。"
+          }
+        }
+      }
+    },
+    "This file could not be opened." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file could not be opened."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开此文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法打開此檔案。"
+          }
+        }
+      }
+    },
+    "The archive could not be created. Your files have been kept." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The archive could not be created. Your files have been kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法创建压缩文件，原文件已保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法建立壓縮檔，原始檔案已保留。"
+          }
+        }
+      }
+    },
     "Pinned lyric context" : {
       "comment" : "Pinned lyrics setting in Media settings.",
       "localizations" : {
@@ -5854,125 +6291,6 @@
       },
       "shouldTranslate" : false
     },
-    "AirDrop service not available" : {
-      "comment" : "merge:ko:alt='AirDrop 서비스를 사용할 수 없음'",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "AirDrop service not available"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Služba AirDrop není dostupná"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AirDrop Funktionen sind nicht verfügbar"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AirDrop service not available"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AirDrop service not available"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Servicio AirDrop no disponible"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Service AirDrop indisponible"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "AirDrop service not available"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Servizio AirDrop non disponibile"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AirDrop 서비스를 사용할 수 없음"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AirDrop-service niet beschikbaar"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Usługa AirDrop nie jest dostępna"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AirDrop não disponível"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Служба AirDrop недоступна"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "บริการ AirDrop ไม่พร้อมใช้งาน"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AirDrop hizmeti kullanılamıyor"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Служба AirDrop недоступна"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "AirDrop 服务不可用"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "AirDrop 服務不可用"
-          }
-        }
-      }
-    },
     "AirPlay" : {
       "comment" : "A label for the AirPlay button.",
       "isCommentAutoGenerated" : true,
@@ -11439,60 +11757,6 @@
         }
       }
     },
-    "Choose which service to use when sharing files from the shelf. Drag files onto the shelf or click the shelf button to pick files." : {
-      "comment" : "A footer description under the Quick Share section of the Shelf settings. | A footer description under the Quick Share section of the Shelf settings. | merge:ko:alt='서랍에서 파일을 공유할 때 사용할 서비스를 선택하세요. 파일을 서랍으로 드래그하거나 셸프 버튼을 클릭하여 파일을 선택할 수 있습니다.'",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "서랍에서 파일을 공유할 때 사용할 서비스를 선택하세요. 파일을 서랍으로 드래그하거나 서랍 버튼을 클릭하여 파일을 선택할 수 있습니다."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kies welke service je wilt gebruiken bij het delen van bestanden vanaf de plank. Sleep bestanden naar de plank of klik op de plankknop om bestanden te kiezen."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escolha qual serviço usar ao compartilhar arquivos da prateleira. Arraste os arquivos para a prateleira ou clique no botão da prateleira para escolher os arquivos."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выберите сервис для файлов с полки. Перетащите файлы на полку или нажмите кнопку."
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "เลือกบริการที่จะใช้เมื่อแชร์ไฟล์จาก Shelf ลากไฟล์ไปยัง Shelf หรือคลิกปุ่ม Shelf เพื่อเลือกไฟล์"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Raftan dosya paylaşırken hangi hizmetin kullanılacağını seçin. Dosyaları rafa sürükleyin veya dosyaları seçmek için raf düğmesini tıklayın."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择从架子共享文件时使用的服务。将文件拖到架子上或点击架子按钮选择文件。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選擇從架子共享檔案時使用的服務。將檔案拖到架子上或點按架子按鈕選擇檔案。"
-          }
-        }
-      }
-    },
     "Choose which system controls should display HUD notifications." : {
       "comment" : "A footer for the \"Controls\" section in the HUD settings, explaining that users can choose which system controls should display HUD notifications.",
       "isCommentAutoGenerated" : true,
@@ -14573,36 +14837,6 @@
         }
       }
     },
-    "Convert" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "변환"
-          }
-        }
-      }
-    },
-    "Convert Image" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이미지 변환"
-          }
-        }
-      }
-    },
-    "Convert Image…" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이미지 변환…"
-          }
-        }
-      }
-    },
     "Copy Latest Crash Report" : {
       "localizations" : {
         "fr" : {
@@ -14667,60 +14901,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "경로 복사"
-          }
-        }
-      }
-    },
-    "Copy items on drag" : {
-      "comment" : "A toggle that allows users to copy items to the clipboard when dragging them.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "드래그 시 항목 복사"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kopieer items door te slepen"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copiar itens ao arrastar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Копировать элементы при перетаскивании"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "คัดลอกรายการเมื่อลาก"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Öğeleri sürüklerken kopyala"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拖拽时复制项目"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拖移時複製項目"
           }
         }
       }
@@ -14986,16 +15166,6 @@
         }
       }
     },
-    "Create PDF" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PDF 생성"
-          }
-        }
-      }
-    },
     "Create and design with color picker, mirror, and visual effects." : {
       "comment" : "Description of a user profile when the name is \"Designer\".",
       "isCommentAutoGenerated" : true,
@@ -15140,108 +15310,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "目前預設："
-          }
-        }
-      }
-    },
-    "Currently selected: %@" : {
-      "comment" : "A label showing the currently selected quick share service. The argument is the ID of the currently selected quick share service.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "현재 선택된 항목: %@"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Momenteel geselecteerd: %@"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selecionado Atualmente: %@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выбрано: %@"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Currently selected: %@"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Şu anda seçili: %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前选择：%@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "目前選擇：%@"
-          }
-        }
-      }
-    },
-    "Currently: %@" : {
-      "comment" : "A label inside the quick share settings view, describing the currently selected quick share service.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "현재: %@"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Momenteel: %@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сейчас: %@"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Currently: %@"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Şu anda: %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前：%@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "目前：%@"
           }
         }
       }
@@ -22356,124 +22424,6 @@
         }
       }
     },
-    "Exit" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Exit"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ukončit"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verlassen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exit"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exit"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Salir"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quitter"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Exit"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Esci"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "종료"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afsluiten"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Wyjdź"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sair"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выход"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ออก"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Çık"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Вихід"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "退出"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "退出"
-          }
-        }
-      }
-    },
     "Expanded notch width" : {
       "comment" : "A label describing the expanded notch width setting.",
       "isCommentAutoGenerated" : true,
@@ -22953,156 +22903,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "風扇轉速"
-          }
-        }
-      }
-    },
-    "File" : {
-      "comment" : "Display name for a \"File\" clipboard item type.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "파일"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bestand"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Файл"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ไฟล์"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dosya"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文件"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "檔案"
-          }
-        }
-      }
-    },
-    "Files dropped on the shelf will be shared via this service" : {
-      "comment" : "A description below the currently selected quick share provider, explaining that files dropped on the shelf will be shared via that provider.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "서랍에 드롭한 파일은 이 서비스를 통해 공유됩니다."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bestanden die op de plank vallen, worden via deze dienst gedeeld"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Os arquivos deixados na prateleira serão compartilhados através deste serviço"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Файл"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ไฟล์ที่วางบน Shelf จะถูกแชร์ผ่านบริการนี้"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rafa düşen dosyalar bu hizmet aracılığıyla paylaşılacak"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拖放到架子上的文件将通过此服务共享"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拖放到架子上的檔案將透過此服務共享"
-          }
-        }
-      }
-    },
-    "Files shared from the shelf will use this service" : {
-      "comment" : "A description of how files shared from the shelf will be shared.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "서랍에서 공유된 파일은 이 서비스를 사용합니다."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bestanden die vanaf de plank worden gedeeld, maken gebruik van deze service"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Файлы с панели будут отправлены через этот сервис"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ไฟล์ที่แชร์จาก Shelf จะใช้บริการนี้"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Raftan paylaşılan dosyalar bu hizmeti kullanacak"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "从架子共享的文件将使用此服务"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "從架子共享的檔案將使用此服務"
           }
         }
       }
@@ -26986,16 +26786,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "圖片"
-          }
-        }
-      }
-    },
-    "Image Actions" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이미지 동작"
           }
         }
       }
@@ -32384,61 +32174,6 @@
         }
       }
     },
-    "Messages" : {
-      "comment" : "The title of the \"Messages\" settings page.",
-      "extractionState" : "stale",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "메세지"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Berichten"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mensagens"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сообщения"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ข้อความ"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mesajlar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "消息"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "訊息"
-          }
-        }
-      }
-    },
     "Mic" : {
       "comment" : "Name of a sneak action type that controls the microphone.",
       "isCommentAutoGenerated" : true,
@@ -33991,124 +33726,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "導航"
-          }
-        }
-      }
-    },
-    "Need Restart" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Need Restart"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Need Restart"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Braucht einen Neustart"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Need Restart"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Need Restart"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Need Restart"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Redémarrage nécessaire"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Need Restart"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Necessario Riavvio"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "재시작 필요"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Herstart vereist"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Potrzebne ponowne uruchomienie"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Necessário Reiniciar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Требуется перезапуск"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ต้องรีสตาร์ท"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yeniden Başlatma Gerekiyor"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Need Restart"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "需要重启"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "需要重啟"
           }
         }
       }
@@ -36432,60 +36049,6 @@
         }
       }
     },
-    "Notes" : {
-      "comment" : "The title of the Notes settings page.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "메모"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notities"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notas"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Заметки"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "บันทึก"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notlar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "笔记"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "筆記"
-          }
-        }
-      }
-    },
     "Notify before" : {
       "comment" : "A label describing the slider that allows the user to set a reminder lead time.",
       "isCommentAutoGenerated" : true,
@@ -36847,124 +36410,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "暫停中"
-          }
-        }
-      }
-    },
-    "One or more files failed to load" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "One or more files failed to load"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "One or more files failed to load"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eine oder mehrere Dateien konnten nicht geladen werden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "One or more files failed to load"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "One or more files failed to load"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "One or more files failed to load"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de charger un ou plusieurs fichiers"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "One or more files failed to load"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Impossibile caricare uno o più file"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "하나 이상의 파일을 불러오지 못했습니다"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Een of meer bestanden konden niet worden geladen"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nie udało się załadować jednego lub więcej plików"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Um ou mais arquivos falharam ao carregar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось загрузить один или несколько файлов"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ไฟล์หนึ่งหรือมากกว่าโหลดล้มเหลว"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bir veya daha fazla dosya yüklenemedi"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "One or more files failed to load"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "一个或多个文件加载失败"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "一個或多個檔案載入失敗"
           }
         }
       }
@@ -39947,103 +39392,6 @@
         }
       }
     },
-    "Quick Share" : {
-      "comment" : "A section header that says \"Quick Share\".",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Snel delen"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Быстрая отправка"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "แชร์ด่วน"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hızlı Paylaşım"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "快速共享"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "快速共享"
-          }
-        }
-      },
-      "shouldTranslate" : false
-    },
-    "Quick Share Service" : {
-      "comment" : "A picker that lets the user select a quick share service to use when sharing files from the shelf.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quick Share 서비스"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Service voor Snel delen"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Serviço de Quick Share"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Быстрая отправка"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "บริการแชร์ด่วน"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hızlı Paylaşım Hizmeti"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "快速共享服务"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "快速共享服務"
-          }
-        }
-      }
-    },
     "Quit" : {
       "localizations" : {
         "ar" : {
@@ -41238,16 +40586,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移除"
-          }
-        }
-      }
-    },
-    "Remove Background" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "배경 제거"
           }
         }
       }
@@ -52860,60 +52198,6 @@
         }
       }
     },
-    "Title" : {
-      "comment" : "A label for the title input field in the note editor.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "제목"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Titel"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Título"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Название"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ชื่อเรื่อง"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Başlık"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "标题"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "標題"
-          }
-        }
-      }
-    },
     "Toggle Notch Open:" : {
       "localizations" : {
         "ar" : {
@@ -53579,54 +52863,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "關閉此項以在瀏海行事曆和提醒即時動態中包含全天事件。"
-          }
-        }
-      }
-    },
-    "URL" : {
-      "comment" : "Name of a clipboard item type that represents a URL.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "URL"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "URL"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "URL"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "URL"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "URL"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "链接"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連結"
           }
         }
       }

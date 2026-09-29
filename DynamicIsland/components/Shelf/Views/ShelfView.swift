@@ -56,6 +56,8 @@ struct ShelfView: View {
     @StateObject var selection = ShelfSelectionModel.shared
     @StateObject private var quickLookService = QuickLookService()
     @State private var autoCloseToken = UUID()
+    @State private var previewCloseToken = UUID()
+    @State private var selectionTask: Task<Void, Never>?
     @State private var viewportSize: CGSize = .zero
     private let spacing: CGFloat = 8
 
@@ -78,7 +80,13 @@ struct ShelfView: View {
         .onChange(of: selection.isMarqueeSelecting) { _, active in
             if !active { updateQuickLookSelection() }
         }
+        .onChange(of: quickLookService.isQuickLookOpen) { _, open in
+            vm.setAutoCloseSuppression(open, token: previewCloseToken)
+        }
         .onDisappear {
+            selectionTask?.cancel()
+            quickLookService.hide()
+            vm.setAutoCloseSuppression(false, token: previewCloseToken)
             vm.setAutoCloseSuppression(false, token: autoCloseToken)
         }
         .quickLookPresenter(using: quickLookService)
@@ -92,14 +100,17 @@ struct ShelfView: View {
     }
     
     private func updateQuickLookSelection() {
-        guard quickLookService.isQuickLookOpen && !selection.selectedIDs.isEmpty else { return }
+        selectionTask?.cancel()
+        guard quickLookService.isQuickLookOpen else { return }
+        guard !selection.selectedIDs.isEmpty else { quickLookService.hide(); return }
 
         let selectedItems = selection.selectedItems(in: tvm.items)
         let capturedIDs = selection.selectedIDs
 
-        Task {
+        selectionTask = Task {
             var urls: [URL] = []
             for item in selectedItems {
+                guard !Task.isCancelled else { return }
                 if let fileURL = await ShelfStateViewModel.shared.resolveFileURLAsync(for: item) {
                     urls.append(fileURL)
                 } else if case .link(let url) = item.kind {
@@ -110,7 +121,7 @@ struct ShelfView: View {
             if !urls.isEmpty {
                 await MainActor.run {
                     // Only update if selection hasn't changed since we started resolving
-                    if selection.selectedIDs == capturedIDs {
+                    if !Task.isCancelled, quickLookService.isQuickLookOpen, selection.selectedIDs == capturedIDs {
                         quickLookService.updateSelection(urls: urls)
                     }
                 }
@@ -155,6 +166,20 @@ struct ShelfView: View {
 
                     content
                         .padding()
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if let feedback = tvm.feedback {
+                    Text(feedback)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.black.opacity(0.94), in: RoundedRectangle(cornerRadius: 8))
+                        .padding(6)
+                        .allowsHitTesting(false)
+                        .accessibilityLabel(feedback)
                 }
             }
             .transaction { transaction in
@@ -212,7 +237,7 @@ struct ShelfView: View {
                     }
                 }
                 .padding(-spacing)
-                .scrollIndicators(.never)
+                .scrollIndicators(.automatic)
                 // Measures the ScrollView itself (the viewport), not its
                 // content, so this only fires when the panel resizes.
                 .background(
@@ -225,9 +250,6 @@ struct ShelfView: View {
                     handleDrop(providers: providers)
                 }
             }
-        }
-        .onAppear {
-            ShelfStateViewModel.shared.cleanupInvalidItems()
         }
     }
 }

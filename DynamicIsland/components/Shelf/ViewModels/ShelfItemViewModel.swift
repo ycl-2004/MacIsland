@@ -23,9 +23,6 @@
 import Foundation
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
-import CoreServices
-import ObjectiveC
 
 @MainActor
 final class ShelfItemViewModel: ObservableObject {
@@ -33,193 +30,63 @@ final class ShelfItemViewModel: ObservableObject {
     @Published var thumbnail: NSImage?
     @Published var displayName: String = ""
     @Published var icon: NSImage?
-    @Published var isDropTargeted: Bool = false
-    @Published var isRenaming: Bool = false
-    @Published var draftTitle: String = ""
-    private var sharingLifecycle: SharingLifecycleDelegate?
-    private var quickShareLifecycle: SharingLifecycleDelegate?
-    private var sharingAccessingURLs: [URL] = []
-    private static var copiedURLs: [URL] = []
-
+    private var metadataTask: Task<Void, Never>?
     private let selection = ShelfSelectionModel.shared
 
     init(item: ShelfItem) {
         self.item = item
-        self.displayName = ""
-        self.icon = nil
-        Task { await loadMetadata() }
+        applyImmediateMetadata()
     }
+
+    deinit { metadataTask?.cancel() }
 
     var isSelected: Bool { selection.isSelected(item.id) }
 
-    // Single coordinated load: resolves bookmark once, populates all metadata
-    func loadMetadata() async {
-        guard case .file(let bookmarkData) = item.kind else { return }
-        let bookmark = Bookmark(data: bookmarkData)
-        let (url, _) = await bookmark.resolveAsync()
-        guard let resolvedURL = url else { return }
-
-        // Self-healing: refresh the cached path in case the file moved since it
-        // was dropped. No-op when unchanged, so it won't churn persistence.
-        let itemID = item.id
-        let resolvedPath = resolvedURL.standardizedFileURL.path
-        await MainActor.run {
-            ShelfStateViewModel.shared.applyCachedPath(resolvedPath, for: itemID, resolvedFrom: bookmarkData)
-        }
-
-        // Load display name
-        let name = await loadDisplayNameFromURL(resolvedURL)
-        await MainActor.run { self.displayName = name }
-        
-        // Load icon
-        let image = await loadIconFromURL(resolvedURL)
-        await MainActor.run { self.icon = image }
-        
-        // Load thumbnail
-        if let thumbnailImage = await ThumbnailService.shared.thumbnail(for: resolvedURL, size: CGSize(width: 56, height: 56)) {
-            await MainActor.run { self.thumbnail = thumbnailImage }
-        }
+    func update(_ item: ShelfItem) {
+        guard self.item != item else { return }
+        stopLoading()
+        self.item = item
+        applyImmediateMetadata()
     }
 
-    func loadDisplayName() async {
-        guard case .file(let bookmarkData) = item.kind else { return }
-        let bookmark = Bookmark(data: bookmarkData)
-        let (url, _) = await bookmark.resolveAsync()
-        guard let resolvedURL = url else { return }
-        let name = await loadDisplayNameFromURL(resolvedURL)
-        await MainActor.run { self.displayName = name }
-    }
-
-    private func loadDisplayNameFromURL(_ url: URL) async -> String {
-        if url.pathExtension.lowercased() == "json" && url.path.contains("TextBlocks") {
-            do {
-                let data = try Data(contentsOf: url)
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                struct TextBlockData: Codable {
-                    let content: String
-                    let title: String?
-                    var displayTitle: String {
-                        if let title = title, !title.isEmpty { return title }
-                        let firstLine = content.components(separatedBy: .newlines).first ?? content
-                        if firstLine.count > 50 { return String(firstLine.prefix(47)) + "..." }
-                        return firstLine
-                    }
-                }
-                if let textData = try? decoder.decode(TextBlockData.self, from: data) {
-                    return textData.displayTitle
-                }
-            } catch { /* fall through */ }
-        } else if url.pathExtension.lowercased() == "webloc" && url.path.contains("WebLocs") {
-            do {
-                let data = try Data(contentsOf: url)
-                if let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-                   let urlString = plist["URL"] as? String {
-                    let title = plist["Title"] as? String
-                    return title ?? urlString
-                }
-            } catch { /* fall through */ }
-        }
-        return (try? url.resourceValues(forKeys: [.localizedNameKey]).localizedName) ?? url.lastPathComponent
-    }
-
-    func loadIcon() async {
-        guard case .file(let bookmarkData) = item.kind else { return }
-        let bookmark = Bookmark(data: bookmarkData)
-        let (url, _) = await bookmark.resolveAsync()
-        guard let resolvedURL = url else { return }
-        let image = await loadIconFromURL(resolvedURL)
-        await MainActor.run { self.icon = image }
-    }
-
-    private func loadIconFromURL(_ url: URL) async -> NSImage {
-        return NSWorkspace.shared.icon(forFile: url.path)
-    }
-
-    // Async version to resolve file URL without blocking main thread
-    func resolveFileURL() async -> URL? {
-        guard case .file(let bookmarkData) = item.kind else { return nil }
-        let bookmark = Bookmark(data: bookmarkData)
-        let (url, _) = await bookmark.resolveAsync()
-        return url
-    }
-
-    // MARK: - Drag & Drop helpers
-    func dragItemProvider() -> NSItemProvider {
-        let selectedItems = selection.selectedItems(in: ShelfStateViewModel.shared.items)
-        if selectedItems.count > 1 && selectedItems.contains(where: { $0.id == item.id }) {
-            return createMultiItemProvider(for: selectedItems)
-        }
-        return createItemProvider(for: item)
-    }
-
-    private func createItemProvider(for item: ShelfItem) -> NSItemProvider {
+    private func applyImmediateMetadata() {
         switch item.kind {
         case .file:
-            let provider = NSItemProvider()
-            // Use registerFileRepresentation with async load handler
-            provider.registerFileRepresentation(forTypeIdentifier: UTType.fileURL.identifier, fileOptions: [], visibility: .all) { completion in
-                // This is called on a background thread - we can do async work
-                Task {
-                    let url = await ShelfStateViewModel.shared.resolveAndUpdateBookmarkAsync(for: item)
-                    if let url = url {
-                        _ = url.startAccessingSecurityScopedResource()
-                        completion(url, true, nil)
-                    } else {
-                        completion(nil, false, nil)
-                    }
-                }
-                // Return nil progress - completion will be called async
-                return nil
-            }
-            // Fallback: also register display name as plain text
-            provider.registerObject(item.displayName as NSString, visibility: .all)
-            return provider
-        case .text(let string):
-            return NSItemProvider(object: string as NSString)
+            displayName = item.cachedDisplayName ?? item.cachedPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? String(localized: "File")
+            icon = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
+        case .text(let text):
+            displayName = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            icon = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: nil)
         case .link(let url):
-            return NSItemProvider(object: url as NSURL)
+            displayName = url.absoluteString
+            icon = NSImage(systemSymbolName: "link", accessibilityDescription: nil)
         }
     }
 
-    private func createMultiItemProvider(for items: [ShelfItem]) -> NSItemProvider {
-        let provider = NSItemProvider()
-        var textItems: [String] = []
-        var fileItems: [ShelfItem] = []
-        
-        for item in items {
-            switch item.kind {
-            case .file:
-                fileItems.append(item)
-            case .text(let string):
-                textItems.append(string)
-            case .link:
-                break
-            }
+    func startLoading() {
+        guard metadataTask == nil, case .file(let data) = item.kind else { return }
+        icon = item.cachedIconData.flatMap(NSImage.init(data:)) ?? icon
+        let snapshot = item
+        metadataTask = Task { [weak self] in
+            let result = await Bookmark(data: data).resolveAsync()
+            guard !Task.isCancelled, let url = result.url else { return }
+            let name = await Task.detached(priority: .utility) {
+                (try? url.resourceValues(forKeys: [.localizedNameKey]).localizedName) ?? url.lastPathComponent
+            }.value
+            guard !Task.isCancelled, self?.item.kind == snapshot.kind else { return }
+            self?.displayName = name
+            ShelfStateViewModel.shared.applyCachedPath(url.standardizedFileURL.path, for: snapshot.id, resolvedFrom: data)
+            let image = await ThumbnailService.shared.thumbnail(for: url, size: CGSize(width: 56, height: 56))
+            guard !Task.isCancelled, self?.item.kind == snapshot.kind else { return }
+            self?.thumbnail = image
         }
-        
-        // Register file representations with lazy loading
-        if !fileItems.isEmpty {
-            for fileItem in fileItems {
-                provider.registerFileRepresentation(forTypeIdentifier: UTType.fileURL.identifier, fileOptions: [], visibility: .all) { completion in
-                    Task {
-                        let url = await ShelfStateViewModel.shared.resolveAndUpdateBookmarkAsync(for: fileItem)
-                        if let url = url {
-                            _ = url.startAccessingSecurityScopedResource()
-                            completion(url, true, nil)
-                        } else {
-                            completion(nil, false, nil)
-                        }
-                    }
-                    return nil
-                }
-            }
-        }
-        
-        if !textItems.isEmpty {
-            provider.registerObject(textItems.joined(separator: "\n") as NSString, visibility: .all)
-        }
-        return provider
+    }
+
+    func stopLoading() {
+        metadataTask?.cancel()
+        metadataTask = nil
+        thumbnail = nil
+        applyImmediateMetadata()
     }
 
     // MARK: - Actions
@@ -248,86 +115,45 @@ final class ShelfItemViewModel: ObservableObject {
     }
 
     func shareItem(from view: NSView?) {
+        guard let view else { return }
+        let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
+        let preparationLease = ShelfFileLifetime.shared.acquire(selected.compactMap { $0.resolvedFileURL })
         Task {
+            defer { preparationLease.finish() }
             var itemsToShare: [Any] = []
             var fileURLs: [URL] = []
-            if case .text(let text) = item.kind {
-                itemsToShare.append(text)
-            } else {
-                for item in ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items) {
-                    switch item.kind {
-                    case .file:
-                        // Use async resolution for user-initiated share action
-                        if let url = await ShelfStateViewModel.shared.resolveAndUpdateBookmarkAsync(for: item) {
-                            itemsToShare.append(url)
-                            fileURLs.append(url)
-                        }
-                    case .text(let string):
-                        itemsToShare.append(string)
-                    case .link(let url):
+            for item in selected {
+                switch item.kind {
+                case .file:
+                    if let url = await ShelfStateViewModel.shared.resolveAndUpdateBookmarkAsync(for: item) {
                         itemsToShare.append(url)
+                        fileURLs.append(url)
                     }
+                case .text(let string): itemsToShare.append(string)
+                case .link(let url): itemsToShare.append(url)
                 }
             }
-            
-            guard !itemsToShare.isEmpty else { return }
-             
-            stopSharingAccessingURLs()
-            // Start security-scoped access for all file URLs and keep it active during sharing
-            sharingAccessingURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
-            
-            // Create and retain lifecycle delegate for the entire share operation
-            let lifecycle = SharingStateManager.shared.makeDelegate { [weak self] in
-                self?.sharingLifecycle = nil
-                self?.stopSharingAccessingURLs()
+            guard !itemsToShare.isEmpty, itemsToShare.count == selected.count else {
+                ShelfStateViewModel.shared.report(String(localized: "Some items could not be shared. Check that the files are available."))
+                return
             }
-            self.sharingLifecycle = lifecycle
-            
+             
+            let lease = ShelfFileLifetime.shared.acquire(fileURLs)
+            let lifecycle = SharingStateManager.shared.makeDelegate { succeeded in
+                lease.finish(handoff: succeeded)
+            }
             let picker = NSSharingServicePicker(items: itemsToShare)
+            lifecycle.retainPicker(picker)
             picker.delegate = lifecycle
             lifecycle.markPickerBegan()
-            if let view {
-                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
-            }
+            picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
         }
-    }
-    
-    private func stopSharingAccessingURLs() {
-        for url in sharingAccessingURLs {
-            url.stopAccessingSecurityScopedResource()
-        }
-        sharingAccessingURLs.removeAll()
     }
 
     /// Call this closure to request a QuickLook preview for the given URLs.
     var onQuickLookRequest: (([URL]) -> Void)?
 
-    // MARK: - Context Menu helpers (extracted from view)
-    func loadOpenWithApps() -> [URL] {
-        // Support both files and link items. For link items we ask NSWorkspace for apps that can open the URL (browsers).
-        if let fileURL = item.fileURL {
-            var results: [URL] = NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
-            if results.isEmpty {
-                if let uti = try? fileURL.resourceValues(forKeys: [.contentTypeKey]).contentType {
-                    results = NSWorkspace.shared.urlsForApplications(toOpen: uti)
-                }
-            }
-            let unique = Array(Set(results))
-            let sorted = unique.sorted { appDisplayName(for: $0) < appDisplayName(for: $1) }
-            return sorted
-        } else if case .link(let url) = item.kind {
-            var results: [URL] = NSWorkspace.shared.urlsForApplications(toOpen: url)
-            if results.isEmpty {
-                if let uti = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType {
-                    results = NSWorkspace.shared.urlsForApplications(toOpen: uti)
-                }
-            }
-            let unique = Array(Set(results))
-            let sorted = unique.sorted { appDisplayName(for: $0) < appDisplayName(for: $1) }
-            return sorted
-        }
-        return []
-    }
+    // MARK: - Context Menu
 
     private func ensureContextMenuSelection() {
         if !selection.isSelected(item.id) { selection.selectSingle(item) }
@@ -350,7 +176,6 @@ final class ShelfItemViewModel: ObservableObject {
             if case .link(let url) = itm.kind { return url }
             return nil
         }
-        let selectedFolderURLs = selectedFileURLs.filter { isDirectory($0) }
         // URLs valid for Open/Open With (exclude folders)
         let selectedOpenableURLs = selectedItems.compactMap { itm -> URL? in
             if let u = itm.fileURL { return isDirectory(u) ? nil : u }
@@ -449,38 +274,6 @@ final class ShelfItemViewModel: ObservableObject {
 
         menu.addItem(NSMenuItem.separator())
         addMenuItem(title: "Share…")
-        
-        // Add image processing options for image files grouped under "Image Actions"
-        let imageURLs = selectedFileURLs.filter { ImageProcessingService.shared.isImageFile($0) }
-        if !imageURLs.isEmpty {
-            menu.addItem(NSMenuItem.separator())
-
-            let imageActions = NSMenuItem(title: String(localized: "Image Actions"), action: nil, keyEquivalent: "")
-            let imageSubmenu = NSMenu()
-
-            // Remove Background - only for single images
-            if imageURLs.count == 1 {
-                let removeBg = NSMenuItem(title: String(localized: "Remove Background"), action: nil, keyEquivalent: "")
-                removeBg.identifier = NSUserInterfaceItemIdentifier("Remove Background")
-                imageSubmenu.addItem(removeBg)
-            }
-
-            // Convert Image - only for single images
-            if imageURLs.count == 1 {
-                let convertItem = NSMenuItem(title: String(localized: "Convert Image…"), action: nil, keyEquivalent: "")
-                convertItem.identifier = NSUserInterfaceItemIdentifier("Convert Image…")
-                imageSubmenu.addItem(convertItem)
-            }
-
-            // Create PDF - for one or more images
-            let createPDF = NSMenuItem(title: String(localized: "Create PDF"), action: nil, keyEquivalent: "")
-            createPDF.identifier = NSUserInterfaceItemIdentifier("Create PDF")
-            imageSubmenu.addItem(createPDF)
-
-            imageActions.submenu = imageSubmenu
-            menu.addItem(imageActions)
-            menu.addItem(NSMenuItem.separator())
-        }
 
         // Add compression option for files/folders (single or multiple)
         if !selectedFileURLs.isEmpty {
@@ -537,9 +330,6 @@ final class ShelfItemViewModel: ObservableObject {
         let item: ShelfItem
         weak var view: NSView?
         unowned let viewModel: ShelfItemViewModel
-
-        // Keep associated objects (like accessory view handlers) without magic keys
-        private static var sliderHandlerAssoc = AssociatedObject<AnyObject>()
 
         init(item: ShelfItem, view: NSView, viewModel: ShelfItemViewModel) {
             self.item = item
@@ -655,76 +445,51 @@ final class ShelfItemViewModel: ObservableObject {
 
             case "Copy":
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
-                let pb = NSPasteboard.general
-                
-                // Stop accessing previously copied URLs
-                for url in ShelfItemViewModel.copiedURLs {
-                    url.stopAccessingSecurityScopedResource()
-                }
-                ShelfItemViewModel.copiedURLs.removeAll()
-                
-                pb.clearContents()
+                let changeCount = NSPasteboard.general.changeCount
+                let lease = ShelfFileLifetime.shared.acquire(selected.compactMap { $0.resolvedFileURL })
                 Task {
-                    let fileURLs = await selected.asyncCompactMap { item -> URL? in
-                        if case .file = item.kind {
-                            return await ShelfStateViewModel.shared.resolveAndUpdateBookmarkAsync(for: item)
+                    defer { lease.finish() }
+                    var objects: [NSPasteboardWriting] = []
+                    var fileURLs: [URL] = []
+                    for item in selected {
+                        switch item.kind {
+                        case .file:
+                            if let url = await ShelfStateViewModel.shared.resolveAndUpdateBookmarkAsync(for: item) {
+                                objects.append(url as NSURL)
+                                fileURLs.append(url)
+                            }
+                        case .link(let url): objects.append(url as NSURL)
+                        case .text(let text): objects.append(text as NSString)
                         }
-                        return nil
                     }
-                    if !fileURLs.isEmpty {
-                        // Start security-scoped access for all URLs and keep them active
-                        ShelfItemViewModel.copiedURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
-                        NSLog("🔐 Started security-scoped access for \(ShelfItemViewModel.copiedURLs.count) copied files")
-                        
-                        // Write to pasteboard
-                        pb.writeObjects(fileURLs as [NSURL])
-                    } else {
-                        let strings = selected.map { $0.displayName }
-                        if !strings.isEmpty {
-                            pb.setString(strings.joined(separator: "\n"), forType: .string)
-                        }
+                    guard NSPasteboard.general.changeCount == changeCount else { return }
+                    guard objects.count == selected.count, ShelfClipboard.shared.write(objects, fileURLs: fileURLs) else {
+                        ShelfStateViewModel.shared.report(String(localized: "Some items could not be copied. Check that the files are available."))
+                        return
                     }
                 }
 
             case "Remove":
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
                 for it in selected { ShelfActionService.remove(it) }
-                
-            case "Remove Background":
-                handleRemoveBackground()
-                
-            case "Convert Image…":
-                showConvertImageDialog()
-                
-            case "Create PDF":
-                handleCreatePDF()
-            
+
             case "Compress":
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
                 let fileURLs = selected.compactMap { $0.fileURL }
                 guard !fileURLs.isEmpty else { break }
 
+                let lease = ShelfFileLifetime.shared.acquire(fileURLs)
+                let generation = ShelfStateViewModel.shared.generation
                 Task {
-                    do {
-                        // Create ZIP in a temporary location while holding access to selected resources
-                        if let zipTempURL = try await fileURLs.accessSecurityScopedResources(accessor: { urls in
-                            await TemporaryFileStorageService.shared.createZip(from: urls)
-                        }) {
-                            if let bookmark = try? Bookmark(url: zipTempURL) {
-                                let newItem = ShelfItem(
-                                    kind: .file(bookmark: bookmark.data),
-                                    isTemporary: true,
-                                    cachedPath: zipTempURL.standardizedFileURL.path
-                                )
-                                ShelfStateViewModel.shared.add([newItem])
-                            } else {
-                                // Fallback: reveal the temporary file in Finder
-                                NSWorkspace.shared.activateFileViewerSelecting([zipTempURL])
-                            }
-                        }
-                    } catch {
-                        print("❌ Compress failed: \(error)")
+                    defer { lease.finish() }
+                    guard let zipTempURL = await TemporaryFileStorageService.shared.createZip(from: fileURLs),
+                          let bookmark = try? Bookmark(url: zipTempURL) else {
+                        ShelfStateViewModel.shared.report(String(localized: "The archive could not be created. Your files have been kept."))
+                        return
                     }
+                    let newItem = ShelfItem(kind: .file(bookmark: bookmark.data), isTemporary: true,
+                        cachedDisplayName: zipTempURL.lastPathComponent, cachedPath: zipTempURL.standardizedFileURL.path)
+                    ShelfStateViewModel.shared.add([newItem], ifUnchanged: generation)
                 }
                 
             default:
@@ -818,10 +583,6 @@ final class ShelfItemViewModel: ObservableObject {
             
             popup.setContentHuggingPriority(.defaultLow, for: .horizontal)
             popup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
-            
-            let alwaysCheckbox = NSButton(checkboxWithTitle: "Always Open With", target: nil, action: nil)
-            alwaysCheckbox.font = .systemFont(ofSize: NSFont.systemFontSize)
-            alwaysCheckbox.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
             let row = NSStackView(views: [enableLabel, popup])
             row.orientation = .horizontal
@@ -829,7 +590,9 @@ final class ShelfItemViewModel: ObservableObject {
             row.alignment = .centerY
             row.distribution = .fill
             
-            let column = NSStackView(views: [row, alwaysCheckbox])
+            // No "Always Open With" here: that rewrote the system-wide default
+            // app for the file type, far outside what a shelf action should touch.
+            let column = NSStackView(views: [row])
             column.orientation = .vertical
             column.spacing = 12
             column.alignment = .centerX
@@ -871,16 +634,6 @@ final class ShelfItemViewModel: ObservableObject {
                     Task {
                         do {
                             let config = NSWorkspace.OpenConfiguration()
-                            if alwaysCheckbox.state == .on, let bundleID = Bundle(url: appURL)?.bundleIdentifier {
-                                if let contentType = (try? fileURL.resourceValues(forKeys: [.contentTypeKey]))?.contentType {
-                                    let status = LSSetDefaultRoleHandlerForContentType(contentType.identifier as CFString, LSRolesMask.all, bundleID as CFString)
-                                    if status != noErr { print("⚠️ Failed to set default handler for \(contentType.identifier): \(status)") }
-                                } else if let scheme = fileURL.scheme {
-                                    let status = LSSetDefaultHandlerForURLScheme(scheme as CFString, bundleID as CFString)
-                                    if status != noErr { print("⚠️ Failed to set default handler for scheme \(scheme): \(status)") }
-                                }
-                            }
-
                             if needsSecurityScope {
                                 _ = try await fileURL.accessSecurityScopedResource { accessibleURL in
                                     try await NSWorkspace.shared.open([accessibleURL], withApplicationAt: appURL, configuration: config)
@@ -899,317 +652,41 @@ final class ShelfItemViewModel: ObservableObject {
             }
         }
         
+        /// Asks for a new name and renames the file in place.
         @MainActor
         private func showRenameDialog(for item: ShelfItem) {
-            guard case let .file(bookmarkData) = item.kind else { return }
-            Task {
-                let bookmark = Bookmark(data: bookmarkData)
-                if let fileURL = bookmark.resolveURL() {
-                    // Start security-scoped access and keep it active until rename completes.
-                    let didStart = fileURL.startAccessingSecurityScopedResource()
+            guard let fileURL = item.fileURL else { return }
+            let currentName = fileURL.lastPathComponent
 
-                    let savePanel = NSSavePanel()
-                    savePanel.title = "Rename File"
-                    savePanel.prompt = "Rename"
-                    savePanel.nameFieldStringValue = fileURL.lastPathComponent
-                    savePanel.directoryURL = fileURL.deletingLastPathComponent()
-                    savePanel.begin { response in
-                        if response == .OK, let newURL = savePanel.url {
-                            Task {
-                                do {
-                                    NSLog("🔐 Rename: moving from \(fileURL.path) to \(newURL.path) (securityScope=\(didStart))")
-
-                                    try FileManager.default.moveItem(at: fileURL, to: newURL)
-
-                                    if let newBookmark = try? Bookmark(url: newURL) {
-                                        ShelfStateViewModel.shared.updateBookmark(
-                                            for: item,
-                                            bookmark: newBookmark.data,
-                                            path: newURL.standardizedFileURL.path
-                                        )
-                                    }
-                                } catch {
-                                    print("❌ Failed to rename file: \(error.localizedDescription)")
-                                }
-                                if didStart { fileURL.stopAccessingSecurityScopedResource() }
-                            }
-                        } else {
-                            if didStart { fileURL.stopAccessingSecurityScopedResource() }
-                        }
-                    }
-                }
-            }
-        }
-        
-        @MainActor
-        private func handleRemoveBackground() {
-            let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
-            let imageURLs = selected.compactMap { $0.fileURL }.filter { ImageProcessingService.shared.isImageFile($0) }
-            
-            guard let imageURL = imageURLs.first else { return }
-            
-            Task {
-                do {
-                    let resultURL = try await imageURL.accessSecurityScopedResource { url in
-                        try await ImageProcessingService.shared.removeBackground(from: url)
-                    }
-                    
-                    if let resultURL = resultURL {
-                        // Create bookmark and add to shelf as temporary item
-                        if let bookmark = try? Bookmark(url: resultURL) {
-                            let newItem = ShelfItem(
-                                kind: .file(bookmark: bookmark.data),
-                                isTemporary: true
-                            )
-                            ShelfStateViewModel.shared.add([newItem])
-                        }
-                    }
-                } catch {
-                    print("❌ Failed to remove background: \(error.localizedDescription)")
-                    await showErrorAlert(title: "Background Removal Failed", message: error.localizedDescription)
-                }
-            }
-        }
-        
-        @MainActor
-        private func handleCreatePDF() {
-            let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
-            let imageURLs = selected.compactMap { $0.fileURL }.filter { ImageProcessingService.shared.isImageFile($0) }
-            
-            guard !imageURLs.isEmpty else { return }
-            
-            Task {
-                do {
-                    let resultURL = try await imageURLs.accessSecurityScopedResources { urls in
-                        try await ImageProcessingService.shared.createPDF(from: urls)
-                    }
-                    
-                    if let resultURL = resultURL {
-                        // Create bookmark and add to shelf as temporary item
-                        if let bookmark = try? Bookmark(url: resultURL) {
-                            let newItem = ShelfItem(
-                                kind: .file(bookmark: bookmark.data),
-                                isTemporary: true
-                            )
-                            ShelfStateViewModel.shared.add([newItem])
-                        }
-                    }
-                } catch {
-                    print("❌ Failed to create PDF: \(error.localizedDescription)")
-                    await showErrorAlert(title: "PDF Creation Failed", message: error.localizedDescription)
-                }
-            }
-        }
-        
-        @MainActor
-        private func showConvertImageDialog() {
-            let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
-            let imageURLs = selected.compactMap { $0.fileURL }.filter { ImageProcessingService.shared.isImageFile($0) }
-            
-            guard let imageURL = imageURLs.first else { return }
-            
-            // Create and show conversion options dialog with better layout
             let alert = NSAlert()
-            alert.messageText = String(localized: "Convert Image")
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: String(localized: "Convert"))
+            alert.messageText = String(localized: "Rename")
+            alert.addButton(withTitle: String(localized: "Rename"))
             alert.addButton(withTitle: String(localized: "Cancel"))
-            
-            // Create accessory view with better spacing and organization
-            let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 180))
-            accessoryView.wantsLayer = true
-            
-            // MARK: Format Row
-            let formatLabel = NSTextField(labelWithString: "Format:")
-            formatLabel.frame = NSRect(x: 0, y: 145, width: 100, height: 20)
-            formatLabel.font = .systemFont(ofSize: 12, weight: .medium)
-            accessoryView.addSubview(formatLabel)
-            
-            let formatPopup = NSPopUpButton(frame: NSRect(x: 120, y: 140, width: 250, height: 28))
-            formatPopup.addItems(withTitles: ["PNG", "JPEG", "HEIC", "TIFF", "BMP"])
-            formatPopup.selectItem(at: 0)
-            formatPopup.font = .systemFont(ofSize: 12)
-            accessoryView.addSubview(formatPopup)
-            
-            // MARK: Image Size Row
-            let imageSizeLabel = NSTextField(labelWithString: "Image Size:")
-            imageSizeLabel.frame = NSRect(x: 0, y: 105, width: 100, height: 20)
-            imageSizeLabel.font = .systemFont(ofSize: 12, weight: .medium)
-            accessoryView.addSubview(imageSizeLabel)
-            
-            let imageSizePopup = NSPopUpButton(frame: NSRect(x: 120, y: 100, width: 160, height: 28))
-            imageSizePopup.addItems(withTitles: ["Actual Size", "Large", "Medium", "Small", "Custom..."])
-            imageSizePopup.selectItem(at: 0)
-            imageSizePopup.font = .systemFont(ofSize: 12)
-            accessoryView.addSubview(imageSizePopup)
-            
-            // Custom size field (initially hidden)
-            let customSizeField = NSTextField(frame: NSRect(x: 285, y: 103, width: 85, height: 22))
-            customSizeField.placeholderString = "e.g., 1920"
-            customSizeField.font = .systemFont(ofSize: 12)
-            customSizeField.isHidden = true
-            accessoryView.addSubview(customSizeField)
-            
-            // MARK: Preserve Metadata Checkbox
-            let metadataCheckbox = NSButton(checkboxWithTitle: "Preserve Metadata", target: nil, action: nil)
-            metadataCheckbox.frame = NSRect(x: 120, y: 65, width: 200, height: 20)
-            metadataCheckbox.font = .systemFont(ofSize: 12)
-            metadataCheckbox.state = .on
-            accessoryView.addSubview(metadataCheckbox)
-            
-            // MARK: Separator line
-            let separatorLine = NSView(frame: NSRect(x: 0, y: 50, width: 380, height: 1))
-            separatorLine.wantsLayer = true
-            separatorLine.layer?.backgroundColor = NSColor.separatorColor.cgColor
-            accessoryView.addSubview(separatorLine)
-            
-            // MARK: Format-specific options (shown/hidden based on format selection)
-            let qualityRow = NSView(frame: NSRect(x: 0, y: 15, width: 380, height: 30))
-            qualityRow.wantsLayer = true
-            
-            let qualityLabel = NSTextField(labelWithString: "Compression:")
-            qualityLabel.frame = NSRect(x: 0, y: 7, width: 100, height: 20)
-            qualityLabel.font = .systemFont(ofSize: 12, weight: .medium)
-            qualityRow.addSubview(qualityLabel)
-            
-            let qualitySlider = NSSlider(frame: NSRect(x: 120, y: 12, width: 200, height: 20))
-            qualitySlider.minValue = 0.0
-            qualitySlider.maxValue = 1.0
-            qualitySlider.doubleValue = 0.85
-            accessoryView.addSubview(qualitySlider)
-            
-            let qualityValueLabel = NSTextField(labelWithString: "85%")
-            qualityValueLabel.frame = NSRect(x: 325, y: 7, width: 55, height: 20)
-            qualityValueLabel.font = .systemFont(ofSize: 12)
-            qualityValueLabel.alignment = .left
-            accessoryView.addSubview(qualityValueLabel)
-            
-            // Update quality label and hide/show compression row based on format
-            let updateQualityLabel = {
-                let value = Int(qualitySlider.doubleValue * 100)
-                qualityValueLabel.stringValue = "\(value)%"
+
+            let field = NSTextField(string: currentName)
+            field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
+            alert.accessoryView = field
+            alert.window.initialFirstResponder = field
+            // Select the name without its extension, as Finder does. Scheduled
+            // into the modal loop because showing the alert selects the whole
+            // field; if it does not take, all of it stays selected.
+            let stemLength = ((currentName as NSString).deletingPathExtension as NSString).length
+            RunLoop.main.perform(inModes: [.modalPanel]) {
+                field.currentEditor()?.selectedRange = NSRange(location: 0, length: stemLength)
             }
-            
-            let updateCompressionVisibility = {
-                let formatIndex = formatPopup.indexOfSelectedItem
-                let showCompression = formatIndex == 1 || formatIndex == 2 // JPEG or HEIC
-                qualitySlider.isHidden = !showCompression
-                qualityValueLabel.isHidden = !showCompression
-                qualityLabel.isHidden = !showCompression
-            }
-            
-            let updateCustomSizeVisibility = {
-                let sizeIndex = imageSizePopup.indexOfSelectedItem
-                customSizeField.isHidden = sizeIndex != 4 // Show only for "Custom..."
-            }
-            
-            // Create a target object to handle slider value changes
-            class SliderHandler: NSObject {
-                let updateLabel: () -> Void
-                let updateVisibility: () -> Void
-                let updateCustomSize: () -> Void
-                init(updateLabel: @escaping () -> Void, updateVisibility: @escaping () -> Void, updateCustomSize: @escaping () -> Void) {
-                    self.updateLabel = updateLabel
-                    self.updateVisibility = updateVisibility
-                    self.updateCustomSize = updateCustomSize
-                }
-                @objc func sliderChanged(_ sender: NSSlider) {
-                    updateLabel()
-                }
-                @objc func formatChanged(_ sender: NSPopUpButton) {
-                    updateVisibility()
-                }
-                @objc func sizeChanged(_ sender: NSPopUpButton) {
-                    updateCustomSize()
-                }
-            }
-            
-            let handler = SliderHandler(updateLabel: updateQualityLabel, updateVisibility: updateCompressionVisibility, updateCustomSize: updateCustomSizeVisibility)
-            qualitySlider.target = handler
-            qualitySlider.action = #selector(SliderHandler.sliderChanged(_:))
-            qualitySlider.isContinuous = true
-            
-            formatPopup.target = handler
-            formatPopup.action = #selector(SliderHandler.formatChanged(_:))
-            
-            imageSizePopup.target = handler
-            imageSizePopup.action = #selector(SliderHandler.sizeChanged(_:))
-            
-            updateCompressionVisibility()
-            updateQualityLabel()
-            updateCustomSizeVisibility()
-            
-            // Keep the handler alive using the `AssociatedObject` helper instead of a magic string key
-            MenuActionTarget.sliderHandlerAssoc[accessoryView] = handler
-            
-            alert.accessoryView = accessoryView
-            
-            let response = alert.runModal()
-            
-            if response == .alertFirstButtonReturn {
-                // Get selected options
-                let formatIndex = formatPopup.indexOfSelectedItem
-                let format: ImageConversionOptions.ImageFormat
-                switch formatIndex {
-                case 0: format = .png
-                case 1: format = .jpeg
-                case 2: format = .heic
-                case 3: format = .tiff
-                case 4: format = .bmp
-                default: format = .png
-                }
-                
-                let quality = qualitySlider.doubleValue
-                
-                // Get max dimension based on image size selection
-                let maxDimension: CGFloat? = {
-                    let sizeIndex = imageSizePopup.indexOfSelectedItem
-                    switch sizeIndex {
-                    case 0: return nil // Actual Size
-                    case 1: return 1280 // Large 
-                    case 2: return 640  // Medium 
-                    case 3: return 320  // Small 
-                    case 4: // Custom (user-specified)
-                        let text = customSizeField.stringValue.trimmingCharacters(in: .whitespaces)
-                        guard !text.isEmpty, let value = Double(text), value > 0 else { return nil }
-                        return CGFloat(value)
-                    default: return nil
-                    }
-                }()
-                
-                let removeMetadata = metadataCheckbox.state == .off // Note: we invert this
-                
-                let options = ImageConversionOptions(
-                    format: format,
-                    compressionQuality: quality,
-                    maxDimension: maxDimension,
-                    removeMetadata: removeMetadata
-                )
-                
-                Task {
-                    do {
-                        let resultURL = try await imageURL.accessSecurityScopedResource { url in
-                            try await ImageProcessingService.shared.convertImage(from: url, options: options)
-                        }
-                        
-                        if let resultURL = resultURL {
-                            // Create bookmark and add to shelf as temporary item
-                            if let bookmark = try? Bookmark(url: resultURL) {
-                                let newItem = ShelfItem(
-                                    kind: .file(bookmark: bookmark.data),
-                                    isTemporary: true
-                                )
-                                ShelfStateViewModel.shared.add([newItem])
-                            }
-                        }
-                    } catch {
-                        print("❌ Failed to convert image: \(error.localizedDescription)")
-                        showErrorAlert(title: "Image Conversion Failed", message: error.localizedDescription)
-                    }
-                }
+
+            // Atoll is rarely the active app while the notch is in use; without
+            // this the alert can open behind the window the user is looking at.
+            NSApp.activate(ignoringOtherApps: true)
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+            let name = field.stringValue
+            Task { @MainActor in
+                do { try await ShelfActionService.rename(item, to: name) }
+                catch { showErrorAlert(title: String(localized: "Couldn't Rename"), message: error.localizedDescription) }
             }
         }
-        
+
         @MainActor
         private func showErrorAlert(title: String, message: String) {
             let alert = NSAlert()
