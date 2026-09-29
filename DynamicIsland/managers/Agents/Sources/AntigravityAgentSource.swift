@@ -9,15 +9,18 @@ struct AntigravityAgentSource: AgentSource {
     let executableName = "agy"
     /// Shared by the `agy` CLI and the Antigravity apps.
     let hooksFileURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".gemini/config/hooks.json")
-    let hookFormat: AgentHookConfigFormat = NamedHookFormat(name: "atoll", toolEvents: ["PreToolUse", "PostToolUse"])
-    /// Antigravity parses every hook's stdout as JSON; `{}` means "no opinion".
+    let hookFormat: AgentHookConfigFormat = NamedHookFormat(name: "atoll", toolEvents: ["PostToolUse"])
+    /// Antigravity parses every hook's stdout as JSON; `{}` means "no opinion"
+    /// on each event installed here.
     let hookReply: String? = "{}"
 
     // Antigravity has no prompt, session or notification events: a new model
     // invocation marks the start of work, and quiet sessions age out.
+    // No `PreToolUse`: Antigravity requires a permission decision there and
+    // denies the call on `{}`, and the hooks file is global, so any reply would
+    // gate every Antigravity session. Tool calls show in the transcript instead.
     let hookEvents: [String: AgentEventPhase] = [
         "PreInvocation": .thinking,
-        "PreToolUse": .toolStarted,
         "PostToolUse": .thinking,
         "Stop": .turnFinished,
     ]

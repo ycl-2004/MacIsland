@@ -503,6 +503,8 @@ struct AgentConversationRegression {
         let stop = handlers["Stop"]!
         precondition(stop.count == 2 && stop[1]["asyncRewake"] as? Bool == true && (stop[1]["command"] as! String).hasSuffix("claude wait"))
         precondition(handlers["PreToolUse"]!.count == 1 && CodexAgentSource().hookHandlers(scriptPath: script)["Stop"]!.count == 1)
+        // Antigravity takes any PreToolUse reply as a permission decision, for every session on the machine.
+        precondition(AntigravityAgentSource().hookHandlers(scriptPath: script)["PreToolUse"] == nil)
 
         // Last release's hooks: one Stop handler. They read as outdated, and an update keeps the user's own hooks.
         let format = GroupedHookFormat()
