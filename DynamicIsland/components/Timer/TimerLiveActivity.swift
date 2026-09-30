@@ -19,21 +19,11 @@
 import SwiftUI
 import Defaults
 
-#if canImport(AppKit)
-import AppKit
-typealias PlatformFont = NSFont
-#elseif canImport(UIKit)
-import UIKit
-typealias PlatformFont = UIFont
-#endif
-
 struct TimerLiveActivity: View {
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject var timerManager = TimerManager.shared
     @ObservedObject var lockScreenManager = LockScreenManager.shared
-    @State private var isHovering: Bool = false
-    @State private var showTransientLabel: Bool = false
-    @State private var labelHideTask: DispatchWorkItem?
+    @State private var isHovering = false
     @Default(.timerShowsCountdown) private var showsCountdown
     @Default(.timerShowsProgress) private var showsProgress
     @Default(.timerShowsLabel) private var showsLabel
@@ -42,292 +32,165 @@ struct TimerLiveActivity: View {
     @Default(.timerSolidColor) private var solidColor
     @Default(.timerPresets) private var timerPresets
     @Default(.timerControlWindowEnabled) private var showInlineControls
-    
+
     private var notchContentHeight: CGFloat {
         max(0, vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12))
     }
 
-    private var wingPadding: CGFloat { 22 }
     private var ringStrokeWidth: CGFloat { 3 }
-    private var transientLabelDuration: TimeInterval { 4 }
+    private var ringWrapsIcon: Bool { showsProgress && progressStyle == .ring }
+    private var showsBarProgress: Bool { showsProgress && progressStyle == .bar }
 
-    private var ringWrapsIcon: Bool {
-        showsRingProgress && showsCountdown
-    }
-
-    private var ringOnRight: Bool {
-        showsRingProgress && !ringWrapsIcon
-    }
-
-    private var iconWidth: CGFloat {
-        ringWrapsIcon ? max(notchContentHeight - 6, 28) : max(0, notchContentHeight)
-    }
-
-    private var infoContentWidth: CGFloat {
-        guard showsInfoSection else { return 0 }
-        if shouldDisplayLabel {
-            let textWidth = min(max(titleTextWidth, 44), 220)
-            return textWidth
-        } else {
-            return min(max(notchContentHeight * 1.4, 64), 220)
-        }
-    }
-
-    private var infoWidth: CGFloat {
-        guard showsInfoSection else { return 0 }
-        return infoContentWidth + 18
-    }
-
-    private var leftWingWidth: CGFloat {
-        // Only reserve the outer half of the wing padding so the icon sits flush
-        // against the notch (matching the album-art / Toggl layout) instead of
-        // leaving an empty gap between the icon and the notch body.
-        var width = iconWidth + wingPadding / 2
-        if showsInfoSection {
-            width += 8 + infoWidth
-        }
-        return width
-    }
-
-    private var ringWidth: CGFloat {
-        ringOnRight ? 30 : 0
-    }
-
-    private var inlineButtonSize: CGFloat {
-        min(max(notchContentHeight - 4, 20), 26)
-    }
-
-    private var inlineIconSize: CGFloat {
-        max(inlineButtonSize * 0.6, 12)
-    }
-
-    private var inlineControlSpacing: CGFloat { 10 }
-
-    /// Pause while running, Restart once finished; nothing for a finished
-    /// Clock timer, which Atoll cannot restart.
-    private var showsLeadingInlineControl: Bool {
-        !timerManager.isOvertime || timerManager.canRestart
-    }
-
-    private var inlineControlsWidth: CGFloat {
-        guard shouldShowInlineControls else { return 0 }
-        let count = showsLeadingInlineControl ? 2 : 1
-        return CGFloat(count) * inlineButtonSize + CGFloat(max(0, count - 1)) * inlineControlSpacing
-    }
-
-    private var rightWingWidth: CGFloat {
-        var width = wingPadding
-        if ringOnRight {
-            width += ringWidth
-        }
-        if ringOnRight && showsCountdown {
-            width += inlineControlSpacing
-        }
-        if showsCountdown {
-            width += countdownWidth
-        }
-        if shouldShowInlineControls {
-            if ringOnRight || showsCountdown {
-                width += inlineControlSpacing
-            }
-            width += inlineControlsWidth
-        }
-        return width
-    }
-
-    private var titleTextWidth: CGFloat {
-        measureTextWidth(timerManager.timerName, font: systemFont(size: 12, weight: .medium))
-    }
-
+    // Size the horizontal slots from the non-hovered housing, so hovering only
+    // grows the height and the middle clearance, never shifts either wing.
+    private var iconWidth: CGFloat { max(28, vm.effectiveClosedNotchHeight - 12) }
+    private var inlineButtonSize: CGFloat { min(max(vm.effectiveClosedNotchHeight - 4, 20), 26) }
+    private var inlineIconSize: CGFloat { max(inlineButtonSize * 0.6, 12) }
     private var countdownTextWidth: CGFloat {
-        measureTextWidth(timerManager.formattedRemainingTime(), font: monospacedFont(size: 13, weight: .semibold))
+        TimerHUDMetrics.textWidth(timerManager.formattedRemainingTime(), font: TimerHUDMetrics.countdownFont)
     }
-
     private var countdownWidth: CGFloat {
-        guard showsCountdown else { return 0 }
-        return max(countdownTextWidth + 16, 72)
+        TimerHUDMetrics.countdownWidth(totalDuration: timerManager.totalDuration, remainingTime: timerManager.remainingTime)
     }
-
-    private var clampedProgress: Double {
-        min(max(timerManager.progress, 0), 1)
+    private var labelWidth: CGFloat {
+        min(140, max(44, ceil(TimerHUDMetrics.textWidth(timerManager.timerName, font: .systemFont(ofSize: 11, weight: .medium)))))
     }
-
+    private var showsInfoSection: Bool { showsCountdown || showsLabel || showsBarProgress }
+    private var infoWidth: CGFloat {
+        max(showsCountdown ? countdownWidth : 0, showsLabel ? labelWidth : 0, showsBarProgress && !showsCountdown ? 64 : 0)
+    }
+    private var visibleInfoWidth: CGFloat {
+        max(showsCountdown ? ceil(countdownTextWidth) : 0, showsLabel ? labelWidth : 0, showsBarProgress && !showsCountdown ? 64 : 0)
+    }
+    private var inlineControlsWidth: CGFloat {
+        shouldShowInlineControls ? 3 * inlineButtonSize + 2 * TimerHUDMetrics.controlSpacing : 0
+    }
+    private var wingWidth: CGFloat {
+        let informationWidth = iconWidth + (showsInfoSection ? TimerHUDMetrics.informationSpacing + infoWidth : 0)
+        return TimerHUDMetrics.wingWidth(informationWidth: informationWidth, controlsWidth: inlineControlsWidth)
+    }
+    private var middleSectionWidth: CGFloat { vm.closedNotchSize.width + (isHovering ? 8 : 0) }
+    private var adjustedNotchHeight: CGFloat { vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0) }
+    private var shouldShowInlineControls: Bool {
+        showInlineControls && timerManager.allowsManualInteraction && !lockScreenManager.isLocked
+    }
+    private var clampedProgress: Double { min(max(timerManager.progress, 0), 1) }
     private var glyphColor: Color {
         switch colorMode {
         case .adaptive:
-            return activePresetColor ?? timerManager.timerColor
+            return timerPresets.first { $0.id == timerManager.activePresetId }?.color ?? timerManager.timerColor
         case .solid:
             return solidColor
         }
     }
 
-    private var showsRingProgress: Bool {
-        showsProgress && progressStyle == .ring
-    }
-
-    private var showsBarProgress: Bool {
-        showsProgress && progressStyle == .bar
-    }
-
-    private var shouldDisplayLabel: Bool {
-        showsLabel || showTransientLabel
-    }
-
-    private var showsInfoSection: Bool {
-        shouldDisplayLabel || (showsBarProgress && !showsCountdown)
-    }
-
-    private var activePresetColor: Color? {
-        guard let presetId = timerManager.activePresetId else { return nil }
-        return timerPresets.first { $0.id == presetId }?.color
-    }
-
-    private var middleSectionWidth: CGFloat {
-        vm.closedNotchSize.width + (isHovering ? 8 : 0)
-    }
-
-    private var adjustedNotchHeight: CGFloat {
-        vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0)
-    }
-
-    private var shouldShowInlineControls: Bool {
-        guard showInlineControls else { return false }
-        guard timerManager.allowsManualInteraction else { return false }
-        guard !lockScreenManager.isLocked else { return false }
-        return true
-    }
-
-    private func measureTextWidth(_ text: String, font: PlatformFont) -> CGFloat {
-        let attributes: [NSAttributedString.Key: Any] = [.font: font]
-        let width = NSAttributedString(string: text, attributes: attributes).size().width
-        return CGFloat(ceil(width))
-    }
-
-    private func systemFont(size: CGFloat, weight: PlatformFont.Weight) -> PlatformFont {
-        #if canImport(AppKit)
-        return NSFont.systemFont(ofSize: size, weight: weight)
-        #else
-        return UIFont.systemFont(ofSize: size, weight: weight)
-        #endif
-    }
-
-    // Fully monospaced font matching the countdown's `.monospaced` design so the
-    // measured width equals the rendered width (digit-only monospacing under-measures
-    // separators, clipping hour-format times like 1:00:00).
-    private func monospacedFont(size: CGFloat, weight: PlatformFont.Weight) -> PlatformFont {
-        #if canImport(AppKit)
-        return NSFont.monospacedSystemFont(ofSize: size, weight: weight)
-        #else
-        return UIFont.monospacedSystemFont(ofSize: size, weight: weight)
-        #endif
-    }
-
     var body: some View {
-        baseTimerLayout
-        .onHover { hovering in
-            withAnimation(.notchQuick) {
-                isHovering = hovering
-            }
-        }
-        .onDisappear {
-            cancelTransientLabel()
-        }
-        .onChange(of: timerManager.isTimerActive) { _, isActive in
-            if isActive {
-                if !timerManager.isFinished && !timerManager.isOvertime {
-                    triggerTransientLabel()
-                }
-            } else {
-                cancelTransientLabel()
-                showTransientLabel = false
-                isHovering = false
-            }
-        }
-        .onChange(of: timerManager.timerName) { _, _ in
-            if timerManager.isTimerActive && !timerManager.isFinished && !timerManager.isOvertime {
-                triggerTransientLabel()
-            }
-        }
-        .onChange(of: timerManager.isFinished) { _, finished in
-            if finished {
-                cancelTransientLabel()
-                withAnimation(.smooth) {
-                    showTransientLabel = true
-                    isHovering = false
-                }
-            }
-        }
-        .onChange(of: timerManager.isOvertime) { _, overtime in
-            if overtime {
-                cancelTransientLabel()
-                withAnimation(.smooth) {
-                    showTransientLabel = true
-                    isHovering = false
-                }
-            }
-        }
-    }
-
-    private var baseTimerLayout: some View {
         HStack(spacing: 0) {
-            leftWingView()
-            middleSectionView()
-            rightWingView()
+            leftWingView
+            Rectangle()
+                .fill(.black)
+                .frame(width: middleSectionWidth, height: notchContentHeight)
+            rightWingView
         }
         .frame(height: adjustedNotchHeight, alignment: .center)
         .contentShape(Rectangle())
-        .preference(key: ClosedNotchCenterShiftKey.self, value: (rightWingWidth - leftWingWidth) / 2)
+        .help(timerManager.timerName)
+        .preference(key: ClosedNotchCenterShiftKey.self, value: 0)
+        .preference(key: CenteredTimerActivityKey.self, value: true)
+        .onHover { hovering in
+            withAnimation(.notchQuick) { isHovering = hovering }
+        }
     }
 
-    @ViewBuilder
-    private func leftWingView() -> some View {
+    private var leftWingView: some View {
+        HStack(spacing: TimerHUDMetrics.informationSpacing) {
+            iconSection
+            if showsInfoSection {
+                infoSection
+            }
+        }
+        // A fixed frame centres the entire information group within its wing.
+        // Source: https://developer.apple.com/documentation/swiftui/view/frame(width:height:alignment:)
+        .frame(width: wingWidth, height: notchContentHeight, alignment: .center)
+    }
+
+    private var rightWingView: some View {
         Color.clear
-            .frame(width: leftWingWidth, height: notchContentHeight)
-            .background(alignment: .leading) {
-                HStack(spacing: showsInfoSection ? 8 : 0) {
-                    iconSection
-                    if showsInfoSection {
-                        infoSection
-                    }
+            .frame(width: wingWidth, height: notchContentHeight)
+            .overlay {
+                if shouldShowInlineControls {
+                    inlineControlsSection
                 }
-                .padding(.leading, wingPadding / 2)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
     }
 
-    @ViewBuilder
-    private func middleSectionView() -> some View {
-        Rectangle()
-            .fill(.black)
-            .frame(width: middleSectionWidth, height: notchContentHeight)
+    private var infoSection: some View {
+        VStack(spacing: 2) {
+            // Preserve the explicit name preference, but never insert a
+            // transient name that changes the footprint during a timer run.
+            if showsLabel {
+                Text(timerManager.timerName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.inkSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            if showsCountdown {
+                countdownSection
+            } else if showsBarProgress {
+                progressBar(width: infoWidth)
+            }
+        }
+        .frame(width: visibleInfoWidth, alignment: .center)
     }
 
-    @ViewBuilder
-    private func rightWingView() -> some View {
-        Color.clear
-            .frame(width: rightWingWidth, height: notchContentHeight)
-            .background(alignment: .trailing) {
-                HStack(spacing: 0) {
-                    if ringOnRight {
-                        ringSection
-                    }
-                    if showsCountdown {
-                        countdownSection
-                            .padding(.leading, ringOnRight ? inlineControlSpacing : 0)
-                    }
-                    if shouldShowInlineControls {
-                        inlineControlsSection
-                            .padding(.leading, (ringOnRight || showsCountdown) ? inlineControlSpacing : 0)
-                    }
+    private var countdownSection: some View {
+        Text(timerManager.formattedRemainingTime())
+            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            .foregroundColor(timerManager.isOvertime ? .statusDanger : .inkPrimary)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .contentTransition(.numericText())
+            .animation(.notchStandard, value: timerManager.remainingTime)
+            .overlay(alignment: .bottom) {
+                if showsBarProgress {
+                    progressBar(width: max(countdownTextWidth, 1))
+                        .alignmentGuide(.bottom) { $0[.top] - 1 }
                 }
-                .padding(.trailing, wingPadding / 2)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             }
     }
-    
+
+    private var inlineControlsSection: some View {
+        HStack(spacing: TimerHUDMetrics.controlSpacing) {
+            inlineControlButton(
+                icon: timerManager.isPaused ? "play.fill" : "pause.fill",
+                foreground: .white,
+                background: .fillControl,
+                help: timerManager.isPaused ? String(localized: "Resume") : String(localized: "Pause"),
+                enabled: !timerManager.isFinished && !timerManager.isOvertime,
+                action: togglePause
+            )
+            inlineControlButton(
+                icon: "arrow.counterclockwise",
+                foreground: .white,
+                background: .fillControl,
+                help: String(localized: "Restart"),
+                enabled: timerManager.canRestart,
+                action: timerManager.restartTimer
+            )
+            inlineControlButton(
+                icon: "stop.fill",
+                foreground: .white,
+                background: timerManager.isOvertime ? Color.statusDanger.opacity(0.24) : .fillControl,
+                help: String(localized: "Stop"),
+                action: stopTimer
+            )
+        }
+        .frame(height: notchContentHeight, alignment: .center)
+    }
+
     private var iconSection: some View {
-        let baseDiameter = ringWrapsIcon ? iconWidth : iconWidth
-        let ringDiameter = ringWrapsIcon ? max(min(baseDiameter, notchContentHeight - 2), 22) : iconWidth
+        let ringDiameter = ringWrapsIcon ? max(min(iconWidth, notchContentHeight - 2), 22) : iconWidth
         let iconSize = ringWrapsIcon ? max(ringDiameter - 12, 16) : max(18, iconWidth - 6)
 
         return ZStack {
@@ -349,91 +212,11 @@ struct TimerLiveActivity: View {
                 .foregroundStyle(glyphColor)
                 .frame(width: iconSize, height: iconSize)
         }
-        .frame(width: ringWrapsIcon ? ringDiameter : iconWidth,
+        .frame(width: iconWidth,
                height: notchContentHeight,
                alignment: .center)
     }
     
-    private var infoSection: some View {
-    let availableWidth = max(0, infoWidth - 10)
-    let safeWidth = max(44, availableWidth - 6)
-    let resolvedTextWidth = min(max(titleTextWidth, 44), safeWidth)
-        let marqueeLabel = shouldDisplayLabel && (timerManager.isFinished || timerManager.isOvertime || titleTextWidth > availableWidth)
-        let showsBarHere = showsBarProgress && !showsCountdown
-        let barWidth = shouldDisplayLabel ? resolvedTextWidth : availableWidth
-
-        return Rectangle()
-            .fill(.black)
-            .frame(width: infoWidth, height: notchContentHeight)
-            .overlay(alignment: .leading) {
-                VStack(alignment: .leading, spacing: showsBarHere ? 4 : 0) {
-                    if shouldDisplayLabel {
-                        if marqueeLabel {
-                            MarqueeText(
-                                .constant(timerManager.timerName),
-                                font: .system(size: 12, weight: .medium),
-                                nsFont: .callout,
-                                textColor: .white,
-                                minDuration: 0.25,
-                                frameWidth: resolvedTextWidth
-                            )
-                        } else {
-                            Text(timerManager.timerName)
-                                .font(.notch(.footnote, weight: .medium))
-                                .lineLimit(1)
-                                .foregroundStyle(.white)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                                .frame(width: resolvedTextWidth, alignment: .leading)
-                        }
-                    }
-
-                    if showsBarHere {
-                        progressBar(width: barWidth)
-                    }
-                }
-                .padding(.leading, 12)
-                .padding(.trailing, 6)
-            }
-            .animation(.smooth, value: timerManager.isFinished)
-    }
-    
-    private var ringSection: some View {
-        let diameter = max(min(notchContentHeight - 4, 26), 20)
-        return ZStack {
-            Circle()
-                .stroke(.fillControl, lineWidth: ringStrokeWidth)
-            Circle()
-                .trim(from: 0, to: clampedProgress)
-                .stroke(glyphColor, style: StrokeStyle(lineWidth: ringStrokeWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.notchStandard, value: clampedProgress)
-        }
-        .frame(width: diameter, height: diameter)
-        .frame(width: ringWidth, height: notchContentHeight, alignment: .center)
-    }
-    
-    private var countdownSection: some View {
-        Text(timerManager.formattedRemainingTime())
-            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-            .foregroundColor(timerManager.isOvertime ? .statusDanger : .inkPrimary)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .contentTransition(.numericText())
-            .animation(.notchStandard, value: timerManager.remainingTime)
-            .overlay(alignment: .bottom) {
-                if showsBarProgress {
-                    // Hung just under the digits rather than stacked below them,
-                    // so the digits stay on the same midline as the icon and the
-                    // buttons instead of being pushed up by the bar.
-                    progressBar(width: max(countdownTextWidth, 1))
-                        .alignmentGuide(.bottom) { $0[.top] - 1 }
-                }
-            }
-            // Note: rightWingView already applies a trailing wing padding, so no
-            // extra trailing padding here -- a second one would double it up.
-            .frame(width: countdownWidth, height: notchContentHeight, alignment: .trailing)
-    }
-
     private func progressBar(width: CGFloat) -> some View {
         Capsule()
             .fill(.fillControl)
@@ -446,43 +229,12 @@ struct TimerLiveActivity: View {
             }
     }
 
-    @ViewBuilder
-    private var inlineControlsSection: some View {
-        HStack(spacing: inlineControlSpacing) {
-            if !timerManager.isOvertime {
-                inlineControlButton(
-                    icon: timerManager.isPaused ? "play.fill" : "pause.fill",
-                    foreground: .white,
-                    background: .fillControl,
-                    help: timerManager.isPaused ? String(localized: "Resume") : String(localized: "Pause"),
-                    action: togglePause
-                )
-            } else if showsLeadingInlineControl {
-                inlineControlButton(
-                    icon: "arrow.counterclockwise",
-                    foreground: .white,
-                    background: .fillControl,
-                    help: String(localized: "Restart"),
-                    action: timerManager.restartTimer
-                )
-            }
-
-            inlineControlButton(
-                icon: timerManager.isOvertime ? "stop.fill" : "xmark",
-                foreground: .white,
-                background: timerManager.isOvertime ? Color.statusDanger.opacity(0.24) : .fillControl,
-                help: timerManager.isOvertime ? String(localized: "Stop") : String(localized: "Cancel"),
-                action: stopTimer
-            )
-        }
-        .frame(height: notchContentHeight, alignment: .center)
-    }
-
     private func inlineControlButton(
         icon: String,
         foreground: Color,
         background: Color,
         help: String,
+        enabled: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -495,6 +247,8 @@ struct TimerLiveActivity: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
         .help(help)
         .accessibilityLabel(help)
     }
@@ -516,31 +270,21 @@ struct TimerLiveActivity: View {
         timerManager.stopTimer()
     }
 
-    private func triggerTransientLabel() {
-        guard !showsLabel else { return }
-        cancelTransientLabel()
-        withAnimation(.smooth) {
-            showTransientLabel = true
-        }
-        let task = DispatchWorkItem {
-            withAnimation(.smooth) {
-                showTransientLabel = false
-            }
-        }
-        labelHideTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + transientLabelDuration, execute: task)
-    }
+}
 
-    private func cancelTransientLabel() {
-        labelHideTask?.cancel()
-        labelHideTask = nil
+/// Keeps the timer's housing clearance anchored even when the frontmost app
+/// has long menus. Moving just its content would put time behind the camera.
+struct CenteredTimerActivityKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
     }
 }
 
 #Preview {
     TimerLiveActivity()
         .environmentObject(DynamicIslandViewModel())
-        .frame(width: 300, height: 32)
+        .frame(width: 500, height: 37)
         .background(.black)
         .onAppear {
             TimerManager.shared.startDemoTimer(duration: 300)

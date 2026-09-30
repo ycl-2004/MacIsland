@@ -97,6 +97,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 ### ⚡ System Insights & Developer Utilities
 - **Hardware telemetry**: Low-overhead SMC and IOReport sensors displaying per-core CPU usage, temperature, GPU load, unified memory pressure, network throughput, and disk I/O.
 - **Interactive ruler timer**: Scrollable ruler timer for quick Pomodoro intervals, countdowns, and stopwatch tracking.
+- **Centred timer HUD**: The timer icon and countdown sit left of the physical notch; Pause/Resume, Restart and Stop sit right, in equal-width wings. Seconds, minutes, hours and signed overtime share a stable width reservation. Restart resets an Atoll timer to its original duration; mirrored Clock timers must be restarted in Clock. The housing stays fixed even beside long app menus, which can overlap the HUD. Timer names remain available in the expanded panel and tooltip, or through the explicit name-display setting.
 - **Screen color picker**: Fast color sampler with a 10× pixel-level loupe and one-click HEX clipboard copying.
 - **Shelf dock**: Drag files, text, and links onto the notch to stage them. Turning Shelf off clears its items while keeping original files intact; temporary copies still being shared are retained until release. See [Shelf resource lifecycle](docs/shelf-lifecycle.md).
 - **Calendar glance**: Quick agenda view for upcoming calendar events.

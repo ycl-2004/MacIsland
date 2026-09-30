@@ -419,13 +419,13 @@ class TimerManager: ObservableObject {
         activeSource == .manual && isTimerActive
     }
 
-    /// Whether a finished timer can be run again from the top. Only Atoll's
-    /// own timers: a Clock timer is restarted in Clock.
+    /// Atoll's active timers can restart while running, paused or finished.
+    /// A mirrored Clock timer is restarted in Clock.
     var canRestart: Bool {
-        activeSource == .manual && isOvertime
+        activeSource == .manual && isTimerActive && totalDuration > 0
     }
 
-    /// Runs the finished timer again with the same duration, name and preset.
+    /// Starts a fresh run with the original duration, name and preset.
     func restartTimer() {
         guard canRestart, totalDuration > 0 else { return }
         startTimer(duration: totalDuration, name: timerName, preset: activePreset)

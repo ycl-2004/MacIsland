@@ -59,6 +59,7 @@ struct ContentView: View {
     @State private var closedContentWidth: CGFloat = 0
     /// What the closed live activity asks for through `ClosedNotchCenterShiftKey`.
     @State private var closedNotchCenterShift: CGFloat = 0
+    @State private var isCenteredTimerActivityVisible = false
     @ObservedObject var capsLockManager = CapsLockManager.shared
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
@@ -444,6 +445,7 @@ struct ContentView: View {
     /// of these is up is the lesser failure.
     private var isHousingCentredContentVisible: Bool {
         isConnectivityHUDVisible || isInlineSneakPeekVisible || isCapsLockInlineHUDVisible
+            || isCenteredTimerActivityVisible
     }
 
     /// Whether the fallback top-edge hover detector should run.
@@ -910,6 +912,7 @@ struct ContentView: View {
                 .animation(.smooth(duration: 0.25), value: notchCenterShift)
         }
         .onPreferenceChange(ClosedNotchCenterShiftKey.self) { closedNotchCenterShift = $0 }
+        .onPreferenceChange(CenteredTimerActivityKey.self) { isCenteredTimerActivityVisible = $0 }
         .frame(
             maxWidth: rootFrameMaxWidth,
             maxHeight: rootFrameMaxHeight,

@@ -6090,8 +6090,8 @@ struct TimerSettings: View {
             Toggle("Show preset list in timer tab", isOn: $showTimerPresetsInNotchTab)
                 .settingsHighlight(id: highlightID("Show preset list in timer tab"))
 
-            Toggle("Show pause/stop controls in the notch", isOn: $controlWindowEnabled)
-                .help("Pause and stop buttons appear inline inside the notch while a timer runs.")
+            Toggle("Show pause/restart/stop controls in the notch", isOn: $controlWindowEnabled)
+                .help("Pause, restart and stop buttons appear inline inside the notch. Restart is available for Atoll timers.")
                 .settingsHighlight(id: highlightID("Show pause/stop controls in the notch"))
 
             SettingsSegmentedPicker(
