@@ -52,14 +52,8 @@ struct ContentView: View {
     @ObservedObject var doNotDisturbManager = DoNotDisturbManager.shared
     @ObservedObject var lockScreenManager = LockScreenManager.shared
     @ObservedObject private var networkConnectivityManager = NetworkConnectivityManager.shared
-    @ObservedObject private var menuBarLayout = MenuBarLayout.shared
-    /// Width of the closed-notch content, measured so its left edge can be
-    /// compared against the frontmost app's menus. Only the *size* is read --
-    /// the offset that follows does not change it, so there is no feedback.
-    @State private var closedContentWidth: CGFloat = 0
     /// What the closed live activity asks for through `ClosedNotchCenterShiftKey`.
     @State private var closedNotchCenterShift: CGFloat = 0
-    @State private var isCenteredTimerActivityVisible = false
     @ObservedObject var capsLockManager = CapsLockManager.shared
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
@@ -432,20 +426,6 @@ struct ContentView: View {
             && Defaults[.enableCapsLockIndicator]
             && !vm.hideOnClosed
             && !lockScreenManager.isLocked
-    }
-
-    /// Closed content laid out as two wings either side of a lane that has to
-    /// sit on the camera housing: the connectivity HUD and every `InlineHUD`.
-    ///
-    /// Menu-bar clearance cannot help these. It slides the content inside a
-    /// notch whose black and clip stay put, so the lane leaves the housing,
-    /// the left wing goes behind the camera and the right one past the clip.
-    /// Chrome's menus, which run to within 40pt of the notch, did that to the
-    /// volume HUD: only its icon was left showing. Covering the menus while one
-    /// of these is up is the lesser failure.
-    private var isHousingCentredContentVisible: Bool {
-        isConnectivityHUDVisible || isInlineSneakPeekVisible || isCapsLockInlineHUDVisible
-            || isCenteredTimerActivityVisible
     }
 
     /// Whether the fallback top-edge hover detector should run.
@@ -912,7 +892,6 @@ struct ContentView: View {
                 .animation(.smooth(duration: 0.25), value: notchCenterShift)
         }
         .onPreferenceChange(ClosedNotchCenterShiftKey.self) { closedNotchCenterShift = $0 }
-        .onPreferenceChange(CenteredTimerActivityKey.self) { isCenteredTimerActivityVisible = $0 }
         .frame(
             maxWidth: rootFrameMaxWidth,
             maxHeight: rootFrameMaxHeight,
@@ -1060,51 +1039,9 @@ struct ContentView: View {
                     enqueueMusicControlWindowSync(forceRefresh: true)
                 }
             }
-            .onAppear {
-                if vm.notchState == .closed { menuBarLayout.startTracking() }
-            }
-            .onChange(of: vm.notchState) { _, state in
-                // An open notch covers the menu bar wholesale and is the user's
-                // own doing, so there is nothing to step around while it is up.
-                if state == .closed {
-                    menuBarLayout.startTracking()
-                } else {
-                    menuBarLayout.stopTracking()
-                }
-            }
             .onDisappear {
                 performViewTeardown()
             }
-    }
-
-    /// How far right the closed-notch content has to move so it stops covering
-    /// the frontmost app's menus.
-    ///
-    /// A live activity's left wing draws into the strip of menu bar beside the
-    /// notch, which is where the app's own menus live. macOS lays those out
-    /// against `NSScreen.auxiliaryTopLeftArea` and there is no way to tell it
-    /// some of that strip is spoken for -- both auxiliary areas are read-only.
-    /// So the content moves instead of the menus.
-    ///
-    /// Zero unless something is actually being covered: no live activity, an
-    /// open notch, no accessibility permission, or menus that end before the
-    /// content begins all leave the notch centred where it belongs.
-    private var menuBarClearanceOffset: CGFloat {
-        guard vm.notchState == .closed,
-              !vm.hideOnClosed,
-              !isHousingCentredContentVisible,
-              closedContentWidth > 0,
-              let menusRightEdge = menuBarLayout.appMenusRightEdge,
-              let screenFrame = getScreenFrame(currentScreenName)
-        else { return 0 }
-
-        return MenuBarLayout.clearanceOffset(
-            contentWidth: closedContentWidth,
-            centerShift: notchCenterShift,
-            screenFrame: screenFrame,
-            menusRightEdge: menusRightEdge,
-            gap: MenuBarLayout.clearanceGap
-        )
     }
 
     @ViewBuilder
@@ -1269,17 +1206,11 @@ struct ContentView: View {
                   view
                       .fixedSize()
               }
-              .background {
-                  GeometryReader { geo in
-                      Color.clear
-                          .onAppear { closedContentWidth = geo.size.width }
-                          .onChange(of: geo.size.width) { _, width in closedContentWidth = width }
-                  }
-              }
               .pinnedLyrics(isVisible: pinnedLyricsVisible,
                   isContentHidden: isSneakPeekVisibleOnCurrentScreen || isConnectivityHUDVisible)
-              .offset(x: menuBarClearanceOffset)
-              .animation(.smooth(duration: 0.25), value: menuBarClearanceOffset)
+              // Every activity shares the surface's placement. An app-menu
+              // offset here moves only contents inside a fixed background/clip,
+              // truncating recording, music, downloads and other HUDs alike.
               .zIndex(2)
               
               ZStack {
@@ -1841,11 +1772,9 @@ struct ContentView: View {
         let activationWidth = vm.closedNotchSize.width + horizontalPadding * 2
         let activationHeight = max(vm.closedNotchSize.height + zeroHeightHoverPadding, 14)
 
-        // Follows the rendered content: when a live activity has stepped aside
-         // from the menus, activating at the old centre would arm the notch where
-         // nothing is drawn and refuse the pointer where it is.
+        // The hidden notch stays centred regardless of the frontmost app.
         let activationRect = CGRect(
-            x: screen.frame.midX - activationWidth / 2 + menuBarClearanceOffset,
+            x: screen.frame.midX - activationWidth / 2 + notchCenterShift,
             y: screen.frame.maxY - activationHeight,
             width: activationWidth,
             height: activationHeight
@@ -1857,7 +1786,6 @@ struct ContentView: View {
     /// Cancels every long-lived task / event monitor this view owns. Called from
     /// `.onDisappear` and from `vm.onViewTeardown` on window close. Idempotent.
     private func performViewTeardown() {
-        menuBarLayout.stopTracking()
         hoverTask?.cancel()
         stopHoverClickMonitor()
         stopHiddenEdgeHoverPolling()
@@ -2077,8 +2005,8 @@ struct ContentView: View {
             + PinnedLyricsView.reservedHeight(isEligible: pinnedLyricsVisible,
                 availability: musicManager.lyricsAvailability, context: pinnedLyricContext)
         let width = max(closedWidth, recordingSize?.width ?? 0) + 24
-        // Same shift the content is drawn with, so the hit area stays under it.
-        let minX = screen.frame.midX - width / 2 + menuBarClearanceOffset
+        // Match the whole surface's housing alignment, including its clip.
+        let minX = screen.frame.midX - width / 2 + notchCenterShift
         let minY = screen.frame.maxY - height
 
         return location.x >= minX && location.x <= minX + width

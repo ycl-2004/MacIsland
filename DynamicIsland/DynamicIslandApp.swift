@@ -72,6 +72,19 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
     }
+
+    /// AppDelegate owns the window frame. Keep this hosting view below an
+    /// ordinary content view so SwiftUI cannot resize the window from its
+    /// windowDidLayout callback, even during an animated content update.
+    func makeFrameManagedContainer(size: NSSize) -> NSView {
+        // https://developer.apple.com/documentation/swiftui/nshostingview/sizingoptions
+        sizingOptions = []
+        let container = NSView(frame: NSRect(origin: .zero, size: size))
+        frame = container.bounds
+        autoresizingMask = [.width, .height]
+        container.addSubview(self)
+        return container
+    }
 }
 
 extension AppDelegate {
@@ -390,11 +403,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 .environmentObject(webcamManager)
                 //.moveToSky()
         )
-        // This delegate sizes the window. Left to size it as well, the hosting
-        // view resized it from inside a layout pass whenever its content grew
-        // (a streaming chat), and AppKit ends such a loop by raising.
-        hostingView.sizingOptions = []
-        window.contentView = hostingView
+        window.contentView = hostingView.makeFrameManagedContainer(
+            size: NSSize(width: roundedWidth, height: roundedHeight)
+        )
 
         window.orderFrontRegardless()
         NotchSpaceManager.shared.notchSpace.windows.insert(window)

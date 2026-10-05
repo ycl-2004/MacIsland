@@ -96,7 +96,6 @@ struct TimerLiveActivity: View {
         .contentShape(Rectangle())
         .help(timerManager.timerName)
         .preference(key: ClosedNotchCenterShiftKey.self, value: 0)
-        .preference(key: CenteredTimerActivityKey.self, value: true)
         .onHover { hovering in
             withAnimation(.notchQuick) { isHovering = hovering }
         }
@@ -270,15 +269,6 @@ struct TimerLiveActivity: View {
         timerManager.stopTimer()
     }
 
-}
-
-/// Keeps the timer's housing clearance anchored even when the frontmost app
-/// has long menus. Moving just its content would put time behind the camera.
-struct CenteredTimerActivityKey: PreferenceKey {
-    static let defaultValue = false
-    static func reduce(value: inout Bool, nextValue: () -> Bool) {
-        value = value || nextValue()
-    }
 }
 
 #Preview {

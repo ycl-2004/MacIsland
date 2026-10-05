@@ -84,4 +84,25 @@ final class MenuBarClearanceTests: XCTestCase {
         XCTAssertEqual(offset(contentWidth: 300, menusEnd: 2850, screen: external), 18)
         XCTAssertEqual(offset(contentWidth: 300, menusEnd: 2000, screen: external), 0)
     }
+
+    func testMusicAndTimerRemainInPlaceWhenSwitchingToLongerApplicationMenus() {
+        // Geometry measured on the reporting Mac: YouTube Music's menus end
+        // at 426pt and Chrome's at 623pt. The old unprotected combination moved
+        // 24.625pt inside its fixed clip, cutting off the end of the countdown.
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let width: CGFloat = 299.25
+        XCTAssertEqual(offset(contentWidth: width, menusEnd: 426, screen: screen), 0)
+        XCTAssertEqual(offset(contentWidth: width, menusEnd: 623, screen: screen), 24.625)
+
+        for menusEnd: CGFloat in [426, 623, 740] {
+            XCTAssertEqual(MenuBarLayout.clearanceOffset(
+                contentWidth: width,
+                centerShift: 0,
+                screenFrame: screen,
+                menusRightEdge: menusEnd,
+                gap: gap,
+                requiresHousingAlignment: true
+            ), 0)
+        }
+    }
 }

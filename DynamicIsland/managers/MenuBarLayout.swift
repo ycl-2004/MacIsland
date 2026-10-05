@@ -10,14 +10,19 @@ import AppKit
 import ApplicationServices
 import Combine
 
+/// Optional menu-geometry utility. The main notch deliberately does not use
+/// it: every activity shares a fixed background/clip and must remain aligned
+/// when the frontmost application changes. See docs/music-timer-shift.md.
+///
 /// Tracks the right edge of the frontmost application's menu bar items.
 ///
 /// A live activity draws into the strip of menu bar to the left of the notch,
 /// which is the same strip the app's own menus occupy. macOS lays those menus
 /// out inside `NSScreen.auxiliaryTopLeftArea` and offers no way to tell it that
 /// something else is using part of that space -- both auxiliary areas are
-/// read-only and derived from the display hardware. So rather than reserving
-/// room, Atoll measures what is already there and moves aside.
+/// read-only and derived from the display hardware. This utility measures
+/// available room for surfaces that can move as a whole; the main notch does
+/// not use menu avoidance.
 ///
 /// The measurement is the accessibility API's view of the menu bar, which is
 /// how the geometry is available at all: every menu reports its own position
@@ -51,14 +56,17 @@ final class MenuBarLayout: ObservableObject {
     /// Zero when nothing is covered. Capped at the room remaining on the right,
     /// because a shift that pushes the content off the far edge has traded one
     /// covered thing for another.
+    /// Content anchored around the physical housing cannot be moved inside
+    /// its fixed background/clip, even when application menus overlap it.
     nonisolated static func clearanceOffset(
         contentWidth: CGFloat,
         centerShift: CGFloat,
         screenFrame: CGRect,
         menusRightEdge: CGFloat,
-        gap: CGFloat
+        gap: CGFloat,
+        requiresHousingAlignment: Bool = false
     ) -> CGFloat {
-        guard contentWidth > 0 else { return 0 }
+        guard contentWidth > 0, !requiresHousingAlignment else { return 0 }
         let contentLeftEdge = screenFrame.midX - contentWidth / 2 + centerShift
         let overlap = (menusRightEdge + gap) - contentLeftEdge
         guard overlap > 0 else { return 0 }
