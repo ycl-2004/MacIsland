@@ -196,7 +196,7 @@ final class LockScreenReminderWidgetPanelManager {
     private func handleScreenGeometryChange(reason: String) {
         guard window?.isVisible == true else { return }
         refreshPosition(animated: false)
-        print("LockScreenReminderWidgetPanelManager: realigned window due to \(reason)")
+        debugLog("LockScreenReminderWidgetPanelManager: realigned window due to \(reason)")
     }
 
     private func currentScreen() -> NSScreen? {

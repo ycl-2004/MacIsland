@@ -33,7 +33,7 @@
 
 Atoll transforms the MacBook notch into an unobtrusive, interactive command cockpit. It remains completely invisible during deep work, expanding smoothly into a responsive native SwiftUI surface whenever summoned by cursor proximity, gesture, or global shortcut.
 
-This edition is YC's personal customized build (`YC_Island_v1`). It introduces first-class hardware notch integration for AI coding agents (**Claude Code**, **Codex**, and **Antigravity**), strips away legacy background bloat, and refines core daily utilities—including multi-source media controls, dynamic sweep-synced lyrics, lock screen widgets, an interactive ruler timer, and low-overhead hardware telemetry.
+This edition is YC's personal customized build (`YC_Island_v1`). It introduces first-class hardware notch integration for AI coding agents (**Claude Code**, **Codex**, **Antigravity**, **Pi**, **OpenCode**, and **Grok Build**), strips away legacy background bloat, and refines core daily utilities—including multi-source media controls, dynamic sweep-synced lyrics, lock screen widgets, an interactive ruler timer, and low-overhead hardware telemetry.
 
 > **Source-first personal build.** This repository is YC's personal daily driver build, maintained for private development workflows on Apple Silicon MacBooks. It is not distributed as a pre-compiled signed binary; build and run it directly in Xcode. Derived from [Atoll by Ebullioscopic](https://github.com/Ebullioscopic/Atoll) and [boring.notch](https://github.com/TheBoredTeam/boring.notch) under the GNU General Public License v3.0.
 
@@ -67,7 +67,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 
 ## Why Atoll
 
-- **An AI agent cockpit on your hardware notch.** Instead of burying agent progress in hidden terminal tabs, active sessions from Claude Code, Codex, and Antigravity surface directly at the top of your display with live status, streaming output, and prompt controls.
+- **An AI agent cockpit on your hardware notch.** Instead of burying agent progress in hidden terminal tabs, active sessions from Claude Code, Codex, Antigravity, Pi, OpenCode, and Grok Build surface directly at the top of your display with live status, streaming output, and prompt controls.
 - **Instant visual queries with Ask About Screen.** Drag a selection marquee over any part of your display (`⌘⇧A`) and send it directly to an agent session without manually capturing screenshots, saving files, or switching contexts.
 - **Stripped of bloat, whisper quiet.** Removed unused clipboard history managers, embedded web terminals, orphaned background daemons, and keep-awake runners. Background work is limited to enabled features; Shelf caches and thumbnail jobs have explicit limits.
 - **Polished daily driver utilities.** Seamless media playback for Apple Music, Spotify, TIDAL, YouTube Music, and NetEase; dynamic sweep-highlight lyrics; lock screen widgets; interactive ruler timer; and low-overhead hardware telemetry.
@@ -78,7 +78,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 ## Features
 
 ### 🤖 AI Coding Agent Live Cockpit
-- **Live session monitoring**: Real-time cards in the notch tab track active sessions for **Claude Code**, **Codex**, and **Antigravity**.
+- **Live session monitoring**: Real-time cards in the notch tab track active sessions for **Claude Code**, **Codex**, **Antigravity**, **Pi**, **OpenCode**, and **Grok Build**.
 - **Notch Live Activity**: Subtle notch status indicators animate when an AI agent is actively executing commands, analyzing code, or running tests.
 - **Live terminal conversations**: Read streaming responses and send follow-up prompts or answers directly through the notch drawer.
 - **Ask About Screen (`⌘⇧A`)**: Drag-select any window or screen area to immediately dispatch the image crop and your query to an active agent.
@@ -101,13 +101,14 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 - **Screen color picker**: Fast color sampler with a 10× pixel-level loupe and one-click HEX clipboard copying.
 - **Shelf dock**: Drag files, text, and links onto the notch to stage them. Turning Shelf off clears its items while keeping original files intact; temporary copies still being shared are retained until release. See [Shelf resource lifecycle](docs/shelf-lifecycle.md).
 - **Calendar glance**: Quick agenda view for upcoming calendar events.
+- **Extra Space**: Enable it in Settings → Utilities → Extra Space to add a main tab with one continuous, scrollable text area. Double-click the text area, or click Edit or Paste, to change text; Cmd+S or Save finishes editing. The close swipe saves and closes in reading mode. Changes persist locally across restarts. Turning the feature off hides the tab and keeps its contents. See [Extra Space](docs/extra-space.md).
 
 ---
 
 ## How it works
 
 - **Notch tracking and presentation**: Atoll monitors cursor proximity and gesture events along the display bezel to expand and collapse the SwiftUI canvas without stealing active window focus.
-- **Local agent observation**: `AgentBridge` and `AgentSessionStore` monitor local session files, logs, and language server endpoints from Claude Code, Codex, and Antigravity, decoding streaming chunks without external network hops.
+- **Local agent observation**: `AgentBridge` and `AgentSessionStore` monitor local session files, logs, and language server endpoints from Claude Code, Codex, Antigravity, Pi, OpenCode, and Grok Build, decoding streaming chunks without external network hops.
 - **Screen question pipeline**: `ScreenQuestionManager` captures a drag-selected screen bounding box via `CGWindowListCreateImage`, attaches it as context, and dispatches the query directly to the active agent conversation service.
 
 ---
@@ -115,7 +116,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 ## Privacy & Security
 
 - **Strictly local-first**: There are no accounts, no usage telemetry, no analytics beacons, and no crash reporting services.
-- **Agent IPC is on-device**: All interactions with Claude Code, Codex, and Antigravity communicate through local process files and local IPC sockets. No code, prompts, or terminal outputs are routed through any intermediate server.
+- **Agent IPC is on-device**: All interactions with Claude Code, Codex, Antigravity, Pi, OpenCode, and Grok Build communicate through local process files and local IPC sockets. No code, prompts, or terminal outputs are routed through any intermediate server.
 - **Explicit network boundaries**: Network requests are strictly limited to user-enabled features: Open-Meteo for local weather forecasts and public lyric providers (LRCLIB / NetEase Cloud Music) when media playback is active.
 - **Screen capture scope**: Screen capture is strictly invoked on-demand when triggering *Ask About Screen* or the screen color loupe; Atoll never captures or records screen contents in the background.
 
@@ -240,7 +241,7 @@ Atoll (YC Edition) is crafted with gratitude and pays homage to the pioneering o
 ## Known limitations
 
 - **Physical notch requirement**: Layouts and hit-testing are calibrated for Apple Silicon MacBooks with display cutouts (14" / 16" MBP, M2/M3 MacBook Air).
-- **Supported agent environments**: Agent live tracking currently supports Claude Code, Codex, and Antigravity. Other CLI tools require manual bridging.
+- **Supported agent environments**: Agent live tracking currently supports Claude Code, Codex, Antigravity, Pi, OpenCode, and Grok Build. Pi and OpenCode connect through a small Atoll plugin file instead of hooks; other CLI tools require manual bridging.
 - **Screen Recording prompt**: The first use of *Ask About Screen* requires macOS Screen Recording approval followed by an application restart.
 
 ---
@@ -250,3 +251,5 @@ Atoll (YC Edition) is crafted with gratitude and pays homage to the pioneering o
 Atoll is free software released under the [GNU General Public License v3.0](LICENSE).
 
 Refer to [NOTICE](NOTICE), [COPYRIGHT_ASSETS](COPYRIGHT_ASSETS), and [TRADEMARKS](TRADEMARKS) for asset licenses and trademark disclaimers.
+
+Reliability limits, recovery and verification: [2026-10-06 audit fixes](docs/project-audit-fixes-2026-10-06.md).

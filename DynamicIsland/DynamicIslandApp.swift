@@ -36,20 +36,7 @@ struct DynamicNotchApp: App {
             }
             Divider()
             Button("Restart Atoll") {
-                guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
-
-                let workspace = NSWorkspace.shared
-
-                if let appURL = workspace.urlForApplication(withBundleIdentifier: bundleIdentifier)
-                {
-
-                    let configuration = NSWorkspace.OpenConfiguration()
-                    configuration.createsNewApplicationInstance = true
-
-                    workspace.openApplication(at: appURL, configuration: configuration)
-                }
-
-                NSApplication.shared.terminate(self)
+                MemoryUsageMonitor.shared.relaunchApplication()
             }
             Button("Quit", role: .destructive) {
                 NSApplication.shared.terminate(self)
@@ -98,7 +85,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// the Atoll in daily use shares its agent bridge, session store, shelf
     /// and temporary files by path, and this copy would take them over (and
     /// remove the bridge's port file when it quits).
-    static let isHostingUnitTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    static let isHostingUnitTests = AppRuntimeEnvironment.isTesting
 
     var statusItem: NSStatusItem?
     var windows: [NSScreen: NSWindow] = [:]
@@ -106,17 +93,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
     let vm: DynamicIslandViewModel = .init()
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
-    var whatsNewWindow: NSWindow?
     var timer: Timer?
-    let calendarManager = CalendarManager.shared
-    let webcamManager = WebcamManager.shared
-    let dndManager = DoNotDisturbManager.shared  // NEW: DND detection
-    let bluetoothAudioManager = BluetoothAudioManager.shared  // NEW: Bluetooth audio detection
-    let networkConnectivityManager = NetworkConnectivityManager.shared
-    let downloadManager = DownloadManager.shared  // NEW: browser downloads detection
-    let lockScreenPanelManager = LockScreenPanelManager.shared  // NEW: Lock screen music panel
-    let mediaControlsStateCoordinator = MediaControlsStateCoordinator.shared
-    let systemTimerBridge = SystemTimerBridge.shared
+    lazy var calendarManager = CalendarManager.shared
+    lazy var webcamManager = WebcamManager.shared
+    lazy var dndManager = DoNotDisturbManager.shared  // NEW: DND detection
+    lazy var bluetoothAudioManager = BluetoothAudioManager.shared  // NEW: Bluetooth audio detection
+    lazy var networkConnectivityManager = NetworkConnectivityManager.shared
+    lazy var downloadManager = DownloadManager.shared  // NEW: browser downloads detection
+    lazy var lockScreenPanelManager = LockScreenPanelManager.shared  // NEW: Lock screen music panel
+    lazy var mediaControlsStateCoordinator = MediaControlsStateCoordinator.shared
+    lazy var systemTimerBridge = SystemTimerBridge.shared
     var closeNotchWorkItem: DispatchWorkItem?
     private var previousScreens: [NSScreen]?
     private var onboardingWindowController: NSWindowController?
@@ -131,16 +117,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Block-based AudioTap observers, kept with their center so they can be removed by token
     private var audioTapObserverTokens: [(center: NotificationCenter, token: NSObjectProtocol)] = []
-//    let calendarManager = CalendarManager.shared
-//    let webcamManager = WebcamManager.shared
-//    var closeNotchWorkItem: DispatchWorkItem?
-//    private var previousScreens: [NSScreen]?
-//    private var onboardingWindowController: NSWindowController?
-//    private var cancellables = Set<AnyCancellable>()
-//    
-//    // Debouncing mechanism for window size updates
-//    private var windowSizeUpdateWorkItem: DispatchWorkItem?
-    
+
     private func debouncedUpdateWindowSize() {
         // Cancel any existing work item
         windowSizeUpdateWorkItem?.cancel()
@@ -197,7 +174,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             // A target music app was launched, restart capture to include it
             if Defaults[.enableRealTimeWaveform] {
-                print("🎵 [AudioTap] Music app launched: \(bundleID), restarting capture...")
+                debugLog("🎵 [AudioTap] Music app launched: \(bundleID), restarting capture...")
                 // Give the app a moment to fully launch
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     AudioTap.shared.restartCapture()
@@ -217,7 +194,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             // A target music app was terminated, restart capture to update the list
             if Defaults[.enableRealTimeWaveform] {
-                print("🎵 [AudioTap] Music app terminated: \(bundleID), restarting capture...")
+                debugLog("🎵 [AudioTap] Music app terminated: \(bundleID), restarting capture...")
                 AudioTap.shared.restartCapture()
             }
         }
@@ -232,7 +209,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { _ in
             if Defaults[.enableRealTimeWaveform] {
-                print("🔀 [AudioTap] Audio route changed, restarting capture...")
+                debugLog("🔀 [AudioTap] Audio route changed, restarting capture...")
                 AudioTap.shared.restartCapture()
             }
         }
@@ -271,7 +248,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.removeObserver(self)
         AgentBridge.shared.stop()
         AgentConversationService.shared.stop()
-        AgentSessionStore.shared.save()
+        AgentSessionStore.shared.flushPendingSave()
+        ShelfStateViewModel.shared.flushPendingSave()
+        ExtraSpaceStore.shared.flushPendingSave()
         networkConnectivityManager.stopMonitoring()
         removeTemporaryFiles()
         
@@ -282,12 +261,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func onScreenLocked(_: Notification) {
-        print("Screen locked")
+        debugLog("Screen locked")
         hideWindowsForLock()
     }
 
     @objc func onScreenUnlocked(_: Notification) {
-        print("Screen unlocked")
+        debugLog("Screen unlocked")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self = self else { return }
             self.restoreWindowsAfterLock()
@@ -488,27 +467,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
-        // Check if inline sneak peek is showing and notch is closed
-        let airPodsListeningModeSneakActive = vm.notchState == .closed &&
-                                      coordinator.sneakPeek.show &&
-                                      coordinator.sneakPeek.type == .bluetoothAudio &&
-                                      coordinator.sneakPeek.value < 0 &&
-                                      AirPodsListeningMode.fromHUDSymbol(coordinator.sneakPeek.icon) != nil
-        let isInlineSneakPeekActive = vm.notchState == .closed && 
-                                      Defaults[.enableSneakPeek] &&
-                                      (
-                                          coordinator.expandingView.show &&
-                                          (coordinator.expandingView.type == .music || coordinator.expandingView.type == .timer) &&
-                                          Defaults[.sneakPeekStyles] == .inline ||
-                                          airPodsListeningModeSneakActive
-                                      )
-        
-        // If inline sneak peek is active, use a wider width to accommodate the expanded content
-        if isInlineSneakPeekActive {
-            // Calculate required width for inline sneak peek:
-            // Album art (~32) + Middle section (380) + Visualizer (~32) + horizontal padding (28) + clip shape margin (12)
-            let inlineSneakPeekWidth: CGFloat = 460
-            return CGSize(width: inlineSneakPeekWidth, height: vm.effectiveClosedNotchHeight)
+        // Inline sneak peeks draw wider than the notch. The AirPods HUD's exact
+        // width depends on ContentView's gesture state; the title strip's width
+        // bounds both.
+        if InlineSneakPeekMetrics.activeKind(
+            notchState: vm.notchState,
+            sneakPeekEnabled: Defaults[.enableSneakPeek],
+            sneakPeekStyle: Defaults[.sneakPeekStyles],
+            expandingView: coordinator.expandingView,
+            sneakPeek: coordinator.sneakPeek
+        ) != nil {
+            return CGSize(width: InlineSneakPeekMetrics.titleStripWidth, height: vm.effectiveClosedNotchHeight)
         }
 
         if let recordingHUDSize = recordingHUDLayoutForSizing().size(
@@ -518,41 +487,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return addShadowPadding(to: recordingHUDSize)
         }
 
-        // Check for battery HUD expansion
-        if vm.notchState == .closed && 
-           coordinator.expandingView.show && 
-           coordinator.expandingView.type == .battery &&
-           Defaults[.showPowerStatusNotifications] {
-            
-            let batteryModel = BatteryStatusViewModel.shared
-            if let kind = batteryModel.activeTemporaryHUDKind {
-                let closedNotchHeight = vm.effectiveClosedNotchHeight
-                let closedNotchWidth = vm.closedNotchSize.width
-                
-                let style: BatteryNotificationStyle = {
-                    switch kind {
-                    case .charging: return .compact
-                    case .lowBattery: return Defaults[.lowBatteryHUDStyle]
-                    case .fullBattery: return Defaults[.fullBatteryHUDStyle]
-                    }
-                }()
-                
-                var width = closedNotchWidth
-                var height = closedNotchHeight
-                
-                switch (kind, style) {
-                case (.charging, _), (.lowBattery, .compact), (.fullBattery, .compact):
-                    width += 180
-                case (.lowBattery, .standard):
-                    width += 100
-                    height += 75
-                case (.fullBattery, .standard):
-                    width += 80
-                    height += 70
-                }
-                
-                return addShadowPadding(to: CGSize(width: width, height: height))
-            }
+        // Battery HUD expansion, at the size the HUD draws.
+        if vm.notchState == .closed,
+           coordinator.expandingView.show,
+           coordinator.expandingView.type == .battery,
+           Defaults[.showPowerStatusNotifications],
+           let kind = BatteryStatusViewModel.shared.activeTemporaryHUDKind {
+            let metrics = kind.metrics(
+                style: kind.style(
+                    lowBattery: Defaults[.lowBatteryHUDStyle],
+                    fullBattery: Defaults[.fullBatteryHUDStyle]
+                ),
+                closedNotchWidth: vm.closedNotchSize.width,
+                baseHeight: vm.effectiveClosedNotchHeight
+            )
+            return addShadowPadding(to: metrics.size)
         }
         return nil
     }
@@ -942,6 +891,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     ?? self.coordinator.lastActiveView
                 viewModel.open()
 
+                // Reading or editing a scratchpad should not expire after the
+                // generic shortcut's three-second preview window.
+                if self.coordinator.currentView == .extraSpace { return }
+
                 let workItem = DispatchWorkItem { [weak viewModel] in
                     viewModel?.close()
                 }
@@ -1212,12 +1165,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     logProcess.executableURL = URL(fileURLWithPath: "/usr/bin/log")
                     logProcess.arguments = ["show", "--predicate", "subsystem == 'com.Ebullioscopic.Atoll' OR subsystem == 'com.Ebullioscopic.Atoll.dev'", "--info", "--debug", "--last", "2d"]
                     
-                    let pipe = Pipe()
-                    logProcess.standardOutput = pipe
-                    try logProcess.run()
-                    logProcess.waitUntilExit()
-                    
-                    let logData = pipe.fileHandleForReading.readDataToEndOfFile()
+                    let logs = try await ProcessRunner.capture(logProcess, timeout: 60, limit: 32 * 1024 * 1024)
+                    guard logs.outcome == .exited(0), !logs.truncated else { throw CocoaError(.fileReadTooLarge) }
+                    let logData = logs.output
                     try logData.write(to: logsFile)
                     
                     let diagDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Logs/DiagnosticReports")
@@ -1238,8 +1188,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     let items = (try? FileManager.default.contentsOfDirectory(atPath: tempDir.path)) ?? []
                     zipProcess.arguments = ["-r", url.path] + items
                     
-                    try zipProcess.run()
-                    zipProcess.waitUntilExit()
+                    guard try await ProcessRunner.run(zipProcess, timeout: 60) == .exited(0) else { throw CocoaError(.fileWriteUnknown) }
                     
                     
                     DispatchQueue.main.async {

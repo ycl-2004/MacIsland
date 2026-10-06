@@ -301,7 +301,7 @@ enum LyricsProviderFallback {
         do {
             primaryResult = try await primary()
         } catch {
-            print("Failed to fetch lyrics: \(error)")
+            debugLog("Failed to fetch lyrics: \(error)")
             primaryResult = LyricsResolution()
         }
         guard !Task.isCancelled, primaryResult.availability == .unavailable else {
@@ -311,7 +311,7 @@ enum LyricsProviderFallback {
             let secondary = try await fallback()
             if secondary.availability != .unavailable { return secondary }
         } catch {
-            print("Failed to fetch lyrics: \(error)")
+            debugLog("Failed to fetch lyrics: \(error)")
         }
         return primaryResult
     }

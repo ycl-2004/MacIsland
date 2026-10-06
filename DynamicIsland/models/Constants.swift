@@ -441,7 +441,14 @@ enum LockScreenLiveActivityIconStyle: String, Defaults.Serializable {
 
 extension Defaults.Keys {
         // MARK: General
+    /// Debug builds start at `.debug` so `debugLog` traces reach the Xcode
+    /// console as `print` used to; shipping builds stay silent until the
+    /// user picks a level from the menu.
+#if DEBUG
+    static let logLevel = Key<LogLevel>("logLevel", default: .debug)
+#else
     static let logLevel = Key<LogLevel>("logLevel", default: .none)
+#endif
     static let menubarIcon = Key<Bool>("menubarIcon", default: true)
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)
@@ -695,6 +702,9 @@ extension Defaults.Keys {
     static let screenQuestionBackend = Key<String>("screenQuestionBackend", default: "claude")
     /// Model per backend, keyed by `sourceID`; a missing entry uses the CLI's own default.
     static let assistantModelOverrides = Key<[String: String]>("assistantModelOverrides", default: [:])
+
+    // MARK: Extra Space
+    static let enableExtraSpaceFeature = Key<Bool>("enableExtraSpaceFeature", default: false)
 
     // MARK: Stats Feature
     static let enableStatsFeature = Key<Bool>("enableStatsFeature", default: false)

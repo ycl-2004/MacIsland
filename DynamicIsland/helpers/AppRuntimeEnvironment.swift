@@ -28,4 +28,13 @@ enum AppRuntimeEnvironment {
         return false
         #endif
     }()
+
+    static let isTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
+        || NSClassFromString("XCTestCase") != nil
+    static let testDirectory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("AtollTests-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString)", isDirectory: true)
+    static func contentURL(_ production: URL, testPath: String) -> URL {
+        isTesting ? testDirectory.appendingPathComponent(testPath) : production
+    }
 }

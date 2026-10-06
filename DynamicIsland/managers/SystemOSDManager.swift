@@ -102,72 +102,12 @@ class SystemOSDManager {
     
     private static func enableSystemHUDAsync(generation: UInt64) async {
         guard isCurrentTransition(generation, active: false) else { return }
-
-        do {
-            // First, stop any existing OSDUIHelper process
-            let stopTask = Process()
-            stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-            stopTask.arguments = ["-9", "OSDUIHelper"]
-            stopTask.standardError = Pipe() // silence "no such process" stderr
-            try stopTask.run()
-            stopTask.waitUntilExit()
-
-            guard isCurrentTransition(generation, active: false) else { return }
-            
-            // Small delay to ensure process is fully stopped
-            try await Task.sleep(nanoseconds: 200_000_000) // 200ms
-            guard isCurrentTransition(generation, active: false) else { return }
-            
-            // Then kickstart it again to ensure it's running properly
-            let kickstart = Process()
-            kickstart.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-            kickstart.arguments = ["kickstart", "gui/\(getuid())/com.apple.OSDUIHelper"]
-            try kickstart.run()
-            kickstart.waitUntilExit()
-
-            // A replacement HUD may have been selected while launchctl was
-            // running. In that case the current suppression transition owns the
-            // helper; stop this stale restoration immediately.
-            guard isCurrentTransition(generation, active: false) else {
-                suppressNativeOSDNow()
-                return
-            }
-            
-            // Additional delay to ensure service is fully started
-            try await Task.sleep(nanoseconds: 300_000_000) // 300ms
-            guard isCurrentTransition(generation, active: false) else { return }
-            
-            await MainActor.run {
-                print("✅ System HUD re-enabled")
-            }
-        } catch {
-            guard isCurrentTransition(generation, active: false) else { return }
-            await MainActor.run {
-                NSLog("❌ Error while trying to re-enable OSDUIHelper: \(error)")
-            }
-            
-            // Fallback: Try to restart the service using launchctl load
-            do {
-                let fallbackTask = Process()
-                fallbackTask.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-                fallbackTask.arguments = ["load", "-w", "/System/Library/LaunchAgents/com.apple.OSDUIHelper.plist"]
-                try fallbackTask.run()
-                fallbackTask.waitUntilExit()
-
-                guard isCurrentTransition(generation, active: false) else {
-                    suppressNativeOSDNow()
-                    return
-                }
-                
-                await MainActor.run {
-                    print("✅ System HUD re-enabled via fallback method")
-                }
-            } catch {
-                await MainActor.run {
-                    NSLog("❌ Fallback method also failed: \(error)")
-                }
-            }
+        OSDRecoveryGuardian.shared.resumeAndClose()
+        guard isCurrentTransition(generation, active: false) else {
+            suppressNativeOSDNow()
+            return
         }
+        await MainActor.run { debugLog("✅ System HUD re-enabled") }
     }
 
     /// Synchronously resumes OSDUIHelper for app termination.
@@ -196,16 +136,7 @@ class SystemOSDManager {
             _ = drained.wait(timeout: .now() + 1.0)
         }
 
-        let resume = Process()
-        resume.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-        resume.arguments = ["-CONT", "OSDUIHelper"]
-        resume.standardError = Pipe() // silence "no such process" stderr
-        do {
-            try resume.run()
-            resume.waitUntilExit()
-        } catch {
-            NSLog("Failed to SIGCONT OSDUIHelper on termination: \(error)")
-        }
+        OSDRecoveryGuardian.shared.resumeAndClose()
     }
 
     /// Disables the system HUD by stopping OSDUIHelper, and starts a
@@ -289,7 +220,7 @@ class SystemOSDManager {
                 }
                 suppressionState.withLock { $0.lastSuspendedPID = existing }
                 await MainActor.run {
-                    print("✅ System HUD disabled (suspended running helper \(existing))")
+                    debugLog("✅ System HUD disabled (suspended running helper \(existing))")
                 }
                 return
             }
@@ -299,8 +230,9 @@ class SystemOSDManager {
             // No helper running — ask launchd for one so there is something to
             // freeze before the next media key arrives.
             kickstart.arguments = ["kickstart", "gui/\(getuid())/com.apple.OSDUIHelper"]
-            try kickstart.run()
-            kickstart.waitUntilExit()
+            kickstart.standardOutput = FileHandle.nullDevice
+            kickstart.standardError = FileHandle.nullDevice
+            _ = try await ProcessRunner.run(kickstart, timeout: 3)
 
             guard isCurrentTransition(generation, active: true) else { return }
 
@@ -337,7 +269,7 @@ class SystemOSDManager {
 
             if isCurrentTransition(generation, active: true) {
                 await MainActor.run {
-                    print("✅ System HUD disabled")
+                    debugLog("✅ System HUD disabled")
                 }
             }
         } catch {
@@ -380,9 +312,10 @@ class SystemOSDManager {
     /// This prevents the ~192,000 pgrep subprocess spawns that would otherwise
     /// accumulate over an 8-hour sleep and exhaust the process table / fd limits.
     private static func startSuppressionWatcher() {
+        let generation = suppressionState.withLock { $0.transitionGeneration }
         let newTask = Task.detached(priority: .background) {
             var stableChecks = 0
-            while !Task.isCancelled {
+            while !Task.isCancelled, isCurrentTransition(generation, active: true) {
                 // Pause the watcher entirely while the system is asleep.
                 // handleSystemWake() will cancel this task and spawn a fresh one.
                 let sleeping = suppressionState.withLock { $0.systemSleeping }
@@ -395,8 +328,10 @@ class SystemOSDManager {
                 let currentPID = osduiHelperPID()
                 let lastPID = suppressionState.withLock { $0.lastSuspendedPID }
 
-                if let pid = currentPID, pid != lastPID {
+                if let pid = currentPID, pid != lastPID || !OSDRecoveryGuardian.shared.isRunning {
+                    guard isCurrentTransition(generation, active: true), !Task.isCancelled else { break }
                     suspendOSDUIHelper()
+                    guard isCurrentTransition(generation, active: true) else { relinquishStaleSuspension(); break }
                     suppressionState.withLock { $0.lastSuspendedPID = pid }
                     stableChecks = 0
                     try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
@@ -440,6 +375,11 @@ class SystemOSDManager {
         return previous
     }
 
+}
+
+// MARK: - OSDUIHelper process management
+
+extension SystemOSDManager {
     /// Returns the newest OSDUIHelper PID, or nil if none.
     ///
     /// Asked once a second for as long as the app runs, so it is deliberately
@@ -490,16 +430,8 @@ class SystemOSDManager {
 
     /// Sends SIGSTOP to all OSDUIHelper processes. Idempotent.
     private static func suspendOSDUIHelper() {
-        let stop = Process()
-        stop.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-        stop.arguments = ["-STOP", "OSDUIHelper"]
-        stop.standardError = Pipe() // silence "no such process" stderr
-        do {
-            try stop.run()
-            stop.waitUntilExit()
-        } catch {
-            NSLog("Suppression watcher: failed to SIGSTOP OSDUIHelper: \(error)")
-        }
+        guard let pid = osduiHelperPID() else { return }
+        OSDRecoveryGuardian.shared.suspend(pid)
     }
 
     /// Undoes a SIGSTOP this transition just issued, having discovered it is
@@ -523,16 +455,7 @@ class SystemOSDManager {
     }
 
     private static func resumeOSDUIHelperProcess() {
-        let resume = Process()
-        resume.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-        resume.arguments = ["-CONT", "OSDUIHelper"]
-        resume.standardError = Pipe()
-        do {
-            try resume.run()
-            resume.waitUntilExit()
-        } catch {
-            NSLog("Failed to resume OSDUIHelper after stale suppression: \(error)")
-        }
+        OSDRecoveryGuardian.shared.resumeAndClose()
     }
 
     /// Check if OSDUIHelper is currently running

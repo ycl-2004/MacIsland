@@ -151,6 +151,7 @@ final class SystemTimerBridge: ObservableObject {
     }
 
     private init() {
+        guard !AppDelegate.isHostingUnitTests else { return }
         logDebug("Initializing SystemTimerBridge (mirror enabled: \(Defaults[.mirrorSystemTimer]))")
         refreshClockControlCapability()
         observeClockAppLifecycle()

@@ -27,352 +27,6 @@ import Darwin
 import AppKit
 //import Network
 
-struct MemoryBreakdown: Equatable {
-    let totalBytes: UInt64
-    let usedBytes: UInt64
-    let freeBytes: UInt64
-    let wiredBytes: UInt64
-    let activeBytes: UInt64
-    let inactiveBytes: UInt64
-    let compressedBytes: UInt64
-    let appBytes: UInt64
-    let cacheBytes: UInt64
-    let swap: MemorySwap
-    let pressure: MemoryPressure
-    
-    static let zero = MemoryBreakdown(
-        totalBytes: 0,
-        usedBytes: 0,
-        freeBytes: 0,
-        wiredBytes: 0,
-        activeBytes: 0,
-        inactiveBytes: 0,
-        compressedBytes: 0,
-        appBytes: 0,
-        cacheBytes: 0,
-        swap: .zero,
-        pressure: .unknown
-    )
-    
-    var usedPercentage: Double {
-        guard totalBytes > 0 else { return 0 }
-        return Double(usedBytes) / Double(totalBytes) * 100
-    }
-    
-    var freePercentage: Double {
-        guard totalBytes > 0 else { return 0 }
-        return Double(freeBytes) / Double(totalBytes) * 100
-    }
-    
-    var appPercentage: Double {
-        guard totalBytes > 0 else { return 0 }
-        return Double(appBytes) / Double(totalBytes) * 100
-    }
-    
-    var cachePercentage: Double {
-        guard totalBytes > 0 else { return 0 }
-        return Double(cacheBytes) / Double(totalBytes) * 100
-    }
-}
-
-struct MemorySwap: Equatable {
-    let totalBytes: UInt64
-    let usedBytes: UInt64
-    let freeBytes: UInt64
-    
-    static let zero = MemorySwap(totalBytes: 0, usedBytes: 0, freeBytes: 0)
-}
-
-enum MemoryPressureLevel: String, Equatable {
-    case normal
-    case warning
-    case critical
-}
-
-struct MemoryPressure: Equatable {
-    let rawValue: Int
-    let level: MemoryPressureLevel
-    
-    static let unknown = MemoryPressure(rawValue: 0, level: .normal)
-}
-
-struct CPUCoreUsage: Identifiable, Equatable {
-    let id: Int
-    let usage: Double
-}
-
-// MARK: - GPU Helpers
-
-private final class GPUInfoCollector {
-    func collectDevices() -> [GPUDeviceMetrics] {
-        var devices: [GPUDeviceMetrics] = []
-        let matching = IOServiceMatching(kIOAcceleratorClassName)
-        var iterator: io_iterator_t = 0
-        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
-            return devices
-        }
-        defer { IOObjectRelease(iterator) }
-        var index = 0
-        var service = IOIteratorNext(iterator)
-        while service != 0 {
-            if let properties = copyProperties(for: service),
-               let device = makeDevice(from: properties, index: index) {
-                devices.append(device)
-            }
-            IOObjectRelease(service)
-            service = IOIteratorNext(iterator)
-            index += 1
-        }
-        return devices
-    }
-
-    private func copyProperties(for service: io_registry_entry_t) -> [String: Any]? {
-        var properties: Unmanaged<CFMutableDictionary>?
-        guard IORegistryEntryCreateCFProperties(service, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS,
-              let dict = properties?.takeRetainedValue() as? [String: Any] else {
-            return nil
-        }
-        return dict
-    }
-
-    private func makeDevice(from dict: [String: Any], index: Int) -> GPUDeviceMetrics? {
-        guard let ioClass = dict["IOClass"] as? String else { return nil }
-        let stats = dict["PerformanceStatistics"] as? [String: Any] ?? [:]
-        let vendor = vendorName(from: ioClass) ?? (dict["vendor"] as? String)
-        let model = sanitizedModel(primary: stats["model"] as? String,
-                                   secondary: dict["model"] as? String,
-                                   vendorFallback: vendor)
-        let id = "\(model)#\(index + 1)"
-        let utilization = percentValue(for: ["Device Utilization %", "GPU Activity(%)"], in: stats)
-        let renderUtilization = percentValue(for: ["Renderer Utilization %"], in: stats)
-        let tilerUtilization = percentValue(for: ["Tiler Utilization %"], in: stats)
-        let temperature = numericValue(for: ["Temperature(C)", "temperature"], in: stats)
-        let fanSpeed = intValue(for: ["Fan Speed(%)"], in: stats)
-        let coreClock = intValue(for: ["Core Clock(MHz)"], in: stats)
-        let memoryClock = intValue(for: ["Memory Clock(MHz)"], in: stats)
-        let cores = (dict["gpu-core-count"] as? NSNumber)?.intValue ?? (dict["Cores"] as? Int)
-        let isActive = isAcceleratorActive(from: dict)
-        return GPUDeviceMetrics(
-            id: id,
-            vendor: vendor,
-            model: model,
-            isActive: isActive,
-            utilization: utilization,
-            renderUtilization: renderUtilization,
-            tilerUtilization: tilerUtilization,
-            temperature: temperature,
-            fanSpeed: fanSpeed,
-            coreClock: coreClock,
-            memoryClock: memoryClock,
-            cores: cores
-        )
-    }
-
-    private func vendorName(from ioClass: String) -> String? {
-        let value = ioClass.lowercased()
-        if value.contains("nvidia") {
-            return "NVIDIA"
-        } else if value.contains("amd") {
-            return "AMD"
-        } else if value.contains("intel") {
-            return "Intel"
-        } else if value.contains("agx") || value.contains("apple") {
-            return "Apple"
-        }
-        return nil
-    }
-
-    private func sanitizedModel(primary: String?, secondary: String?, vendorFallback: String?) -> String {
-        let normalizedPrimary = normalizedString(primary)
-        if let normalizedPrimary, !normalizedPrimary.isEmpty {
-            return normalizedPrimary
-        }
-        let normalizedSecondary = normalizedString(secondary)
-        if let normalizedSecondary, !normalizedSecondary.isEmpty {
-            return normalizedSecondary
-        }
-        if let vendorFallback, !vendorFallback.isEmpty {
-            return "\(vendorFallback) Graphics"
-        }
-        return "GPU"
-    }
-
-    private func normalizedString(_ raw: String?) -> String? {
-        guard var value = raw else { return nil }
-        value = value.replacingOccurrences(of: "\0", with: "")
-        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? nil : value
-    }
-
-    private func percentValue(for keys: [String], in dict: [String: Any]) -> Double? {
-        for key in keys {
-            if let number = dict[key] as? NSNumber {
-                return clampPercent(number.doubleValue)
-            }
-            if let value = dict[key] as? Double {
-                return clampPercent(value)
-            }
-            if let value = dict[key] as? Int {
-                return clampPercent(Double(value))
-            }
-        }
-        return nil
-    }
-
-    private func numericValue(for keys: [String], in dict: [String: Any]) -> Double? {
-        for key in keys {
-            if let number = dict[key] as? NSNumber {
-                return number.doubleValue
-            }
-            if let value = dict[key] as? Double {
-                return value
-            }
-            if let value = dict[key] as? Int {
-                return Double(value)
-            }
-        }
-        return nil
-    }
-
-    private func intValue(for keys: [String], in dict: [String: Any]) -> Int? {
-        for key in keys {
-            if let number = dict[key] as? NSNumber {
-                return number.intValue
-            }
-            if let value = dict[key] as? Int {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private func isAcceleratorActive(from dict: [String: Any]) -> Bool {
-        guard let agcInfo = dict["AGCInfo"] as? [String: Any] else {
-            return true
-        }
-        if let poweredOff = agcInfo["poweredOffByAGC"] as? NSNumber {
-            return poweredOff.intValue == 0
-        }
-        if let poweredOff = agcInfo["poweredOffByAGC"] as? Int {
-            return poweredOff == 0
-        }
-        return true
-    }
-
-    private func clampPercent(_ value: Double) -> Double {
-        return min(max(value, 0), 100)
-    }
-}
-
-struct GPUBreakdown: Equatable {
-    let render: Double
-    let compute: Double
-    let video: Double
-    let other: Double
-    
-    static let zero = GPUBreakdown(render: 0, compute: 0, video: 0, other: 0)
-    
-    var totalUsage: Double {
-        render + compute + video + other
-    }
-}
-
-struct GPUMetricsSnapshot {
-    let usage: Double
-    let breakdown: GPUBreakdown
-    let devices: [GPUDeviceMetrics]
-
-    static let zero = GPUMetricsSnapshot(usage: 0, breakdown: .zero, devices: [])
-}
-
-enum NetworkInterfaceType: String {
-    case wifi
-    case ethernet
-    case loopback
-    case cellular
-    case other
-}
-
-struct NetworkInterfaceMetrics: Identifiable, Equatable {
-    let name: String
-    let displayName: String
-    let type: NetworkInterfaceType
-    let ipv4: String?
-    let ipv6: String?
-    let isActive: Bool
-    let currentDownload: Double
-    let currentUpload: Double
-    let totalDownloaded: Double
-    let totalUploaded: Double
-    
-    var id: String { name }
-}
-
-struct DiskDeviceMetrics: Identifiable, Equatable {
-    let id: String
-    let name: String
-    let path: URL
-    let totalBytes: UInt64
-    let freeBytes: UInt64
-    let isRoot: Bool
-    let isRemovable: Bool
-    
-    var usedBytes: UInt64 {
-        totalBytes > freeBytes ? totalBytes - freeBytes : 0
-    }
-    
-    var usagePercentage: Double {
-        guard totalBytes > 0 else { return 0 }
-        return Double(usedBytes) / Double(totalBytes) * 100
-    }
-}
-
-struct GPUDeviceMetrics: Identifiable, Equatable {
-    let id: String
-    let vendor: String?
-    let model: String
-    let isActive: Bool
-    let utilization: Double?
-    let renderUtilization: Double?
-    let tilerUtilization: Double?
-    let temperature: Double?
-    let fanSpeed: Int?
-    let coreClock: Int?
-    let memoryClock: Int?
-    let cores: Int?
-
-    var formattedVendorModel: String {
-        if let vendor {
-            return vendor == model ? model : "\(vendor) \(model)".trimmingCharacters(in: .whitespaces)
-        }
-        return model
-    }
-
-    var utilizationText: String {
-        guard let utilization else { return "—" }
-        return StatsFormatting.percentage(utilization)
-    }
-
-    var temperatureText: String {
-        guard let temperature else { return "—" }
-        return String(format: "%.0f°C", temperature)
-    }
-}
-
-struct NetworkTotals: Equatable {
-    var downloadedMB: Double
-    var uploadedMB: Double
-    
-    static let zero = NetworkTotals(downloadedMB: 0, uploadedMB: 0)
-}
-
-struct DiskTotals: Equatable {
-    var readMB: Double
-    var writtenMB: Double
-    
-    static let zero = DiskTotals(readMB: 0, writtenMB: 0)
-}
-
 class StatsManager: ObservableObject {
     // MARK: - Properties
     static let shared = StatsManager()
@@ -457,6 +111,8 @@ class StatsManager: ObservableObject {
     private var lastProcessStatsUpdate: Date = .distantPast
     private let processStatsUpdateInterval: TimeInterval = 2.0
     private let maxProcessEntries: Int = 20
+    private var processRefreshGeneration = UUID()
+    private var processRefreshTask: Task<Void, Never>?
     private var isProcessRefreshInFlight = false
     // Volume capacities change slowly, and reading them can take a while.
     private var lastDiskDevicesUpdate: Date = .distantPast
@@ -555,7 +211,7 @@ class StatsManager: ObservableObject {
     func startMonitoring() {
         guard !isMonitoring else { return }
         
-        print("StatsManager: Starting monitoring...")
+        debugLog("StatsManager: Starting monitoring...")
         
         // Reset baseline for accurate measurement
         let initialStats = getNetworkStats()
@@ -566,6 +222,7 @@ class StatsManager: ObservableObject {
         
         previousTimestamp = Date()
         
+        processRefreshGeneration = UUID()
         isMonitoring = true
         lastUpdated = Date()
         networkTotals = .zero
@@ -577,7 +234,7 @@ class StatsManager: ObservableObject {
             self.updateSystemStats()
         }
         
-        print("StatsManager: Monitoring started")
+        debugLog("StatsManager: Monitoring started")
     }
     
     func stopMonitoring() {
@@ -589,8 +246,10 @@ class StatsManager: ObservableObject {
         delayedStartTimer?.invalidate()
         delayedStopTimer?.invalidate()
         
+        processRefreshGeneration = UUID()
+        processRefreshTask?.cancel(); processRefreshTask = nil
         isMonitoring = false
-        print("StatsManager: Monitoring stopped")
+        debugLog("StatsManager: Monitoring stopped")
         cachedProcessStats.removeAll()
         lastProcessStatsUpdate = .distantPast
         isProcessRefreshInFlight = false
@@ -669,6 +328,7 @@ class StatsManager: ObservableObject {
     // MARK: - Private Methods
     @MainActor
     private func updateSystemStats() {
+        guard isMonitoring else { return }
         let cpuMetrics = getCPULoadBreakdown()
         let newCpuUsage = cpuMetrics.activeUsage
         let memorySnapshot = getMemorySnapshot()
@@ -1461,11 +1121,15 @@ class StatsManager: ObservableObject {
         guard !isProcessRefreshInFlight else { return }
 
         isProcessRefreshInFlight = true
-
-        Task.detached { [weak self] in
+        let generation = processRefreshGeneration
+        let limit = maxProcessEntries
+        processRefreshTask = Task.detached { [weak self] in
             guard let self else { return }
-            let processes = StatsManager.collectTopProcesses(limit: self.maxProcessEntries)
+            let processes = await StatsManager.collectTopProcesses(limit: limit)
+            guard !Task.isCancelled else { return }
             await MainActor.run {
+                guard self.processRefreshGeneration == generation, self.isMonitoring else { return }
+                self.processRefreshTask = nil
                 self.cachedProcessStats = processes
                 self.lastProcessStatsUpdate = Date()
                 self.isProcessRefreshInFlight = false
@@ -1474,36 +1138,16 @@ class StatsManager: ObservableObject {
         }
     }
 
-    private static func collectTopProcesses(limit: Int) -> [ProcessStats] {
+    private static func collectTopProcesses(limit: Int) async -> [ProcessStats] {
         guard limit > 0 else { return [] }
 
         let task = Process()
         task.launchPath = "/bin/ps"
         task.arguments = ["-Aceo", "pid,pcpu,comm", "-r"]
 
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        task.standardOutput = outputPipe
-        task.standardError = errorPipe
-
-        defer {
-            outputPipe.fileHandleForReading.closeFile()
-            errorPipe.fileHandleForReading.closeFile()
-        }
-
-        do {
-            try task.run()
-        } catch {
-            NSLog("StatsManager: Failed to run ps command: \(error.localizedDescription)")
-            return []
-        }
-
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        _ = errorPipe.fileHandleForReading.readDataToEndOfFile()
-
-        guard !outputData.isEmpty, let output = String(data: outputData, encoding: .utf8) else {
-            return []
-        }
+        guard let result = try? await ProcessRunner.capture(task, timeout: 3, limit: 2 * 1024 * 1024),
+              result.outcome == .exited(0), !result.truncated,
+              let output = String(data: result.output, encoding: .utf8), !output.isEmpty else { return [] }
 
         var results: [ProcessStats] = []
 

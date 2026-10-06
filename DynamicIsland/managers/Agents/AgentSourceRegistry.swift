@@ -6,6 +6,9 @@ enum AgentSourceRegistry {
         ClaudeCodeAgentSource(),
         CodexAgentSource(),
         AntigravityAgentSource(),
+        PiAgentSource(),
+        OpenCodeAgentSource(),
+        GrokAgentSource(),
     ]
 
     static func source(id: String) -> AgentSource? {

@@ -79,6 +79,7 @@ final class AgentConversationService: ObservableObject {
     private var transcriptStamps: [String: Date] = [:]
     private var loadingHistory = Set<String>()
     private var sendingTasks: [String: Task<Void, Never>] = [:]
+    private var storeSubscription: AnyCancellable?
 
     init(store: AgentSessionStore? = nil, defaults: UserDefaults = .standard,
          client: CodexConversationClient? = nil, terminals: AgentTerminals? = nil,
@@ -92,6 +93,31 @@ final class AgentConversationService: ObservableObject {
         self.client.onEvent = { [weak self] in self?.handleEvent($0, $1) }
         self.client.onRequest = { [weak self] in self?.handleRequest($0, $1, $2) }
         self.client.onDisconnect = { [weak self] in self?.connectionLost() }
+        storeSubscription = self.store.$sessions.sink { [weak self] sessions in
+            self?.pruneSidecarState(retaining: Set(sessions.map(\.id)))
+        }
+    }
+
+    func setDraft(_ text: String, for id: String) {
+        let others = drafts.filter { $0.key != id }
+        guard text.utf8.count <= 64 * 1024, others.count < 64,
+              others.values.reduce(0, { $0 + $1.utf8.count }) + text.utf8.count <= 1024 * 1024 else {
+            errors[id] = "Draft storage is full. Keep each draft under 64 KB and clear old drafts before adding more."
+            return
+        }
+        drafts[id] = text
+    }
+
+    private func pruneSidecarState(retaining ids: Set<String>) {
+        let retained = ids.union(selectedID.map { [$0] } ?? [])
+        errors = errors.filter { retained.contains($0.key) }
+        notices = notices.filter { retained.contains($0.key) }
+        streaming = streaming.filter { retained.contains($0.key) }
+        transcriptStamps = transcriptStamps.filter { retained.contains($0.key) }
+        loadingHistory.formIntersection(retained)
+        for (id, task) in sendingTasks where !retained.contains(id) { task.cancel(); sendingTasks[id] = nil }
+        sending.formIntersection(retained)
+        // Unsent drafts stay available; their editor enforces a separate budget.
     }
 
     // MARK: Lifecycle

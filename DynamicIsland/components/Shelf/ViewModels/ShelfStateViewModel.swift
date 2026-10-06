@@ -31,21 +31,24 @@ final class ShelfStateViewModel: ObservableObject {
 
     @Published private(set) var items: [ShelfItem] = [] {
         didSet {
-            if !ShelfPersistenceService.shared.save(items) {
-                report(ShelfPersistenceService.shared.lastError ?? String(localized: "Shelf changes could not be saved."), persistent: true)
-            }
+            if isLoaded { scheduleSave() }
             ShelfSelectionModel.shared.reconcileSelection(with: items)
             removeUnusedTemporaryFiles()
             if items.isEmpty { Task { await ThumbnailService.shared.clear() } }
         }
     }
 
+    @Published private(set) var isLoaded = false
+    static let maximumItems = 200
+    private let persistenceQueue = DispatchQueue(label: "app.atoll.shelf.persistence", qos: .utility)
+    private var pendingSave: DispatchWorkItem?
     var isEmpty: Bool { items.isEmpty }
 
     @Published private(set) var feedback: String?
     private var feedbackTask: Task<Void, Never>?
     private var importTask: Task<Void, Never>?
     private var importGeneration = UUID()
+    private var importWasLimited = false
     private var importQueue: [[NSItemProvider]] = []
     var generation: UUID { importGeneration }
 
@@ -75,10 +78,16 @@ final class ShelfStateViewModel: ObservableObject {
     private var shelfSwitch: AnyCancellable?
 
     private init() {
-        items = ShelfPersistenceService.shared.load()
-        feedback = ShelfPersistenceService.shared.lastError ?? ShelfPersistenceService.shared.recoveryWarning
-        if ShelfFileLifetime.shared.needsRecovery {
-            feedback = String(localized: "Temporary file records could not be read. Files have been kept for recovery.")
+        let generation = importGeneration
+        persistenceQueue.async { [weak self] in
+            let loaded = ShelfPersistenceService.shared.load()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if generation == self.importGeneration { self.items = loaded }
+                self.isLoaded = true
+                self.feedback = ShelfPersistenceService.shared.lastError ?? ShelfPersistenceService.shared.recoveryWarning
+                self.backfillCachedPaths()
+            }
         }
         // Disable clears the list; the lifetime service keeps only files that
         // are still in use or inside their handoff grace. Corrupt stores remain
@@ -87,7 +96,6 @@ final class ShelfStateViewModel: ObservableObject {
             guard !change.newValue else { return }
             Task { @MainActor in ShelfStateViewModel.shared.removeAll() }
         }
-        backfillCachedPaths()
     }
 
     /// Removes shelf temporary files no item uses: left by a crash, by items
@@ -97,6 +105,28 @@ final class ShelfStateViewModel: ObservableObject {
         let unresolved = items.contains { $0.isTemporary && $0.cachedPath == nil }
         ShelfFileLifetime.shared.setReferences(items.compactMap { $0.cachedPath.map { URL(fileURLWithPath: $0) } },
             allowCleanup: !unresolved && ShelfPersistenceService.shared.permitsCleanup)
+    }
+
+    private func scheduleSave() {
+        pendingSave?.cancel()
+        let snapshot = items
+        let work = DispatchWorkItem { [weak self] in
+            let success = ShelfPersistenceService.shared.save(snapshot)
+            if !success {
+                DispatchQueue.main.async { self?.report(ShelfPersistenceService.shared.lastError ?? "Shelf changes could not be saved.", persistent: true) }
+            }
+        }
+        pendingSave = work
+        persistenceQueue.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
+    func flushPendingSave() {
+        guard isLoaded else { return }
+        pendingSave?.cancel(); pendingSave = nil
+        let snapshot = items
+        if !persistenceQueue.sync(execute: { ShelfPersistenceService.shared.save(snapshot) }) {
+            report(ShelfPersistenceService.shared.lastError ?? "Shelf changes could not be saved.", persistent: true)
+        }
     }
 
     /// Resolves `cachedPath` for items persisted before the path cache existed,
@@ -168,6 +198,7 @@ final class ShelfStateViewModel: ObservableObject {
     }
 
     func add(_ newItems: [ShelfItem], ifUnchanged generation: UUID? = nil) {
+        importWasLimited = false
         guard !newItems.isEmpty else { return }
         guard (generation == nil || generation == importGeneration), Defaults[.dynamicShelf] else {
             ShelfFileLifetime.shared.requestCleanup()
@@ -178,6 +209,13 @@ final class ShelfStateViewModel: ObservableObject {
         var seen: Set<String> = Set(merged.map { $0.identityKey })
         var added = false
         for it in newItems where seen.insert(it.identityKey).inserted {
+            guard merged.count < Self.maximumItems, it.storageTextBytes <= 1024 * 1024,
+                  merged.reduce(0, { $0 + $1.storageTextBytes }) + it.storageTextBytes <= 4 * 1024 * 1024 else {
+                importWasLimited = true
+                report("Shelf holds up to 200 items and 4 MB of text (1 MB per item). Remove some items before adding more.")
+                ShelfFileLifetime.shared.requestCleanup()
+                break
+            }
             merged.append(it)
             added = true
         }
@@ -237,6 +275,11 @@ final class ShelfStateViewModel: ObservableObject {
         updated[idx].cachedPath = newPath
         if let newPath { updated[idx].cachedDisplayName = URL(fileURLWithPath: newPath).lastPathComponent }
         updated[idx].cachedIconData = nil
+        let oldPath = items[idx].cachedPath
+        Task {
+            if let oldPath { await ThumbnailService.shared.invalidate(URL(fileURLWithPath: oldPath)) }
+            if let newPath, newPath != oldPath { await ThumbnailService.shared.invalidate(URL(fileURLWithPath: newPath)) }
+        }
         items = updated
     }
 
@@ -277,6 +320,10 @@ final class ShelfStateViewModel: ObservableObject {
 
     func load(_ providers: [NSItemProvider]) {
         guard !providers.isEmpty, Defaults[.dynamicShelf] else { return }
+        guard providers.count <= 50, importQueue.reduce(0, { $0 + $1.count }) + providers.count <= 100 else {
+            report("Drop up to 50 items at a time. Wait for the current import to finish before adding more.")
+            return
+        }
         importQueue.append(providers)
         guard importTask == nil else { return }
         let generation = importGeneration
@@ -285,6 +332,7 @@ final class ShelfStateViewModel: ObservableObject {
         importTask = Task { [weak self] in
             defer { if self?.importGeneration == generation { self?.importTask = nil } }
             while let self, !Task.isCancelled, self.importGeneration == generation, !self.importQueue.isEmpty {
+                if !self.isLoaded { try? await Task.sleep(for: .milliseconds(20)); continue }
                 let providers = self.importQueue.removeFirst()
                 let dropped = await ShelfDropService.items(from: providers)
                 guard !Task.isCancelled, self.importGeneration == generation, Defaults[.dynamicShelf] else {
@@ -293,6 +341,7 @@ final class ShelfStateViewModel: ObservableObject {
                 }
                 let before = self.items.count
                 self.add(dropped, ifUnchanged: generation)
+                if self.importWasLimited { continue }
                 let added = self.items.count - before
                 let failures = providers.count - dropped.count
                 if failures > 0 {

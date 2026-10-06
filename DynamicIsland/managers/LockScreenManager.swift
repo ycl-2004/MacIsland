@@ -108,19 +108,11 @@ class LockScreenManager: ObservableObject {
     private var fingerprintAnimationResetTask: Task<Void, Never>?
     private var powerKeyMonitors: [Any] = []
     private var lastPowerKeyEventDate: Date = .distantPast
-    
-    // MARK: - Helpers
-    
-    private func timestamp() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss.SSS"
-        return formatter.string(from: Date())
-    }
-    
+
     // MARK: - Initialization
     private init() {
         setupObservers()
-        print("LockScreenManager: 🔒 Initialized")
+        debugLog("LockScreenManager: 🔒 Initialized")
     }
     
     deinit {
@@ -188,7 +180,7 @@ class LockScreenManager: ObservableObject {
             powerKeyMonitors.append(globalMonitor)
         }
 
-        print("LockScreenManager: ✅ Observers registered for lock/unlock events")
+        debugLog("LockScreenManager: ✅ Observers registered for lock/unlock events")
     }
 
     private func handlePowerKeyEvent() {
@@ -226,10 +218,10 @@ class LockScreenManager: ObservableObject {
     
     @objc private func screenLocked() {
         guard !isLocked else {
-            print("[\(timestamp())] LockScreenManager: 🔁 Duplicate LOCK event ignored")
+            debugLog("LockScreenManager: 🔁 Duplicate LOCK event ignored")
             return
         }
-        print("[\(timestamp())] LockScreenManager: 🔒 Screen LOCKED event received")
+        debugLog("LockScreenManager: 🔒 Screen LOCKED event received")
         Logger.log("LockScreenManager: Screen locked", category: .lifecycle)
         LockSoundPlayer.shared.playLockChime()
         LockScreenDisplayContextProvider.shared.refresh(reason: "screen-locked")
@@ -257,7 +249,7 @@ class LockScreenManager: ObservableObject {
         }
         
         // Show panel FIRST (creates and shows window on lock screen)
-        print("[\(timestamp())] LockScreenManager: 🎵 Showing lock screen panel")
+        debugLog("LockScreenManager: 🎵 Showing lock screen panel")
         LockScreenPanelManager.shared.showPanel()
         updateNativeHUDSuppression()
         LockScreenLiveActivityWindowManager.shared.showLocked()
@@ -266,23 +258,23 @@ class LockScreenManager: ObservableObject {
         
         // THEN trigger lock icon in Atoll (only if enabled in settings)
         if Defaults[.enableLockScreenLiveActivity] {
-            print("[\(timestamp())] LockScreenManager: 🔴 Starting lock icon live activity")
+            debugLog("LockScreenManager: 🔴 Starting lock icon live activity")
             coordinator.toggleExpandingView(status: true, type: .lockScreen)
         } else {
-            print("[\(timestamp())] LockScreenManager: ⏭️ Lock icon disabled in settings")
+            debugLog("LockScreenManager: ⏭️ Lock icon disabled in settings")
         }
         
         startLockStatePolling()
 
-        print("[\(timestamp())] LockScreenManager: ✅ Lock screen activated")
+        debugLog("LockScreenManager: ✅ Lock screen activated")
     }
 
     @objc private func screenUnlocked() {
         guard isLocked else {
-            print("[\(timestamp())] LockScreenManager: 🔁 Unlock event ignored (already unlocked)")
+            debugLog("LockScreenManager: 🔁 Unlock event ignored (already unlocked)")
             return
         }
-        print("[\(timestamp())] LockScreenManager: 🔓 Screen UNLOCKED event received")
+        debugLog("LockScreenManager: 🔓 Screen UNLOCKED event received")
         Logger.log("LockScreenManager: Screen unlocked", category: .lifecycle)
         LockSoundPlayer.shared.playUnlockChime()
         LockScreenDisplayContextProvider.shared.refresh(reason: "screen-unlocked")
@@ -325,7 +317,7 @@ class LockScreenManager: ObservableObject {
         }
         
         // Hide panel window immediately and synchronously
-        print("[\(timestamp())] LockScreenManager: 🚪 Hiding panel window")
+        debugLog("LockScreenManager: 🚪 Hiding panel window")
         LockScreenPanelManager.shared.hidePanel()
         LockScreenLiveActivityWindowManager.shared.showUnlockAndScheduleHide()
         LockScreenWeatherManager.shared.hideWeatherWidget()
@@ -343,7 +335,7 @@ class LockScreenManager: ObservableObject {
             }
         }
         
-        print("[\(self.timestamp())] LockScreenManager: ✅ Lock screen deactivated")
+        debugLog("LockScreenManager: ✅ Lock screen deactivated")
     }
     
     // MARK: - Lock State Polling
@@ -377,7 +369,7 @@ class LockScreenManager: ObservableObject {
                 await MainActor.run {
                     guard let self, self.isLocked else { return }
                     if !Self.isSessionScreenLocked() {
-                        print("[\(self.timestamp())] LockScreenManager: 🔓 Polling detected unlock ahead of notification")
+                        debugLog("LockScreenManager: 🔓 Polling detected unlock ahead of notification")
                         self.screenUnlocked()
                         return
                     }

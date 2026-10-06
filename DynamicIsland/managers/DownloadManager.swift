@@ -17,6 +17,7 @@
  */
 
 import Foundation
+import Combine
 import SwiftUI
 import Observation
 import Defaults
@@ -107,6 +108,7 @@ class DownloadManager {
     private var smoothedSpeed: Double?
     
     private let coordinator = DynamicIslandViewCoordinator.shared
+    private var settingsSubscription: AnyCancellable?
     private var source: DispatchSourceFileSystemObject?
     /// Which run of monitoring a scan belongs to. A scan reads the folder on
     /// `queue` and delivers on the main actor, so one that was already reading
@@ -139,10 +141,11 @@ class DownloadManager {
     }
     
     init() {
+        guard !AppDelegate.isHostingUnitTests else { return }
         requestDownloadsPermissionIfNeeded()
         startMonitoringIfNeeded()
         
-        Defaults.publisher(.enableDownloadListener)
+        settingsSubscription = Defaults.publisher(.enableDownloadListener)
             .sink { [weak self] _ in
                 guard let self else { return }
                 Task { @MainActor in

@@ -141,6 +141,7 @@ PrivateWorks
 *.py
 !tests/test_privacy_configuration.py
 !tests/test_timer_lifecycle.py
+!tests/audit_resource_probes.py
 *.sh
 comparison_report.json
 *.txt
@@ -170,3 +171,6 @@ TemporaryAssets/
 .fable/
 __pycache__/
 *.py[cod]
+
+!Tools/report-build-cache.py
+!tests/OSDGuardianRegression.py

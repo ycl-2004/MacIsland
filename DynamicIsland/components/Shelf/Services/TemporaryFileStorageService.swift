@@ -46,20 +46,40 @@ class TemporaryFileStorageService {
 
     /// Must be called inside an item-provider completion: its URL expires on return.
     func copyProviderFile(_ source: URL, suggestedName: String?) -> URL? {
-        let folder = AtollTemporaryFiles.directory(.shelf).appendingPathComponent(UUID().uuidString, isDirectory: true)
+        ShelfStorageBudget.lock.lock()
+        defer { ShelfStorageBudget.lock.unlock() }
+        let root = AtollTemporaryFiles.directory(.shelf)
+        guard let size = try? ShelfStorageBudget.size(source, limit: ShelfStorageBudget.maximumItemBytes),
+              ShelfStorageBudget.permits(size, root: root) else { return nil }
+        let folder = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let name = Self.safeFilename(suggestedName ?? source.lastPathComponent)
         let destination = folder.appendingPathComponent(name)
         let lease = ShelfFileLifetime.shared.acquire([folder])
         var copied = false
         defer { lease.finish(handoff: copied) }
         do {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try source.accessSecurityScopedResource { try FileManager.default.copyItem(at: $0, to: destination) }
+            try PrivateContentFile.prepareDirectory(folder)
+            try source.accessSecurityScopedResource { try ShelfStorageBudget.copy($0, to: destination) }
+            guard (try ShelfStorageBudget.size(destination, limit: ShelfStorageBudget.maximumItemBytes)) <= size else { throw CocoaError(.fileReadTooLarge) }
+            try Self.makePrivate(destination)
             copied = true
             return destination
         } catch {
             try? FileManager.default.removeItem(at: folder)
             return nil
+        }
+    }
+
+    private static func makePrivate(_ url: URL) throws {
+        let keys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey]
+        func apply(_ target: URL) throws {
+            let values = try target.resourceValues(forKeys: keys)
+            guard values.isSymbolicLink != true else { return }
+            try FileManager.default.setAttributes([.posixPermissions: values.isDirectory == true ? 0o700 : 0o600], ofItemAtPath: target.path)
+        }
+        try apply(url)
+        if let iterator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(keys)) {
+            for case let child as URL in iterator { try apply(child) }
         }
     }
 
@@ -71,9 +91,13 @@ class TemporaryFileStorageService {
     // MARK: - Private Implementation
     
     private func writeTempFile(for type: TempFileType) -> URL? {
+        ShelfStorageBudget.lock.lock()
+        defer { ShelfStorageBudget.lock.unlock() }
         let tempDir = AtollTemporaryFiles.directory(.shelf)
         let uuid = UUID().uuidString
-        
+        let bytes: Int
+        switch type { case .data(let data, _): bytes = data.count; case .text(let text): bytes = text.utf8.count }
+        guard ShelfStorageBudget.permits(bytes, root: tempDir) else { return nil }
         switch type {
         case .data(let data, let suggestedName):
             let filename = Self.safeFilename(suggestedName ?? "Untitled.dat")
@@ -81,8 +105,7 @@ class TemporaryFileStorageService {
             let fileURL = dirURL.appendingPathComponent(filename)
             
             do {
-                try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
-                try data.write(to: fileURL)
+                try PrivateContentFile.write(data, to: fileURL, keepingPrevious: false)
                 return fileURL
             } catch {
                 try? FileManager.default.removeItem(at: dirURL)
@@ -95,13 +118,12 @@ class TemporaryFileStorageService {
             let fileURL = dirURL.appendingPathComponent(filename)
             
             guard let data = string.data(using: .utf8) else {
-                print("❌ Failed to convert text to data")
+                Logger.log("Failed to convert text to data", category: .error)
                 return nil
             }
             
             do {
-                try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
-                try data.write(to: fileURL)
+                try PrivateContentFile.write(data, to: fileURL, keepingPrevious: false)
                 return fileURL
             } catch {
                 try? FileManager.default.removeItem(at: dirURL)
@@ -112,18 +134,28 @@ class TemporaryFileStorageService {
     }
     
     func createZip(from urls: [URL], suggestedName: String? = nil) async -> URL? {
-        await Task.detached(priority: .utility) { self.writeZip(from: urls, suggestedName: suggestedName) }.value
+        await Task.detached(priority: .utility) { await self.writeZip(from: urls, suggestedName: suggestedName) }.value
     }
 
-    private func writeZip(from urls: [URL], suggestedName: String?) -> URL? {
+    private func writeZip(from urls: [URL], suggestedName: String?) async -> URL? {
+        guard urls.count <= 50 else { return nil }
+        var inputBytes = 0
+        for url in urls {
+            guard let size = try? ShelfStorageBudget.size(url, limit: ShelfStorageBudget.maximumItemBytes) else { return nil }
+            inputBytes += size
+            guard inputBytes <= ShelfStorageBudget.maximumItemBytes else { return nil }
+        }
         let tempDir = AtollTemporaryFiles.directory(.shelf)
+        let reservation = inputBytes * 2 + 2 * 1024 * 1024
+        guard ShelfStorageBudget.reserve(reservation, root: tempDir) else { return nil }
+        defer { ShelfStorageBudget.release(reservation) }
         let uuid = UUID().uuidString
         let workingDir = tempDir.appendingPathComponent("zip_\(uuid)", isDirectory: true)
 
         do {
             try FileManager.default.createDirectory(at: workingDir, withIntermediateDirectories: true)
         } catch {
-            print("❌ Failed to create zip working directory: \(error)")
+            Logger.log("Failed to create zip working directory: \(error)", category: .error)
             return nil
         }
 
@@ -135,78 +167,47 @@ class TemporaryFileStorageService {
         }
 
         // Helper to run zip process
-        func runZip(arguments: [String], currentDirectory: URL) -> Bool {
+        func runZip(arguments: [String], currentDirectory: URL) async -> Bool {
             let proc = Process()
             proc.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
             proc.arguments = arguments
             proc.currentDirectoryURL = currentDirectory
             do {
-                try proc.run()
-                proc.waitUntilExit()
-                return proc.terminationStatus == 0
+                proc.standardOutput = FileHandle.nullDevice
+                proc.standardError = FileHandle.nullDevice
+                return try await ProcessRunner.run(proc, timeout: 60) == .exited(0)
             } catch {
-                print("❌ Failed to run zip: \(error)")
+                Logger.log("Failed to run zip: \(error)", category: .error)
                 return false
             }
         }
 
-        // Single-item optimization: do not copy contents into the working dir.
-        if urls.count == 1, let src = urls.first {
-            let isDir = (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            let baseName = src.lastPathComponent
-            let archiveName: String
-            if isDir {
-                // Folder: name as FolderName.zip and include the folder itself in the archive
-                archiveName = "\(baseName).zip"
-                let archiveURL = workingDir.appendingPathComponent(archiveName)
-                // Run zip from the parent directory so the folder is stored as top-level entry
-                let parent = src.deletingLastPathComponent()
-                let args = ["-r", "-q", archiveURL.path, baseName]
-                let ok = runZip(arguments: args, currentDirectory: parent)
-                if ok {
-                    completed = true
-                    return archiveURL
-                } else {
-                    return nil
-                }
-            } else {
-                // File: include the file only (no parent folders). Name should include original extension.
-                archiveName = "\(baseName).zip"
-                let archiveURL = workingDir.appendingPathComponent(archiveName)
-                let parent = src.deletingLastPathComponent()
-                // -j to junk paths and store only the file
-                let args = ["-j", "-q", archiveURL.path, baseName]
-                let ok = runZip(arguments: args, currentDirectory: parent)
-                if ok {
-                    completed = true
-                    return archiveURL
-                } else {
-                    return nil
-                }
-            }
-        }
-
-        // Multi-item: copy items into working dir (so their relative structure is preserved), zip, then remove copies.
+        // Snapshot first, so files changing elsewhere cannot grow the archive
+        // without bound. Keep output outside the payload to avoid name collisions.
+        let payload = workingDir.appendingPathComponent("contents", isDirectory: true)
+        do { try PrivateContentFile.prepareDirectory(payload) } catch { return nil }
         for src in urls {
-            let dest = workingDir.appendingPathComponent(src.lastPathComponent)
+            let dest = payload.appendingPathComponent(src.lastPathComponent)
             do {
                 if FileManager.default.fileExists(atPath: dest.path) {
                     // Avoid collision by appending a suffix
                     let unique = "\(UUID().uuidString)_\(src.lastPathComponent)"
-                    try FileManager.default.copyItem(at: src, to: workingDir.appendingPathComponent(unique))
+                    try ShelfStorageBudget.copy(src, to: payload.appendingPathComponent(unique))
                 } else {
-                    try FileManager.default.copyItem(at: src, to: dest)
+                    try ShelfStorageBudget.copy(src, to: dest)
                 }
             } catch {
                 return nil
             }
         }
 
-        let archiveName = Self.safeFilename(suggestedName ?? "Archive.zip")
+        let archiveName = Self.safeFilename(suggestedName ?? (urls.count == 1 ? urls[0].lastPathComponent + ".zip" : "Archive.zip"))
         let archiveURL = workingDir.appendingPathComponent(archiveName)
         let args = ["-r", "-q", archiveURL.path, "."]
-        let ok = runZip(arguments: args, currentDirectory: workingDir)
+        let ok = await runZip(arguments: args, currentDirectory: payload)
         if ok {
+            guard (try? ShelfStorageBudget.size(archiveURL, limit: ShelfStorageBudget.maximumItemBytes)) != nil else { return nil }
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: archiveURL.path)
             // Remove the copied (uncompressed) items so the temp folder contains only the archive
             do {
                 let contents = try FileManager.default.contentsOfDirectory(at: workingDir, includingPropertiesForKeys: nil)
@@ -216,7 +217,7 @@ class TemporaryFileStorageService {
                     }
                 }
             } catch {
-                print("⚠️ Failed to cleanup working directory after zip: \(error)")
+                Logger.log("Failed to cleanup working directory after zip: \(error)", category: .warning)
             }
             completed = true
             return archiveURL

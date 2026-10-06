@@ -409,14 +409,10 @@ struct NotchStatsView: View {
         let newState = anyPopoverOpen
         if vm.isStatsPopoverActive != newState {
             vm.isStatsPopoverActive = newState
-            #if DEBUG
-            print("📊 Stats popover state updated: \(newState)")
-            print("   CPU open=\(showingCPUPopover)")
-            print("   Memory open=\(showingMemoryPopover)")
-            print("   GPU open=\(showingGPUPopover)")
-            print("   Network open=\(showingNetworkPopover)")
-            print("   Disk open=\(showingDiskPopover)")
-            #endif
+            debugLog(
+                "📊 Stats popover state updated: \(newState) (CPU=\(showingCPUPopover), Memory=\(showingMemoryPopover), "
+                    + "GPU=\(showingGPUPopover), Network=\(showingNetworkPopover), Disk=\(showingDiskPopover))"
+            )
         }
     }
 }
@@ -539,13 +535,13 @@ struct MiniGraph: View {
                 let stepX = geometry.size.width / CGFloat(normalizedData.count - 1)
                 
                 for (index, value) in normalizedData.enumerated() {
-                    let x = CGFloat(index) * stepX
-                    let y = geometry.size.height * (1 - CGFloat(value))
+                    let pointX = CGFloat(index) * stepX
+                    let pointY = geometry.size.height * (1 - CGFloat(value))
                     
                     if index == 0 {
-                        path.move(to: CGPoint(x: x, y: y))
+                        path.move(to: CGPoint(x: pointX, y: pointY))
                     } else {
-                        path.addLine(to: CGPoint(x: x, y: y))
+                        path.addLine(to: CGPoint(x: pointX, y: pointY))
                     }
                 }
             }
@@ -560,9 +556,9 @@ struct MiniGraph: View {
                 path.move(to: CGPoint(x: 0, y: geometry.size.height))
                 
                 for (index, value) in normalizedData.enumerated() {
-                    let x = CGFloat(index) * stepX
-                    let y = geometry.size.height * (1 - CGFloat(value))
-                    path.addLine(to: CGPoint(x: x, y: y))
+                    let pointX = CGFloat(index) * stepX
+                    let pointY = geometry.size.height * (1 - CGFloat(value))
+                    path.addLine(to: CGPoint(x: pointX, y: pointY))
                 }
                 
                 path.addLine(to: CGPoint(x: geometry.size.width, y: geometry.size.height))
@@ -607,13 +603,13 @@ struct DualQuadrantGraph: View {
                     let stepX = geometry.size.width / CGFloat(normalizedPositive.count - 1)
                     
                     for (index, value) in normalizedPositive.enumerated() {
-                        let x = CGFloat(index) * stepX
-                        let y = centerY - (centerY * CGFloat(value)) // Above center
+                        let pointX = CGFloat(index) * stepX
+                        let pointY = centerY - (centerY * CGFloat(value)) // Above center
                         
                         if index == 0 {
-                            path.move(to: CGPoint(x: x, y: y))
+                            path.move(to: CGPoint(x: pointX, y: pointY))
                         } else {
-                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: pointX, y: pointY))
                         }
                     }
                 }
@@ -628,9 +624,9 @@ struct DualQuadrantGraph: View {
                     path.move(to: CGPoint(x: 0, y: centerY))
                     
                     for (index, value) in normalizedPositive.enumerated() {
-                        let x = CGFloat(index) * stepX
-                        let y = centerY - (centerY * CGFloat(value))
-                        path.addLine(to: CGPoint(x: x, y: y))
+                        let pointX = CGFloat(index) * stepX
+                        let pointY = centerY - (centerY * CGFloat(value))
+                        path.addLine(to: CGPoint(x: pointX, y: pointY))
                     }
                     
                     path.addLine(to: CGPoint(x: geometry.size.width, y: centerY))
@@ -645,13 +641,13 @@ struct DualQuadrantGraph: View {
                     let stepX = geometry.size.width / CGFloat(normalizedNegative.count - 1)
                     
                     for (index, value) in normalizedNegative.enumerated() {
-                        let x = CGFloat(index) * stepX
-                        let y = centerY + (centerY * CGFloat(value)) // Below center
+                        let pointX = CGFloat(index) * stepX
+                        let pointY = centerY + (centerY * CGFloat(value)) // Below center
                         
                         if index == 0 {
-                            path.move(to: CGPoint(x: x, y: y))
+                            path.move(to: CGPoint(x: pointX, y: pointY))
                         } else {
-                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: pointX, y: pointY))
                         }
                     }
                 }
@@ -666,9 +662,9 @@ struct DualQuadrantGraph: View {
                     path.move(to: CGPoint(x: 0, y: centerY))
                     
                     for (index, value) in normalizedNegative.enumerated() {
-                        let x = CGFloat(index) * stepX
-                        let y = centerY + (centerY * CGFloat(value))
-                        path.addLine(to: CGPoint(x: x, y: y))
+                        let pointX = CGFloat(index) * stepX
+                        let pointY = centerY + (centerY * CGFloat(value))
+                        path.addLine(to: CGPoint(x: pointX, y: pointY))
                     }
                     
                     path.addLine(to: CGPoint(x: geometry.size.width, y: centerY))

@@ -115,24 +115,23 @@ struct ContentView: View {
         
         // When inline sneak peek is active in closed notch, use the wider inline width
         // so the outer maxWidth frame doesn't clip the expanded content
-        let airPodsListeningModeSneakActive = vm.notchState == .closed
-            && coordinator.sneakPeek.show
-            && isAirPodsListeningModeSneak
-        let inlineSneakPeekActive = vm.notchState == .closed
-            && (
-                coordinator.expandingView.show
-                    && (coordinator.expandingView.type == .music || coordinator.expandingView.type == .timer)
-                    && Defaults[.sneakPeekStyles] == .inline
-                || airPodsListeningModeSneakActive
-            )
-            && Defaults[.enableSneakPeek]
-        if inlineSneakPeekActive {
-            let inlineWidth: CGFloat = airPodsListeningModeSneakActive
-                ? InlineHUD.airPodsListeningModeWidth(
+        if let inlineKind = InlineSneakPeekMetrics.activeKind(
+            notchState: vm.notchState,
+            sneakPeekEnabled: Defaults[.enableSneakPeek],
+            sneakPeekStyle: Defaults[.sneakPeekStyles],
+            expandingView: coordinator.expandingView,
+            sneakPeek: coordinator.sneakPeek
+        ) {
+            let inlineWidth: CGFloat
+            switch inlineKind {
+            case .airPodsListeningMode:
+                inlineWidth = InlineHUD.airPodsListeningModeWidth(
                     closedNotchWidth: vm.closedNotchSize.width,
                     gestureProgress: gestureProgress
                 ) + notchHorizontalPadding * 2
-                : 460
+            case .titleStrip:
+                inlineWidth = InlineSneakPeekMetrics.titleStripWidth
+            }
             return CGSize(width: max(baseSize.width, inlineWidth), height: baseSize.height)
         }
 
@@ -143,37 +142,13 @@ struct ContentView: View {
             return size
         }
         
-        // Handle battery HUD expansion sizing
-        if vm.notchState == .closed && 
-           coordinator.expandingView.show && 
-           coordinator.expandingView.type == .battery &&
-           isBatteryHUDVisibleOnCurrentScreen {
-            
-            if let kind = batteryModel.activeTemporaryHUDKind {
-                let style: BatteryNotificationStyle = {
-                    switch kind {
-                    case .charging: return .compact
-                    case .lowBattery: return Defaults[.lowBatteryHUDStyle]
-                    case .fullBattery: return Defaults[.fullBatteryHUDStyle]
-                    }
-                }()
-                
-                var width = vm.closedNotchSize.width
-                var height = vm.effectiveClosedNotchHeight
-                
-                switch (kind, style) {
-                case (.charging, _), (.lowBattery, .compact), (.fullBattery, .compact):
-                    width += 180
-                case (.lowBattery, .standard):
-                    width += 100
-                    height += 75
-                case (.fullBattery, .standard):
-                    width += 80
-                    height += 70
-                }
-                
-                return CGSize(width: width, height: height)
-            }
+        // Battery HUD expansion: lay out at the size the HUD draws.
+        if vm.notchState == .closed,
+           coordinator.expandingView.show,
+           coordinator.expandingView.type == .battery,
+           isBatteryHUDVisibleOnCurrentScreen,
+           let kind = batteryModel.activeTemporaryHUDKind {
+            return batteryHUDMetrics(for: kind).size
         }
         
         if coordinator.currentView == .timer {
@@ -225,17 +200,8 @@ struct ContentView: View {
     @Default(.musicControlWindowEnabled) var musicControlWindowEnabled
     @Default(.useModernCloseAnimation) var useModernCloseAnimation
 
-    private static let musicControlLogFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss.SSS"
-        return formatter
-    }()
-
-    private func logMusicControlEvent(_ message: String) {
-#if DEBUG
-        let timestamp = Self.musicControlLogFormatter.string(from: Date())
-        print("[MusicControl] \(timestamp): \(message)")
-#endif
+    private func logMusicControlEvent(_ message: @autoclosure () -> String) {
+        debugLog("[MusicControl] \(message())")
     }
 
     private func runAfter(_ delay: TimeInterval, _ action: @escaping @Sendable @MainActor () -> Void) {
@@ -404,9 +370,7 @@ struct ContentView: View {
     /// An AirPods listening-mode change, which always draws inline whatever
     /// the HUD style, rather than a battery report.
     private var isAirPodsListeningModeSneak: Bool {
-        coordinator.sneakPeek.type == .bluetoothAudio
-            && coordinator.sneakPeek.value < 0
-            && AirPodsListeningMode.fromHUDSymbol(coordinator.sneakPeek.icon) != nil
+        InlineSneakPeekMetrics.isAirPodsListeningMode(coordinator.sneakPeek)
     }
 
     /// Whether this screen's sneak peek is drawn as an `InlineHUD`.
@@ -466,6 +430,13 @@ struct ContentView: View {
             return isBatteryHUDVisibleOnCurrentScreen
         }
         return true
+    }
+
+    /// Whether a closed-notch live activity of this type may replace the
+    /// header right now: either no other expansion is showing on this
+    /// screen, or the expansion already is this activity.
+    private func mayShowClosedActivity(as type: SneakContentType) -> Bool {
+        !isCurrentScreenExpansionVisible || currentScreenExpansionType == type
     }
 
     private var currentScreenExpansionType: SneakContentType? {
@@ -544,7 +515,7 @@ struct ContentView: View {
                 case .compact:
                     return cornerRadiusInsets.closed.bottom
                 case .standard:
-                    return kind == .fullBattery ? 36 : 40
+                    return batteryHUDMetrics(for: kind).bottomRadius
                 }
             }()
             return AnyShape(NotchShape(topCornerRadius: topRadius, bottomCornerRadius: bottomRadius))
@@ -567,14 +538,15 @@ struct ContentView: View {
     }
 
     private func resolvedBatteryNotificationStyle(for kind: BatteryTemporaryHUDKind) -> BatteryNotificationStyle {
-        switch kind {
-        case .charging:
-            return .compact
-        case .lowBattery:
-            return lowBatteryHUDStyle
-        case .fullBattery:
-            return fullBatteryHUDStyle
-        }
+        kind.style(lowBattery: lowBatteryHUDStyle, fullBattery: fullBatteryHUDStyle)
+    }
+
+    private func batteryHUDMetrics(for kind: BatteryTemporaryHUDKind) -> BatteryTemporaryHUDMetrics {
+        kind.metrics(
+            style: resolvedBatteryNotificationStyle(for: kind),
+            closedNotchWidth: vm.closedNotchSize.width,
+            baseHeight: vm.effectiveClosedNotchHeight
+        )
     }
 
 
@@ -645,7 +617,7 @@ struct ContentView: View {
     }
 
     private var mainNotchSurface: some View {
-        NotchLayout()
+        notchLayout()
             .frame(alignment: .top)
             .padding(.horizontal, notchHorizontalInset)
             .padding([.horizontal, .bottom], notchOpenPadding)
@@ -1045,7 +1017,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-      func NotchLayout() -> some View {
+    func notchLayout() -> some View {
           VStack(alignment: .leading) {
               VStack(alignment: .leading) {
                   if isConnectivityHUDVisible {
@@ -1062,144 +1034,7 @@ struct ContentView: View {
                       .padding(.top, 40)
                       Spacer()
                   } else {
-                        let hasMusicMetadata = !musicManager.songTitle.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty
-                            || !musicManager.artistName.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty
-                      let hasActiveMusicSnapshot: Bool = {
-                          if musicManager.isPlaying { return true }
-                          return !musicManager.isPlayerIdle && hasMusicMetadata
-                      }()
-                      let musicPairingEligible = closedMusicPairingEligible(hasActiveMusicSnapshot: hasActiveMusicSnapshot)
-                      let musicSecondary = resolveMusicSecondaryLiveActivity(isMusicPairingEligible: musicPairingEligible)
-                      let activeSneakPeekStyle = resolvedSneakPeekStyle()
-                      let expansionMatchesSecondary: Bool = {
-                          guard let musicSecondary else { return false }
-                          switch musicSecondary {
-                          case .timer:
-                              return currentScreenExpansionType == .timer
-                          case .reminder:
-                              return currentScreenExpansionType == .reminder
-                          case .recording:
-                              return currentScreenExpansionType == .recording
-                          case .focus:
-                              return currentScreenExpansionType == .doNotDisturb
-                          case .capsLock, .shelf:
-                              return false
-                          }
-                      }()
-                      let canShowMusicDuringExpansion = !isCurrentScreenExpansionVisible
-                          || currentScreenExpansionType == .music
-                          || expansionMatchesSecondary
-
-                      if currentScreenExpansionType == .battery
-                            && isBatteryHUDVisibleOnCurrentScreen
-                            && vm.notchState == .closed
-                            && Defaults[.showPowerStatusNotifications]
-                            && batteryModel.activeTemporaryHUDKind != nil {
-                        BatteryTemporaryActivityView(
-                            kind: batteryModel.activeTemporaryHUDKind ?? .charging,
-                            batteryLevel: displayedBatteryHUDLevel,
-                            isLowPowerMode: displayedBatteryHUDUsesLowPowerMode,
-                            closedNotchWidth: vm.closedNotchSize.width + (isHovering ? 8 : 0),
-                            baseHeight: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0),
-                            isDynamicIslandMode: isDynamicIslandMode,
-                            topCornerRadius: cornerRadiusInsets.closed.top,
-                            styleOverride: batteryModel.activeTemporaryHUDKind.map { resolvedBatteryNotificationStyle(for: $0) }
-                        )
-                        .id(batteryModel.activeTemporaryHUDToken)
-                      } else if isInlineSneakPeekVisible {
-                          InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
-                              .transition(.opacity)
-                      } else if isCapsLockInlineHUDVisible {
-                          InlineHUD(type: .constant(.capsLock), value: .constant(1.0), icon: .constant(""), hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
-                              .transition(AnyTransition.move(edge: .trailing).combined(with: .opacity))
-                      } else if agentActivityVisibleOnClosedNotch(urgentOnly: true) {
-                          AgentLiveActivity()
-                              .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
-                      } else if canShowMusicDuringExpansion && musicPairingEligible {
-                          MusicLiveActivity(secondary: musicSecondary)
-                              .id("closed-music-live-activity")
-                              .transition(closedLiveActivitySwapTransition)
-                      } else if (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .timer) && vm.notchState == .closed && timerManager.isTimerActive && coordinator.timerLiveActivityEnabled && !vm.hideOnClosed {
-                          TimerLiveActivity()
-                      } else if (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .reminder) && vm.notchState == .closed && reminderManager.isActive && enableReminderLiveActivity && !vm.hideOnClosed {
-                          ReminderLiveActivity()
-                      } else if (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .recording) && vm.notchState == .closed && recordingManager.isRecording && Defaults[.enableScreenRecordingDetection] && Defaults[.showRecordingIndicator] && !vm.hideOnClosed && !musicPairingEligible {
-                          RecordingLiveActivity(hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
-                      } else if (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .download) && vm.notchState == .closed && downloadManager.isDownloading && Defaults[.enableDownloadListener] && !vm.hideOnClosed {
-                          DownloadLiveActivity()
-                              .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
-                      } else if agentActivityVisibleOnClosedNotch(urgentOnly: false) {
-                          AgentLiveActivity()
-                              .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
-                      } else if (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .doNotDisturb) && vm.notchState == .closed && Defaults[.enableDoNotDisturbDetection] && Defaults[.showDoNotDisturbIndicator] && (doNotDisturbManager.isDoNotDisturbActive || doNotDisturbManager.isFocusToastDismissing) && !vm.hideOnClosed && !lockScreenManager.isLocked {
-                          DoNotDisturbLiveActivity()
-                    } else if (!isCurrentScreenExpansionVisible || currentScreenExpansionType == .privacy) && vm.notchState == .closed && privacyManager.hasAnyIndicator && (Defaults[.enableCameraDetection] || Defaults[.enableMicrophoneDetection]) && !vm.hideOnClosed {
-                        PrivacyLiveActivity()
-                      } else if !coordinator.expandingView.show && vm.notchState == .closed && !shelfState.isEmpty && !vm.hideOnClosed && !lockScreenManager.isLocked {
-                          ShelfInlineLiveActivity()
-                              .transition(.opacity.animation(.smooth(duration: 0.25)))
-                      } else if vm.notchState == .open {
-                          DynamicIslandHeader()
-                              .frame(height: max(24, vm.effectiveClosedNotchHeight))
-                       } else {
-                           Rectangle().fill(.clear).frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
-                       }
-                      
-                      if isSneakPeekVisibleOnCurrentScreen {
-                          if (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .timer) && (coordinator.sneakPeek.type != .reminder) && !Defaults[.inlineHUD] && !isAirPodsListeningModeSneak && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
-                              SystemEventIndicatorModifier(eventType: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, sendEventBack: { _ in
-                                  //
-                              })
-                              .padding(.bottom, 10)
-                              .padding(.leading, 4)
-                              .padding(.trailing, 8)
-                          }
-                          // Old sneak peek music
-                          else if coordinator.sneakPeek.type == .music {
-                              if vm.notchState == .closed && !vm.hideOnClosed && activeSneakPeekStyle == .standard {
-                                  HStack(alignment: .center) {
-                                      Image(systemName: "music.note")
-                                      GeometryReader { geo in
-                                          MarqueeText(.constant(musicManager.songTitle + " - " + musicManager.artistName), textColor: .inkTertiary, minDuration: 1, frameWidth: geo.size.width)
-                                      }
-                                  }
-                                  .foregroundStyle(.inkTertiary)
-                                  .padding(.bottom, 10)
-                              }
-                          }
-                          // Timer sneak peek
-                          else if coordinator.sneakPeek.type == .timer {
-                              if !vm.hideOnClosed && activeSneakPeekStyle == .standard {
-                                  HStack(alignment: .center) {
-                                      Image(systemName: "timer")
-                                      GeometryReader { geo in
-                                          MarqueeText(.constant(timerManager.timerName + " - " + timerManager.formattedRemainingTime()), textColor: timerManager.timerColor, minDuration: 1, frameWidth: geo.size.width)
-                                      }
-                                  }
-                                  .foregroundStyle(timerManager.timerColor)
-                                  .padding(.bottom, 10)
-                              }
-                          }
-                          else if coordinator.sneakPeek.type == .reminder {
-                              if !vm.hideOnClosed && activeSneakPeekStyle == .standard, let reminder = reminderManager.activeReminder {
-                                  GeometryReader { geo in
-                                      let chipColor = Color(nsColor: reminder.event.calendar.color).ensureMinimumBrightness(factor: 0.7)
-                                      HStack(spacing: 6) {
-                                          RoundedRectangle(cornerRadius: 2)
-                                              .fill(chipColor)
-                                              .frame(width: 8, height: 12)
-                                          MarqueeText(
-                                              .constant(reminderSneakPeekText(for: reminder, now: reminderManager.currentDate)),
-                                              textColor: reminderColor(for: reminder, now: reminderManager.currentDate),
-                                              minDuration: 1,
-                                              frameWidth: max(0, geo.size.width - 14)
-                                          )
-                                      }
-                                  }
-                                  .padding(.bottom, 10)
-                              }
-                          }
-                      }
+                closedNotchContent
                   }
               }
               .conditionalModifier(shouldFixSizeForSneakPeek()) { view in
@@ -1214,26 +1049,7 @@ struct ContentView: View {
               .zIndex(2)
               
               ZStack {
-                  if vm.notchState == .open {
-                      Group {
-                          switch coordinator.currentView {
-                              case .home:
-                                  NotchHomeView(albumArtNamespace: albumArtNamespace)
-                              case .shelf:
-                                  NotchShelfView()
-                              case .timer:
-                                  NotchTimerView()
-                              case .stats:
-                                  NotchStatsView()
-                              case .agents:
-                                  NotchAgentsView()
-                              case .colorPicker:
-                                  NotchColorPickerView()
-                          }
-                      }
-                      .id(coordinator.currentView)
-                      .transition(tabSwitchTransition)
-                  }
+                  openNotchTabContent
               }
               .zIndex(1)
               .allowsHitTesting(vm.notchState == .open)
@@ -1242,6 +1058,205 @@ struct ContentView: View {
               .animation(.smooth(duration: 0.3), value: coordinator.currentView)
           }
       }
+
+    /// Everything the closed notch can show in place of the header, chosen
+    /// by priority: battery HUD, inline sneak peek, caps lock, urgent agent
+    /// activity, music, then the remaining live activities and indicators.
+    @ViewBuilder private var closedNotchContent: some View {
+        let hasMusicMetadata = !musicManager.songTitle.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty
+            || !musicManager.artistName.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty
+        let hasActiveMusicSnapshot: Bool = {
+            if musicManager.isPlaying { return true }
+            return !musicManager.isPlayerIdle && hasMusicMetadata
+        }()
+        let musicPairingEligible = closedMusicPairingEligible(hasActiveMusicSnapshot: hasActiveMusicSnapshot)
+        let musicSecondary = resolveMusicSecondaryLiveActivity(isMusicPairingEligible: musicPairingEligible)
+        let activeSneakPeekStyle = resolvedSneakPeekStyle()
+        let secondaryExpansionType = musicSecondary?.expansionType
+        let canShowMusicDuringExpansion = mayShowClosedActivity(as: .music)
+            || (secondaryExpansionType != nil && currentScreenExpansionType == secondaryExpansionType)
+
+        if currentScreenExpansionType == .battery
+            && isBatteryHUDVisibleOnCurrentScreen
+            && vm.notchState == .closed
+            && Defaults[.showPowerStatusNotifications]
+            && batteryModel.activeTemporaryHUDKind != nil {
+            BatteryTemporaryActivityView(
+                kind: batteryModel.activeTemporaryHUDKind ?? .charging,
+                batteryLevel: displayedBatteryHUDLevel,
+                isLowPowerMode: displayedBatteryHUDUsesLowPowerMode,
+                closedNotchWidth: vm.closedNotchSize.width + (isHovering ? 8 : 0),
+                baseHeight: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0),
+                isDynamicIslandMode: isDynamicIslandMode,
+                topCornerRadius: cornerRadiusInsets.closed.top,
+                style: resolvedBatteryNotificationStyle(for: batteryModel.activeTemporaryHUDKind ?? .charging)
+            )
+            .id(batteryModel.activeTemporaryHUDToken)
+        } else if isInlineSneakPeekVisible {
+            InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
+                .transition(.opacity)
+        } else if isCapsLockInlineHUDVisible {
+            InlineHUD(type: .constant(.capsLock), value: .constant(1.0), icon: .constant(""), hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
+                .transition(AnyTransition.move(edge: .trailing).combined(with: .opacity))
+        } else if agentActivityVisibleOnClosedNotch(urgentOnly: true) {
+            AgentLiveActivity()
+                .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
+        } else if canShowMusicDuringExpansion && musicPairingEligible {
+            musicLiveActivity(secondary: musicSecondary)
+                .id("closed-music-live-activity")
+                .transition(closedLiveActivitySwapTransition)
+        } else if mayShowClosedActivity(as: .timer),
+                  vm.notchState == .closed,
+                  timerManager.isTimerActive,
+                  coordinator.timerLiveActivityEnabled,
+                  !vm.hideOnClosed {
+            TimerLiveActivity()
+        } else if mayShowClosedActivity(as: .reminder),
+                  vm.notchState == .closed,
+                  reminderManager.isActive,
+                  enableReminderLiveActivity,
+                  !vm.hideOnClosed {
+            ReminderLiveActivity()
+        } else if mayShowClosedActivity(as: .recording),
+                  vm.notchState == .closed,
+                  recordingManager.isRecording,
+                  Defaults[.enableScreenRecordingDetection],
+                  Defaults[.showRecordingIndicator],
+                  !vm.hideOnClosed,
+                  !musicPairingEligible {
+            RecordingLiveActivity(hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
+        } else if mayShowClosedActivity(as: .download),
+                  vm.notchState == .closed,
+                  downloadManager.isDownloading,
+                  Defaults[.enableDownloadListener],
+                  !vm.hideOnClosed {
+            DownloadLiveActivity()
+                .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
+        } else if agentActivityVisibleOnClosedNotch(urgentOnly: false) {
+            AgentLiveActivity()
+                .transition(.blurReplace.animation(.interactiveSpring(dampingFraction: 1.2)))
+        } else if mayShowClosedActivity(as: .doNotDisturb),
+                  vm.notchState == .closed,
+                  Defaults[.enableDoNotDisturbDetection],
+                  Defaults[.showDoNotDisturbIndicator],
+                  doNotDisturbManager.isDoNotDisturbActive || doNotDisturbManager.isFocusToastDismissing,
+                  !vm.hideOnClosed,
+                  !lockScreenManager.isLocked {
+            DoNotDisturbLiveActivity()
+        } else if mayShowClosedActivity(as: .privacy),
+                  vm.notchState == .closed,
+                  privacyManager.hasAnyIndicator,
+                  Defaults[.enableCameraDetection] || Defaults[.enableMicrophoneDetection],
+                  !vm.hideOnClosed {
+            PrivacyLiveActivity()
+        } else if !coordinator.expandingView.show && vm.notchState == .closed && !shelfState.isEmpty && !vm.hideOnClosed && !lockScreenManager.isLocked {
+            ShelfInlineLiveActivity()
+                .transition(.opacity.animation(.smooth(duration: 0.25)))
+        } else if vm.notchState == .open {
+            DynamicIslandHeader()
+                .frame(height: max(24, vm.effectiveClosedNotchHeight))
+        } else {
+            Rectangle().fill(.clear).frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
+        }
+
+        if isSneakPeekVisibleOnCurrentScreen {
+            let showsAsSystemIndicator =
+                coordinator.sneakPeek.type != .music
+                    && coordinator.sneakPeek.type != .battery
+                    && coordinator.sneakPeek.type != .timer
+                    && coordinator.sneakPeek.type != .reminder
+                    && !Defaults[.inlineHUD]
+                    && !isAirPodsListeningModeSneak
+                    && ((coordinator.sneakPeek.type != .volume
+                            && coordinator.sneakPeek.type != .brightness
+                            && coordinator.sneakPeek.type != .backlight)
+                        || vm.notchState == .closed)
+            if showsAsSystemIndicator {
+                SystemEventIndicatorModifier(eventType: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, sendEventBack: { _ in
+                    //
+                })
+                .padding(.bottom, 10)
+                .padding(.leading, 4)
+                .padding(.trailing, 8)
+            }
+            // Old sneak peek music
+            else if coordinator.sneakPeek.type == .music {
+                if vm.notchState == .closed && !vm.hideOnClosed && activeSneakPeekStyle == .standard {
+                    HStack(alignment: .center) {
+                        Image(systemName: "music.note")
+                        GeometryReader { geo in
+                            MarqueeText(.constant(musicManager.songTitle + " - " + musicManager.artistName), textColor: .inkTertiary, minDuration: 1, frameWidth: geo.size.width)
+                        }
+                    }
+                    .foregroundStyle(.inkTertiary)
+                    .padding(.bottom, 10)
+                }
+            }
+            // Timer sneak peek
+            else if coordinator.sneakPeek.type == .timer {
+                if !vm.hideOnClosed && activeSneakPeekStyle == .standard {
+                    HStack(alignment: .center) {
+                        Image(systemName: "timer")
+                        GeometryReader { geo in
+                            MarqueeText(
+                                .constant(timerManager.timerName + " - " + timerManager.formattedRemainingTime()),
+                                textColor: timerManager.timerColor,
+                                minDuration: 1,
+                                frameWidth: geo.size.width
+                            )
+                        }
+                    }
+                    .foregroundStyle(timerManager.timerColor)
+                    .padding(.bottom, 10)
+                }
+            }
+            else if coordinator.sneakPeek.type == .reminder {
+                if !vm.hideOnClosed && activeSneakPeekStyle == .standard, let reminder = reminderManager.activeReminder {
+                    GeometryReader { geo in
+                        let chipColor = Color(nsColor: reminder.event.calendar.color).ensureMinimumBrightness(factor: 0.7)
+                        HStack(spacing: 6) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(chipColor)
+                                .frame(width: 8, height: 12)
+                            MarqueeText(
+                                .constant(reminderSneakPeekText(for: reminder, now: reminderManager.currentDate)),
+                                textColor: reminderColor(for: reminder, now: reminderManager.currentDate),
+                                minDuration: 1,
+                                frameWidth: max(0, geo.size.width - 14)
+                            )
+                        }
+                    }
+                    .padding(.bottom, 10)
+                }
+            }
+        }
+    }
+
+    /// The open notch's active tab, swapped with the tab-switch transition.
+    @ViewBuilder private var openNotchTabContent: some View {
+        if vm.notchState == .open {
+            Group {
+                switch coordinator.currentView {
+                case .home:
+                    NotchHomeView(albumArtNamespace: albumArtNamespace)
+                case .shelf:
+                    NotchShelfView()
+                case .timer:
+                    NotchTimerView()
+                case .stats:
+                    NotchStatsView()
+                case .agents:
+                    NotchAgentsView()
+                case .extraSpace:
+                    NotchExtraSpaceView()
+                case .colorPicker:
+                    NotchColorPickerView()
+                }
+            }
+            .id(coordinator.currentView)
+            .transition(tabSwitchTransition)
+        }
+    }
 
     private func reminderColor(for reminder: ReminderLiveActivityManager.ReminderEntry, now: Date) -> Color {
         if isReminderCritical(reminder, now: now) {
@@ -1279,7 +1294,7 @@ struct ContentView: View {
     }()
 
     @ViewBuilder
-    private func MusicLiveActivity(secondary preResolvedSecondary: MusicSecondaryLiveActivity? = nil) -> some View {
+    private func musicLiveActivity(secondary preResolvedSecondary: MusicSecondaryLiveActivity? = nil) -> some View {
         let secondary = preResolvedSecondary ?? resolveMusicSecondaryLiveActivity()
         let closedHeight = vm.effectiveClosedNotchHeight
         let outerHeight = closedHeight + (isHovering ? 8 : 0)
@@ -1318,7 +1333,14 @@ struct ContentView: View {
                             Image(nsImage: musicManager.albumArt)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .clipShape(RoundedRectangle(cornerRadius: musicManager.albumArt.size.width/musicManager.albumArt.size.height > 1.0 ? MusicPlayerImageSizes.cornerRadiusInset.closed/3.0 : MusicPlayerImageSizes.cornerRadiusInset.closed))
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: musicManager.albumArt.size.width
+                                            / musicManager.albumArt.size.height > 1.0
+                                            ? MusicPlayerImageSizes.cornerRadiusInset.closed / 3.0
+                                            : MusicPlayerImageSizes.cornerRadiusInset.closed
+                                    )
+                                )
                         )
                         .clipped()
                         .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace)
@@ -1332,57 +1354,10 @@ struct ContentView: View {
             }
             .frame(width: wingBaseWidth, height: notchContentHeight, alignment: .center)
 
-            Rectangle()
-                .fill(.black)
-                .frame(width: effectiveCenterWidth, height: notchContentHeight)
-                .overlay(
-                    HStack(alignment: .top) {
-                        if(coordinator.expandingView.show && coordinator.expandingView.type == .music) {
-                            MusicTitleMarqueeView(
-                                text: musicManager.songTitle,
-                                isExplicit: musicManager.isCurrentTrackExplicit,
-                                textColor: Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray,
-                                minDuration: 0.4,
-                                frameWidth: max(0, (effectiveCenterWidth - vm.closedNotchSize.width) / 2 - 12),
-                                badgeHeight: 13
-                            )
-                            .padding(.leading, 8)
-                            .opacity((coordinator.expandingView.show && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
-                            Spacer(minLength: vm.closedNotchSize.width)
-                            Text(musicManager.artistName)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .foregroundStyle(Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray)
-                                .padding(.trailing, 8)
-                                .opacity((coordinator.expandingView.show && coordinator.expandingView.type == .music && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
-                        } else if(coordinator.expandingView.show && coordinator.expandingView.type == .timer) {
-                            MarqueeText(
-                                .constant(timerManager.timerName),
-                                textColor: timerManager.timerColor,
-                                minDuration: 0.4,
-                                frameWidth: max(0, (effectiveCenterWidth - vm.closedNotchSize.width) / 2 - 12)
-                            )
-                            .padding(.leading, 8)
-                            .opacity((coordinator.expandingView.show && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
-                            Spacer(minLength: vm.closedNotchSize.width)
-                            Text(timerManager.formattedRemainingTime())
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .foregroundStyle(timerManager.timerColor)
-                                .padding(.trailing, 8)
-                                .opacity((coordinator.expandingView.show && coordinator.expandingView.type == .timer && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
-                        } else if Defaults[.showSongMetadataInClosedNotch] && isNonNotchScreen && !musicManager.songTitle.isEmpty {
-                            MarqueeText(
-                                .constant("\(musicManager.songTitle) • \(musicManager.artistName)"),
-                                textColor: Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray,
-                                minDuration: 3,
-                                frameWidth: max(0, effectiveCenterWidth - 16)
-                            )
-                            .padding(.horizontal, 8)
-                        }
-                    }
-                    .clipped()
-                )
+            closedMusicCenterContent(
+                centerWidth: effectiveCenterWidth,
+                height: notchContentHeight
+            )
 
             musicRightWing(for: secondary, notchHeight: notchContentHeight, trailingWidth: rightWingWidth)
                 .frame(width: rightWingWidth, height: notchContentHeight, alignment: .center)
@@ -1406,6 +1381,61 @@ struct ContentView: View {
         .animation(.smooth(duration: 0.25), value: secondary?.id)
     }
 
+    /// The black center span of the closed music activity: nothing at all
+    /// while idle, or the inline sneak peek title/artist for music or timer.
+    private func closedMusicCenterContent(centerWidth: CGFloat, height: CGFloat) -> some View {
+    Rectangle()
+        .fill(.black)
+        .frame(width: centerWidth, height: height)
+        .overlay(
+            HStack(alignment: .top) {
+                if(coordinator.expandingView.show && coordinator.expandingView.type == .music) {
+                    MusicTitleMarqueeView(
+                        text: musicManager.songTitle,
+                        isExplicit: musicManager.isCurrentTrackExplicit,
+                        textColor: Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray,
+                        minDuration: 0.4,
+                        frameWidth: max(0, (centerWidth - vm.closedNotchSize.width) / 2 - 12),
+                        badgeHeight: 13
+                    )
+                    .padding(.leading, 8)
+                    .opacity((coordinator.expandingView.show && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
+                    Spacer(minLength: vm.closedNotchSize.width)
+                    Text(musicManager.artistName)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray)
+                        .padding(.trailing, 8)
+                        .opacity((coordinator.expandingView.show && coordinator.expandingView.type == .music && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
+                } else if(coordinator.expandingView.show && coordinator.expandingView.type == .timer) {
+                    MarqueeText(
+                        .constant(timerManager.timerName),
+                        textColor: timerManager.timerColor,
+                        minDuration: 0.4,
+                        frameWidth: max(0, (centerWidth - vm.closedNotchSize.width) / 2 - 12)
+                    )
+                    .padding(.leading, 8)
+                    .opacity((coordinator.expandingView.show && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
+                    Spacer(minLength: vm.closedNotchSize.width)
+                    Text(timerManager.formattedRemainingTime())
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(timerManager.timerColor)
+                        .padding(.trailing, 8)
+                        .opacity((coordinator.expandingView.show && coordinator.expandingView.type == .timer && Defaults[.enableSneakPeek] && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
+                } else if Defaults[.showSongMetadataInClosedNotch] && isNonNotchScreen && !musicManager.songTitle.isEmpty {
+                    MarqueeText(
+                        .constant("\(musicManager.songTitle) • \(musicManager.artistName)"),
+                        textColor: Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray,
+                        minDuration: 3,
+                        frameWidth: max(0, centerWidth - 16)
+                    )
+                    .padding(.horizontal, 8)
+                }
+            }
+            .clipped()
+        )
+    }
     private func resolveMusicSecondaryLiveActivity(isMusicPairingEligible: Bool = true) -> MusicSecondaryLiveActivity? {
         if coordinator.timerLiveActivityEnabled && timerManager.isTimerActive {
             return .timer
@@ -1622,7 +1652,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func SpectrumVisualizer(
+    private func spectrumVisualizer(
         useMusicVisualizer: Bool,
         forceSpectrum: Bool
     ) -> some View {
@@ -1646,7 +1676,7 @@ struct ContentView: View {
         enableClosedPlayPauseOverlay: Bool = false
     ) -> some View {
         if useMusicVisualizer || forceSpectrum {
-            SpectrumVisualizer(useMusicVisualizer: useMusicVisualizer, forceSpectrum: forceSpectrum)
+            spectrumVisualizer(useMusicVisualizer: useMusicVisualizer, forceSpectrum: forceSpectrum)
                 .blur(radius: (enableClosedPlayPauseOverlay && isHoveringClosedMusicWaveformControl) ? 2.4 : 0)
                 .overlay {
                     if enableClosedPlayPauseOverlay {
@@ -2522,321 +2552,5 @@ struct ContentView: View {
 
     private func resolvedSneakPeekStyle() -> SneakPeekStyle {
         coordinator.sneakPeek.styleOverride ?? Defaults[.sneakPeekStyles]
-    }
-}
-
-private enum MusicSecondaryLiveActivity: Equatable {
-    case timer
-    case reminder(ReminderLiveActivityManager.ReminderEntry)
-    case recording
-    case focus(FocusModeType)
-    case capsLock(showLabel: Bool)
-    case shelf(count: Int)
-
-    var id: String {
-        switch self {
-        case .timer:
-            return "timer"
-        case .reminder(let entry):
-            return "reminder-\(entry.id)"
-        case .recording:
-            return "recording"
-        case .focus(let mode):
-            return "focus-\(mode.rawValue)"
-        case .capsLock(let showLabel):
-            return showLabel ? "caps-lock-label" : "caps-lock-icon"
-        case .shelf(let count):
-            return "shelf-\(count)"
-        }
-    }
-}
-
-private struct MusicTimerSupplementView: View {
-    @ObservedObject var timerManager: TimerManager
-    let accentColor: Color
-    let showsCountdown: Bool
-    let showsProgress: Bool
-    let progressStyle: TimerProgressStyle
-    let notchHeight: CGFloat
-
-    private var clampedProgress: Double {
-        min(max(timerManager.progress, 0), 1)
-    }
-
-    private var showsRingProgress: Bool {
-        showsProgress && progressStyle == .ring
-    }
-
-    private var showsBarProgress: Bool {
-        showsProgress && progressStyle == .bar
-    }
-
-    private var countdownText: String {
-        timerManager.formattedRemainingTime()
-    }
-
-    private var countdownTextWidth: CGFloat {
-        max(1, TimerSupplementMetrics.countdownTextWidth(for: countdownText))
-    }
-
-    private var countdownFrameWidth: CGFloat {
-        TimerSupplementMetrics.countdownFrameWidth(for: countdownText)
-    }
-
-    private var timerNameFrameWidth: CGFloat {
-        TimerSupplementMetrics.timerNameFrameWidth(for: timerManager.timerName)
-    }
-
-    private var ringDiameter: CGFloat {
-        max(min(notchHeight - 4, 26), 20)
-    }
-
-    var body: some View {
-        HStack(spacing: showsRingProgress && showsCountdown ? 8 : 0) {
-            if showsRingProgress {
-                ringView
-            }
-
-            if showsCountdown {
-                countdownStack
-            } else if showsBarProgress {
-                standaloneBarView
-            } else {
-                timerNameView
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-    }
-
-    private var countdownStack: some View {
-        VStack(alignment: .trailing, spacing: showsBarProgress ? 4 : 0) {
-            Text(countdownText)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundColor(timerManager.isOvertime ? .statusDanger : .inkPrimary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .contentTransition(.numericText())
-                .animation(.smooth(duration: 0.25), value: timerManager.remainingTime)
-                .frame(width: countdownFrameWidth, alignment: .trailing)
-
-            if showsBarProgress {
-                barView(width: countdownTextWidth)
-            }
-        }
-        .padding(.trailing, 2)
-        .frame(maxWidth: .infinity, alignment: .trailing)
-    }
-
-    private var ringView: some View {
-        ZStack {
-            Circle()
-                .stroke(.fillControl, lineWidth: 3)
-            Circle()
-                .trim(from: 0, to: clampedProgress)
-                .stroke(accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.smooth(duration: 0.25), value: clampedProgress)
-        }
-        .frame(width: ringDiameter, height: ringDiameter)
-        .frame(width: max(ringDiameter + 4, 30), height: notchHeight, alignment: .center)
-    }
-
-    private var standaloneBarView: some View {
-        barView(width: 68)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-    }
-
-    private var timerNameView: some View {
-        Text(timerManager.timerName)
-            .font(.notch(.footnote, weight: .medium))
-            .foregroundColor(.white)
-            .lineLimit(1)
-            .frame(width: timerNameFrameWidth, alignment: .trailing)
-    }
-
-    private func barView(width: CGFloat) -> some View {
-        Capsule()
-            .fill(.fillControl)
-            .frame(width: width, height: 4)
-            .overlay(alignment: .leading) {
-                Capsule()
-                    .fill(accentColor)
-                    .frame(width: width * max(0, CGFloat(clampedProgress)), height: 4)
-                    .animation(.smooth(duration: 0.25), value: clampedProgress)
-            }
-    }
-
-}
-
-private struct MusicReminderSupplementView: View {
-    let entry: ReminderLiveActivityManager.ReminderEntry
-    let now: Date
-    let style: ReminderPresentationStyle
-    let accent: Color
-    let notchHeight: CGFloat
-
-    var body: some View {
-        Group {
-            switch style {
-            case .ringCountdown:
-                ringCountdownView
-            case .digital:
-                digitalCountdownView
-            case .minutes:
-                minutesCountdownView
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-    }
-
-    private var ringCountdownView: some View {
-        ZStack {
-            Circle()
-                .stroke(.fillControl, lineWidth: 3)
-            Circle()
-                .trim(from: 0, to: progressValue)
-                .stroke(accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.smooth(duration: 0.25), value: progressValue)
-        }
-        .frame(width: ringDiameter, height: ringDiameter)
-        .frame(width: max(ringDiameter + 4, 26), height: notchHeight, alignment: .center)
-    }
-
-    private var digitalCountdownView: some View {
-        Text(digitalCountdownText)
-            .font(.system(size: 15, weight: .semibold, design: .monospaced))
-            .foregroundColor(accent)
-            .contentTransition(.numericText())
-            .animation(.smooth(duration: 0.25), value: digitalCountdownText)
-            .frame(width: digitalFrameWidth, alignment: .trailing)
-            .frame(height: notchHeight, alignment: .center)
-    }
-
-    private var minutesCountdownView: some View {
-        Text(minutesCountdownText)
-            .font(.notch(.body, weight: .semibold))
-            .foregroundColor(accent)
-            .frame(width: minutesFrameWidth, alignment: .trailing)
-            .frame(height: notchHeight, alignment: .center)
-    }
-
-    private var progressValue: Double {
-        guard entry.leadTime > 0 else { return 1 }
-        let remaining = max(entry.event.start.timeIntervalSince(now), 0)
-        let elapsed = entry.leadTime - remaining
-        return min(max(elapsed / entry.leadTime, 0), 1)
-    }
-
-    private var digitalCountdownText: String {
-        ReminderSupplementMetrics.digitalCountdownText(for: entry, now: now)
-    }
-
-    private var minutesCountdownText: String {
-        ReminderSupplementMetrics.minutesCountdownText(for: entry, now: now)
-    }
-
-    private var ringDiameter: CGFloat {
-        ReminderSupplementMetrics.ringDiameter(for: notchHeight)
-    }
-
-    private var digitalFrameWidth: CGFloat {
-        ReminderSupplementMetrics.digitalFrameWidth(for: digitalCountdownText)
-    }
-
-    private var minutesFrameWidth: CGFloat {
-        ReminderSupplementMetrics.minutesFrameWidth(for: minutesCountdownText)
-    }
-}
-
-private struct MusicCapsLockLabelView: View {
-    let color: Color
-
-    var body: some View {
-        Text("Caps Lock")
-            .font(.notch(.body, weight: .semibold))
-            .foregroundColor(color)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .contentTransition(.opacity)
-    }
-}
-
-#if canImport(AppKit)
-private typealias MusicSupplementFont = NSFont
-#elseif canImport(UIKit)
-private typealias MusicSupplementFont = UIFont
-#endif
-
-private enum TimerSupplementMetrics {
-    static func countdownTextWidth(for text: String) -> CGFloat {
-        // Measure with a fully monospaced font (matching the `.monospaced` design used
-        // to render) so hour-format times like 1:00:00 aren't under-measured and clipped.
-        musicMeasureText(text, font: MusicSupplementFont.monospacedSystemFont(ofSize: 13, weight: .semibold))
-    }
-
-    static func countdownFrameWidth(for text: String) -> CGFloat {
-        max(countdownTextWidth(for: text) + 16, 72)
-    }
-
-    static func timerNameFrameWidth(for text: String) -> CGFloat {
-        guard !text.isEmpty else { return 64 }
-        let width = musicMeasureText(text, font: MusicSupplementFont.systemFont(ofSize: 12, weight: .medium))
-        return max(width + 14, 64)
-    }
-}
-
-private enum ReminderSupplementMetrics {
-    static func digitalCountdownText(for entry: ReminderLiveActivityManager.ReminderEntry, now: Date) -> String {
-        let remaining = max(entry.event.start.timeIntervalSince(now), 0)
-        let totalSeconds = Int(remaining.rounded(.down))
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
-
-    static func minutesCountdownText(for entry: ReminderLiveActivityManager.ReminderEntry, now: Date) -> String {
-        let remaining = max(entry.event.start.timeIntervalSince(now), 0)
-        let minutes = max(1, Int(ceil(remaining / 60)))
-        return minutes == 1 ? "in 1 min" : "in \(minutes) min"
-    }
-
-    static func digitalFrameWidth(for text: String) -> CGFloat {
-        let width = musicMeasureText(text, font: MusicSupplementFont.monospacedDigitSystemFont(ofSize: 15, weight: .semibold))
-        return max(width + 18, 76)
-    }
-
-    static func minutesFrameWidth(for text: String) -> CGFloat {
-        let width = musicMeasureText(text, font: MusicSupplementFont.systemFont(ofSize: 13, weight: .semibold))
-        return max(width + 18, 88)
-    }
-
-    static func ringDiameter(for notchHeight: CGFloat) -> CGFloat {
-        max(min(notchHeight - 12, 22), 16)
-    }
-}
-
-private func musicMeasureText(_ text: String, font: MusicSupplementFont) -> CGFloat {
-    guard !text.isEmpty else { return 0 }
-    let attributes: [NSAttributedString.Key: Any] = [.font: font]
-    return CGFloat(ceil(NSAttributedString(string: text, attributes: attributes).size().width))
-}
-
-struct FullScreenDropDelegate: DropDelegate {
-    @Binding var isTargeted: Bool
-    let onDrop: () -> Void
-
-    func dropEntered(info _: DropInfo) {
-        isTargeted = true
-    }
-
-    func dropExited(info _: DropInfo) {
-        isTargeted = false
-    }
-
-    func performDrop(info _: DropInfo) -> Bool {
-        isTargeted = false
-        onDrop()
-        return true
     }
 }

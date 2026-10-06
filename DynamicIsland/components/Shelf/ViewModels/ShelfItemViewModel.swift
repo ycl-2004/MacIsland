@@ -178,7 +178,7 @@ final class ShelfItemViewModel: ObservableObject {
         }
         // URLs valid for Open/Open With (exclude folders)
         let selectedOpenableURLs = selectedItems.compactMap { itm -> URL? in
-            if let u = itm.fileURL { return isDirectory(u) ? nil : u }
+            if let candidateURL = itm.fileURL { return isDirectory(candidateURL) ? nil : candidateURL }
             if case .link(let url) = itm.kind { return url }
             return nil
         }
@@ -193,21 +193,21 @@ final class ShelfItemViewModel: ObservableObject {
 
             // Choose a representative URL to compute apps (prefer current item if not a folder)
             let baseURLForApps: URL? = {
-                if let u = item.fileURL, !isDirectory(u) { return u }
-                if case .link(let u) = item.kind { return u }
+                if let candidateURL = item.fileURL, !isDirectory(candidateURL) { return candidateURL }
+                if case .link(let candidateURL) = item.kind { return candidateURL }
                 return selectedOpenableURLs.first
             }()
 
             let openWithApps: [URL] = {
-                guard let u = baseURLForApps else { return [] }
-                if u.isFileURL {
-                    var results = NSWorkspace.shared.urlsForApplications(toOpen: u)
-                    if results.isEmpty, let uti = try? u.resourceValues(forKeys: [.contentTypeKey]).contentType {
+                guard let candidateURL = baseURLForApps else { return [] }
+                if candidateURL.isFileURL {
+                    var results = NSWorkspace.shared.urlsForApplications(toOpen: candidateURL)
+                    if results.isEmpty, let uti = try? candidateURL.resourceValues(forKeys: [.contentTypeKey]).contentType {
                         results = NSWorkspace.shared.urlsForApplications(toOpen: uti)
                     }
                     return Array(Set(results))
                 } else {
-                    return Array(Set(NSWorkspace.shared.urlsForApplications(toOpen: u)))
+                    return Array(Set(NSWorkspace.shared.urlsForApplications(toOpen: candidateURL)))
                 }
             }()
             let defaultApp = defaultAppURL()
@@ -374,7 +374,7 @@ final class ShelfItemViewModel: ObservableObject {
                                 try await NSWorkspace.shared.open(allSelectedURLs, withApplicationAt: appURL, configuration: config)
                             }
                         } catch {
-                            print("❌ Failed to open with application: \(error.localizedDescription)")
+                            Logger.log("Failed to open with application: \(error.localizedDescription)", category: .error)
                         }
                 }
                 return
@@ -642,7 +642,7 @@ final class ShelfItemViewModel: ObservableObject {
                                 try await NSWorkspace.shared.open([fileURL], withApplicationAt: appURL, configuration: config)
                             }
                         } catch {
-                            print("❌ Failed to open with application: \(error.localizedDescription)")
+                            Logger.log("Failed to open with application: \(error.localizedDescription)", category: .error)
                         }
                     }
                 }

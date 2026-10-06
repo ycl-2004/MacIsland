@@ -33,7 +33,7 @@
 
 Atoll 將 MacBook 螢幕頂部的瀏海區域轉化為低干擾、可隨時互動的指揮中控台。在專注工作時完全隱形，當游標靠近、觸控板滑動或按下全域快捷鍵時，便以順暢的原生 SwiftUI 動畫優雅展開。
 
-本版本為 YC 針對個人日常開發與 AI 協作工作流深度定制的私有版本（`YC_Island_v1`）。它首度將 **Claude Code**、**Codex** 與 **Antigravity** 等 AI Coding Agent 的運行狀態與終端即時流式輸出深度整合至硬體瀏海，同時剔除冗餘的後台常駐進程，並打磨了多音源媒體控制、動態掃光歌詞、鎖定畫面小組件、互動式標尺計時器與低耗能硬體監控等日常核心工具。
+本版本為 YC 針對個人日常開發與 AI 協作工作流深度定制的私有版本（`YC_Island_v1`）。它首度將 **Claude Code**、**Codex**、**Antigravity**、**Pi**、**OpenCode** 與 **Grok Build** 等 AI Coding Agent 的運行狀態與終端即時流式輸出深度整合至硬體瀏海，同時剔除冗餘的後台常駐進程，並打磨了多音源媒體控制、動態掃光歌詞、鎖定畫面小組件、互動式標尺計時器與低耗能硬體監控等日常核心工具。
 
 > **源碼優先的個人版本。** 本儲存庫為 YC 個人在 Apple Silicon MacBook 上使用的日常版本，未發布預編譯簽名安裝包，建議直接透過 Xcode 建置與執行。本專案基於 [Atoll by Ebullioscopic](https://github.com/Ebullioscopic/Atoll) 與 [boring.notch](https://github.com/TheBoredTeam/boring.notch) 衍生開發，並遵循 GNU 通用公共授權條款第三版（GPL-3.0）。
 
@@ -67,7 +67,7 @@ Atoll 將 MacBook 螢幕頂部的瀏海區域轉化為低干擾、可隨時互�
 
 ## 為什麼選擇 Atoll
 
-- **置於硬體頂部的 AI Agent 駕駛艙。** 無需在多個終端分頁間反覆切換確認進度，Claude Code、Codex 與 Antigravity 的即時工作階段會直接呈現在螢幕頂部瀏海，提供即時狀態指示、流式文字輸出與回覆控制。
+- **置於硬體頂部的 AI Agent 駕駛艙。** 無需在多個終端分頁間反覆切換確認進度，Claude Code、Codex、Antigravity、Pi、OpenCode 與 Grok Build 的即時工作階段會直接呈現在螢幕頂部瀏海，提供即時狀態指示、流式文字輸出與回覆控制。
 - **即時圈選提問 (Ask About Screen)。** 按下 `⌘⇧A` 拖曳框選螢幕上的任何視窗、程式碼或介面 Bug，截圖與問題即刻注入當前活躍的 Agent 會話，無需手動截圖、存檔或切換視窗。
 - **剔除臃腫，安靜省電。** 移除不常用的剪貼簿歷史管理器、內建 Web 終端模擬器、孤立的 AppleScript 腳本與常駐防止休眠守護進程，背景工作依功能需求啟用；Shelf 的縮圖快取與生成工作設有明確上限。
 - **精雕細琢的日常實用工具。** 完美支援 Apple Music、Spotify、TIDAL、YouTube Music、Cider 與網易云音樂；動態逐字掃光歌詞；鎖定畫面小組件；互動式滾動標尺計時器；以及極低開銷的 SMC 晶片硬體監控。
@@ -78,7 +78,7 @@ Atoll 將 MacBook 螢幕頂部的瀏海區域轉化為低干擾、可隨時互�
 ## 功能特點
 
 ### 🤖 AI Coding Agent 即時駕駛艙
-- **即時工作階段卡片**：在瀏海面板專屬分頁中集中監控 **Claude Code**、**Codex** 與 **Antigravity** 的活躍進程。
+- **即時工作階段卡片**：在瀏海面板專屬分頁中集中監控 **Claude Code**、**Codex**、**Antigravity**、**Pi**、**OpenCode** 與 **Grok Build** 的活躍進程。
 - **瀏海動態指示 (Live Activity)**：當背景 Agent 正在思考、執行終端指令或生成程式碼時，頂部瀏海會顯示低調流暢的動態光點與狀態。
 - **終端即時會話抽屜**：直接在瀏海展開面板中閱讀 Agent 的即時流式輸出，並直接輸入追加指令或回應。
 - **圈選螢幕提問 (`⌘⇧A`)**：隨時框選畫面任意區域，將局部影像與自訂 Prompt 直接派發給選定的 Agent 處理。
@@ -100,13 +100,14 @@ Atoll 將 MacBook 螢幕頂部的瀏海區域轉化為低干擾、可隨時互�
 - **螢幕取色器**：具備 10 倍像素級放大鏡與 HEX 色碼一鍵複製功能。
 - **檔案暫存架 (Shelf)**：將檔案、文字或連結拖到瀏海即可暫存。關閉 Shelf 會清空項目，原始檔案保持不變；仍在交接中的暫存副本會延後清理。詳見 [Shelf 資源生命週期](docs/shelf-lifecycle.md)。
 - **行事曆速覽**：快速檢視即將到來的日程活動。
+- **Extra Space**：在「設定 → Utilities → Extra Space」啟用後，主分頁列會加入一整塊可連續捲動的文字區。雙擊文字區，或點擊 Edit／Paste 修改內容；按 ⌘S 或 Save 儲存並結束編輯。閱讀時可用收起手勢儲存並關閉。內容會自動儲存於本機；關閉功能只隱藏分頁，保留文字。詳見 [Extra Space 使用說明](docs/extra-space.md)。
 
 ---
 
 ## 運作原理
 
 - **瀏海幾何佈局與游標捕捉**：Atoll 透過視窗管理 API 監聽螢幕頂端邊界區域的游標懸停與手勢動作，在不奪取當前使用中視窗焦點的前提下平滑展開與收折 SwiftUI 畫布。
-- **本機 Agent 觀察機制**：透過 `AgentBridge` 與 `AgentSessionStore` 監聽 Claude Code、Codex 與 Antigravity 的本機記錄檔、輸出管道與 Language Server 端點，不經由外部伺服器即可直接解析流式更新。
+- **本機 Agent 觀察機制**：透過 `AgentBridge` 與 `AgentSessionStore` 監聽 Claude Code、Codex、Antigravity、Pi、OpenCode 與 Grok Build 的本機記錄檔、輸出管道與 Language Server 端點，不經由外部伺服器即可直接解析流式更新。
 - **螢幕提問管線**：`ScreenQuestionManager` 藉由 `CGWindowListCreateImage` 擷取使用者圈選的矩形區域，將其包裝為視覺上下文，並即時派送至對應 Agent 的會話管理服務。
 
 ---
@@ -114,7 +115,7 @@ Atoll 將 MacBook 螢幕頂部的瀏海區域轉化為低干擾、可隨時互�
 ## 隱私與安全
 
 - **嚴格維持純本機運作**：不設任何登入帳號、不收集任何使用遙測資料、不安裝任何追蹤點或第三方崩潰報告模組。
-- **Agent IPC 不出本機**：與 Claude Code、Codex 及 Antigravity 的所有互動均透過本機進程通訊及檔案完成，絕不將您的程式碼、對話或提示詞傳送至第三方中間伺服器。
+- **Agent IPC 不出本機**：與 Claude Code、Codex、Antigravity、Pi、OpenCode 及 Grok Build 的所有互動均透過本機進程通訊及檔案完成，絕不將您的程式碼、對話或提示詞傳送至第三方中間伺服器。
 - **明確的網路存取邊界**：僅在使用者啟用特定功能時發起最小化外網請求：使用 Open-Meteo 獲取當地天氣預報，以及在音樂播放時向公開歌詞 API（LRCLIB / 網易云音樂）請求歌詞。
 - **螢幕錄製存取範疇**：螢幕截圖僅在使用「圈選螢幕提問」或「取色器放大鏡」時觸發單次截圖，Atoll 絕不會在背景持續錄製或上傳您的螢幕畫面。
 
@@ -239,7 +240,7 @@ Atoll（YC 客製版）以無比感激的心情，向奠定技術基石的優秀
 ## 已知限制
 
 - **需配備實體螢幕瀏海**：視窗幾何形狀與游標碰撞偵測均針對 Apple Silicon MacBook 實體螢幕凹口（14 吋 / 16 吋 MBP、M2/M3 MacBook Air）進行深度校準。
-- **支援的 Agent 環境邊界**：目前即時連線僅支援 Claude Code、Codex 與 Antigravity，其他 CLI 工具需自行擴充適配器。
+- **支援的 Agent 環境邊界**：目前即時連線支援 Claude Code、Codex、Antigravity、Pi、OpenCode 與 Grok Build；其中 Pi 與 OpenCode 透過 Atoll 安裝的一個小型外掛檔接入，而非 hooks。其他 CLI 工具需自行擴充適配器。
 - **初次授權要求**：首次使用「圈選提問」時，需在 macOS 系統設定中核准螢幕錄製權限並重新啟動應用程式。
 
 ---
@@ -249,3 +250,5 @@ Atoll（YC 客製版）以無比感激的心情，向奠定技術基石的優秀
 Atoll 為遵循 [GNU 通用公共授權條款第三版 (GPL-3.0)](LICENSE) 的自由軟體。
 
 有關素材授權與第三方商標說明，請參閱 [NOTICE](NOTICE)、[COPYRIGHT_ASSETS](COPYRIGHT_ASSETS) 與 [TRADEMARKS](TRADEMARKS)。
+
+容量限制、內容恢復與驗證紀錄：[2026-10-06 audit fixes](docs/project-audit-fixes-2026-10-06.md).

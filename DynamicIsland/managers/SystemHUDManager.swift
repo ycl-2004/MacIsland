@@ -120,7 +120,7 @@ class SystemHUDManager {
         // Force disable system HUD to ensure no duplicates
         SystemOSDManager.disableSystemHUD()
         
-        print("System observer started")
+        debugLog("System observer started")
         isSystemOperationInProgress = false
     }
     
@@ -167,7 +167,7 @@ class SystemHUDManager {
         // Re-enable system HUD when we stop observing
         SystemOSDManager.enableSystemHUD()
         
-        print("System observer stopped")
+        debugLog("System observer stopped")
         isSystemOperationInProgress = false
     }
     

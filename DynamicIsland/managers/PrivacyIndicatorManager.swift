@@ -134,8 +134,15 @@ class PrivacyIndicatorManager: ObservableObject {
     
     // MARK: - Initialization
     private init() {
-        print("PrivacyIndicatorManager: 🚀 Initializing...")
+        debugLog("PrivacyIndicatorManager: 🚀 Initializing...")
         setupBindings()
+        Publishers.MergeMany([
+            Defaults.publisher(.enableCameraDetection, options: []).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.enableMicrophoneDetection, options: []).map { _ in () }.eraseToAnyPublisher()
+        ]).receive(on: DispatchQueue.main).sink { [weak self] in
+            guard let self, self.isMonitoring else { return }
+            self.updateEnabledMonitors()
+        }.store(in: &cancellables)
     }
     
     // MARK: - Setup Methods
@@ -148,7 +155,7 @@ class PrivacyIndicatorManager: ObservableObject {
             .sink { [weak self] isActive in
                 guard let self = self else { return }
                 if self.cameraActive != isActive {
-                    print("PrivacyIndicatorManager: 📷 Camera state: \(isActive)")
+                    debugLog("PrivacyIndicatorManager: 📷 Camera state: \(isActive)")
                     withAnimation(.smooth) {
                         self.cameraActive = isActive
                     }
@@ -163,7 +170,7 @@ class PrivacyIndicatorManager: ObservableObject {
             .sink { [weak self] isActive in
                 guard let self = self else { return }
                 if self.microphoneActive != isActive {
-                    print("PrivacyIndicatorManager: 🎤 Microphone state: \(isActive)")
+                    debugLog("PrivacyIndicatorManager: 🎤 Microphone state: \(isActive)")
                     withAnimation(.smooth) {
                         self.microphoneActive = isActive
                     }
@@ -181,7 +188,7 @@ class PrivacyIndicatorManager: ObservableObject {
             .sink { [weak self] isRecording in
                 guard let self = self else { return }
                 if self.screenRecordingActive != isRecording {
-                    print("PrivacyIndicatorManager: 📹 Screen recording state: \(isRecording)")
+                    debugLog("PrivacyIndicatorManager: 📹 Screen recording state: \(isRecording)")
                     withAnimation(.smooth) {
                         self.screenRecordingActive = isRecording
                     }
@@ -193,46 +200,42 @@ class PrivacyIndicatorManager: ObservableObject {
     
     /// Log layout changes for debugging
     private func logLayoutChange() {
-        print("PrivacyIndicatorManager: 🔄 Layout changed to: \(indicatorLayout.description)")
-        print("PrivacyIndicatorManager: 📊 States - Camera: \(cameraActive), Mic: \(microphoneActive), Recording: \(screenRecordingActive)")
+        debugLog("PrivacyIndicatorManager: 🔄 Layout changed to: \(indicatorLayout.description)")
+        debugLog("PrivacyIndicatorManager: 📊 States - Camera: \(cameraActive), Mic: \(microphoneActive), Recording: \(screenRecordingActive)")
     }
     
     // MARK: - Public Methods
     
     /// Start monitoring all privacy indicators
     func startMonitoring() {
-        print("PrivacyIndicatorManager: 🟢 Starting all monitors...")
+        guard !AppDelegate.isHostingUnitTests else { return }
+        debugLog("PrivacyIndicatorManager: 🟢 Starting all monitors...")
         
         isMonitoring = true
         
-        // Start camera monitoring
-        if cameraMonitor.isMonitoringAvailable {
-            cameraMonitor.startMonitoring()
-        } else {
-            print("PrivacyIndicatorManager: ⚠️ Camera monitoring not available")
-        }
-        
-        // Start microphone monitoring
-        if microphoneMonitor.isMonitoringAvailable {
-            microphoneMonitor.startMonitoring()
-        } else {
-            print("PrivacyIndicatorManager: ⚠️ Microphone monitoring not available")
-        }
-        
+        updateEnabledMonitors()
+
         // Screen recording is already monitored by ScreenRecordingManager
-        print("PrivacyIndicatorManager: ✅ All monitors started")
+        debugLog("PrivacyIndicatorManager: ✅ All monitors started")
     }
     
+    private func updateEnabledMonitors() {
+        if Defaults[.enableCameraDetection], cameraMonitor.isMonitoringAvailable { cameraMonitor.startMonitoring() }
+        else { cameraMonitor.stopMonitoring() }
+        if Defaults[.enableMicrophoneDetection], microphoneMonitor.isMonitoringAvailable { microphoneMonitor.startMonitoring() }
+        else { microphoneMonitor.stopMonitoring() }
+    }
+
     /// Stop monitoring all privacy indicators
     func stopMonitoring() {
-        print("PrivacyIndicatorManager: 🛑 Stopping all monitors...")
+        debugLog("PrivacyIndicatorManager: 🛑 Stopping all monitors...")
         
         isMonitoring = false
         
         cameraMonitor.stopMonitoring()
         microphoneMonitor.stopMonitoring()
         
-        print("PrivacyIndicatorManager: ✅ All monitors stopped")
+        debugLog("PrivacyIndicatorManager: ✅ All monitors stopped")
     }
     
     /// Toggle monitoring state

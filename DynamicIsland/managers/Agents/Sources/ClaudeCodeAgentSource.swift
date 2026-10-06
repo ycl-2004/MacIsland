@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-struct ClaudeCodeAgentSource: AgentSource {
+struct ClaudeCodeAgentSource: HookConfigAgentSource {
     let id = "claude"
     let displayName = "Claude Code"
     let symbolName = "asterisk"

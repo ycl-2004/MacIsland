@@ -21,13 +21,6 @@ import Defaults
 
 
 struct LockScreenMusicPanel: View {
-    private struct GlassLogSnapshot: Equatable {
-        let style: LockScreenGlassStyle
-        let customizationMode: LockScreenGlassCustomizationMode
-        let variantRawValue: Int
-        let usesLiquidGlass: Bool
-    }
-
     static let collapsedHeight: CGFloat = 180
     /// The width the panel starts at, and what "reset to default" restores.
     ///
@@ -61,7 +54,6 @@ struct LockScreenMusicPanel: View {
     /// Whether the pointer is resting on the panel, which holds the collapse
     /// timer off entirely rather than merely restarting it.
     @State private var isPointerInsidePanel = false
-    @State private var lastLoggedGlassSnapshot: GlassLogSnapshot?
     @Default(.lockScreenGlassStyle) var lockScreenGlassStyle
     @Default(.lockScreenGlassCustomizationMode) private var glassCustomizationMode
     @Default(.lockScreenMusicLiquidGlassVariant) private var musicGlassVariant
@@ -291,13 +283,11 @@ struct LockScreenMusicPanel: View {
         .onAppear {
             sliderValue = musicManager.elapsedTime
             isActive = true
-            logPanelAppearance()
             updatePanelSize(animated: false)
             routeManager.refreshDevices()
             if musicManager.isAppleMusicActive {
                 Task { await airPlayManager.refreshDevices() }
             }
-            logGlassState(reason: "Panel appeared")
         }
         .onDisappear {
             isActive = false
@@ -339,17 +329,6 @@ struct LockScreenMusicPanel: View {
         .onChange(of: enableLyrics) { _, _ in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
                 updatePanelSize()
-            }
-        }
-        .onChange(of: lockScreenGlassStyle) { _, _ in
-            logGlassState(reason: "Glass style updated")
-        }
-        .onChange(of: glassCustomizationMode) { _, _ in
-            logGlassState(reason: "Glass mode updated")
-        }
-        .onChange(of: musicGlassVariant) { _, _ in
-            if usesCustomLiquidGlass {
-                logGlassState(reason: "Liquid variant updated")
             }
         }
         .scaleEffect(animator.isPresented ? 1 : 0.9, anchor: .center)
@@ -542,9 +521,7 @@ struct LockScreenMusicPanel: View {
 
         if newState {
             registerInteraction()
-            logPanelAppearance(event: "🔍 Expanded")
         } else {
-            logPanelAppearance(event: "⬇️ Collapsed")
             cancelCollapseTimer()
         }
     }
@@ -559,7 +536,6 @@ struct LockScreenMusicPanel: View {
             withAnimation(.easeInOut(duration: 0.28)) {
                 isExpanded = false
             }
-            logPanelAppearance(event: "⏱️ Auto-collapsed")
         }
 
         collapseWorkItem = workItem
@@ -1527,268 +1503,5 @@ struct LockScreenMusicPanel: View {
         LiquidGlassBackground(variant: musicGlassVariant, cornerRadius: cornerRadius) {
             Color.clear
         }
-    }
-
-    private func logGlassState(reason: String) {
-        let snapshot = GlassLogSnapshot(
-            style: lockScreenGlassStyle,
-            customizationMode: glassCustomizationMode,
-            variantRawValue: musicGlassVariant.rawValue,
-            usesLiquidGlass: usesLiquidGlass
-        )
-        guard snapshot != lastLoggedGlassSnapshot else { return }
-        lastLoggedGlassSnapshot = snapshot
-
-        struct ComponentState {
-            let name: String
-            let isLiquid: Bool
-        }
-
-        let states = [
-            ComponentState(name: "Panel Shell", isLiquid: usesLiquidGlass),
-            ComponentState(name: "Control Capsules", isLiquid: usesLiquidGlass),
-            ComponentState(name: "Volume Slider", isLiquid: usesLiquidGlass),
-            ComponentState(name: "Album Art Plate", isLiquid: usesLiquidGlass)
-        ]
-
-        let componentSummary = states.map { entry -> String in
-            let mode = entry.isLiquid ? "Liquid" : "Frosted"
-            return "\(entry.name)=\(mode)"
-        }.joined(separator: ", ")
-
-        let modeDescription: String
-        if usesCustomLiquidGlass {
-            modeDescription = "Custom Liquid (variant \(musicGlassVariant.rawValue))"
-        } else if usesStandardLiquidGlass {
-            modeDescription = "Standard Liquid"
-        } else {
-            modeDescription = lockScreenGlassStyle.rawValue
-        }
-
-        print("[LockScreenMusicPanel] \(reason) – customization=\(glassCustomizationMode.rawValue), mode=\(modeDescription), components[\(componentSummary)], macOS \(currentOSVersionDescription())")
-
-        if glassCustomizationMode == .standard && lockScreenGlassStyle == .liquid && !usesStandardLiquidGlass {
-            print("[LockScreenMusicPanel] Liquid Glass requested but unavailable on this macOS build. Falling back to frosted visuals.")
-        }
-    }
-
-    private func currentOSVersionDescription() -> String {
-        let version = ProcessInfo.processInfo.operatingSystemVersion
-        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
-    }
-
-    private func logPanelAppearance(event: String = "✅ View appeared") {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss.SSS"
-        let styleDescriptor = usesLiquidGlass ? "Liquid Glass" : "Frosted"
-        print("[\(formatter.string(from: Date()))] LockScreenMusicPanel: \(event) – \(styleDescriptor)")
-    }
-}
-
-/// Apple's transport-control feedback: the tint fills the whole circular
-/// target (never a ring hugging the glyph), deepens on press, and the button
-/// dips slightly while it is held.
-private struct PanelControlButtonStyle: ButtonStyle {
-    let restingOpacity: Double
-    let isHovering: Bool
-    let appearance: LockScreenTextStyle
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                Circle()
-                    .fill(appearance.primary(opacity: opacity(isPressed: configuration.isPressed)))
-            )
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(
-                .easeOut(duration: configuration.isPressed ? 0.06 : 0.15),
-                value: configuration.isPressed
-            )
-    }
-
-    private func opacity(isPressed: Bool) -> Double {
-        if isPressed {
-            return min(max(restingOpacity + 0.16, 0.26), 0.4)
-        }
-        if isHovering {
-            return min(max(restingOpacity + 0.08, 0.15), 0.32)
-        }
-        return restingOpacity
-    }
-}
-
-private struct PanelControlButton: View {
-    /// What the button draws. Modelling this as one value rather than an icon
-    /// name plus an optional direction keeps the two from disagreeing, and
-    /// keeps the parameter list shorter than it was before skip arrows existed.
-    enum Glyph {
-        case symbol(String)
-        /// Chevrons that march in this direction on press, the way Apple's do.
-        case skipArrows(SkipTrackGlyph.Direction)
-
-        var symbolName: String {
-            switch self {
-            case .symbol(let name): return name
-            case .skipArrows(let direction): return direction == .forward ? "forward.fill" : "backward.fill"
-            }
-        }
-    }
-
-    let glyph: Glyph
-    let frameSize: CGFloat
-    let iconSize: CGFloat
-    let iconColor: Color
-    let backgroundOpacity: Double
-    let interaction: Interaction
-    let symbolEffect: SymbolEffectStyle
-    let action: () -> Void
-
-    @LockScreenStyle private var appearance
-    @State private var isHovering = false
-    @State private var pressOffset: CGFloat = 0
-    @State private var rotationAngle: Double = 0
-    @State private var wiggleToken: Int = 0
-    @State private var skipToken: Int = 0
-
-    var body: some View {
-        Button(action: {
-            triggerPressEffect()
-            action()
-        }) {
-            iconView
-                .frame(width: frameSize, height: frameSize)
-                .contentShape(Circle())
-        }
-        .buttonStyle(
-            PanelControlButtonStyle(
-                restingOpacity: backgroundOpacity,
-                isHovering: isHovering,
-                appearance: appearance
-            )
-        )
-        .offset(x: pressOffset)
-        .rotationEffect(.degrees(rotationAngle))
-        .onHover { hovering in
-            withAnimation(.smooth(duration: 0.24)) {
-                isHovering = hovering
-            }
-        }
-    }
-
-    private func triggerPressEffect() {
-        if case .skipArrows = glyph {
-            skipToken += 1
-        }
-
-        switch interaction {
-        case .none:
-            return
-        case .nudge(let amount):
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.55)) {
-                pressOffset = amount
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                    pressOffset = 0
-                }
-            }
-        case .wiggle(let direction):
-            guard #available(macOS 14.0, *) else { return }
-            wiggleToken += 1
-            let angle: Double = direction == .clockwise ? 10 : -10
-
-            withAnimation(.spring(response: 0.18, dampingFraction: 0.5)) {
-                rotationAngle = angle
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
-                    rotationAngle = 0
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var iconView: some View {
-        switch glyph {
-        case .skipArrows(let direction):
-            SkipTrackGlyph(direction: direction, size: iconSize, trigger: skipToken)
-                .foregroundStyle(iconColor)
-        case .symbol:
-            symbolIconView
-        }
-    }
-
-    @ViewBuilder
-    private var symbolIconView: some View {
-        // The glyph swap rides whatever animation is ambient when `isPlaying`
-        // changes, and the default is slow enough that pause reads as lagging
-        // the click. Naming a fast one here pins it.
-        let base = Image(systemName: glyph.symbolName)
-            .font(.system(size: iconSize, weight: .medium))
-            .foregroundStyle(iconColor)
-            .animation(.snappy(duration: 0.16), value: glyph.symbolName)
-
-        switch symbolEffect {
-        case .replace:
-            base.contentTransition(.symbolEffect(.replace))
-        case .replaceAndBounce:
-            if #available(macOS 14.0, *) {
-                base
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.bounce, value: glyph.symbolName)
-            } else {
-                base.contentTransition(.symbolEffect(.replace))
-            }
-        case .wiggle:
-            if #available(macOS 15.0, *) {
-                base
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.wiggle.byLayer, options: .nonRepeating, value: wiggleToken)
-            } else {
-                base.contentTransition(.symbolEffect(.replace))
-            }
-        }
-    }
-
-    enum Interaction {
-        case none
-        case nudge(CGFloat)
-        case wiggle(WiggleDirection)
-    }
-
-    enum SymbolEffectStyle {
-        case replace
-        case replaceAndBounce
-        case wiggle
-    }
-
-    enum WiggleDirection {
-        case clockwise
-        case counterClockwise
-    }
-}
-
-@available(macOS 26.0, *)
-private struct GlassTextBackdrop: View {
-    let cornerRadius: CGFloat
-
-    var body: some View {
-        GeometryReader { proxy in
-            let dynamicFontSize = max(min(proxy.size.width, proxy.size.height) / 8, 42)
-
-            Text("Lock Screen Liquid Glass")
-                .font(.system(size: dynamicFontSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.clear)
-                .frame(width: proxy.size.width, height: proxy.size.height)
-                .glassEffect(
-                    .clear.interactive(),
-                    in: .rect(cornerRadius: cornerRadius)
-                )
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }

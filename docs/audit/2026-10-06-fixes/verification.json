@@ -1,0 +1,63 @@
+{
+  "findings_implemented": [
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F06",
+    "F07",
+    "F08",
+    "F09",
+    "F10",
+    "F11",
+    "F12",
+    "F13",
+    "F14"
+  ],
+  "native_affected_tests": {
+    "passed": 170,
+    "failures": 0,
+    "xcresult": "Build/Logs/Test/Test-DynamicIsland-2026.10.06_15-25-19--0700.xcresult"
+  },
+  "final_recovery_tests": {
+    "passed": 24,
+    "failures": 0,
+    "xcresult": "Build/Logs/Test/Test-DynamicIsland-2026.10.06_15-28-42--0700.xcresult"
+  },
+  "python_tests": {
+    "passed": 7,
+    "failures": 0
+  },
+  "guardian_cases_passed": 4,
+  "release_build": "passed",
+  "installed_signatures": "deep strict verified",
+  "installation": {
+    "installed": "/Applications/Atoll.app",
+    "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-153307/Atoll.app",
+    "installed_sha256": "3d8fd3cd80364d9c3e141800c3860bdabf1de8494d28c317c6731f47fcc9c323",
+    "previous_sha256": "840b64880050ded7963548d37a0d4af9a28384ebe6787837f437e0f83aeb1e66",
+    "installed_at": "2026-10-06T15:33:08.637368-07:00",
+    "signature_matches_previous": true,
+    "configuration": "Release",
+    "relaunched": false
+  },
+  "artifacts": {
+    "Contents/MacOS/Atoll": {
+      "sha256": "3d8fd3cd80364d9c3e141800c3860bdabf1de8494d28c317c6731f47fcc9c323",
+      "matches_release": true
+    },
+    "Contents/Resources/AtollOSDGuardian": {
+      "sha256": "20f49fce92877e4ad4940a6cb77027426ce6c6c00f51b678150f282969b53664",
+      "matches_release": true
+    }
+  },
+  "not_executed": [
+    "24–72 hour soak",
+    "hardware audio/Bluetooth/OSD interaction",
+    "real Agent CLI integration",
+    "Thread Sanitizer",
+    "production relaunch",
+    "bulk cache pruning"
+  ]
+}

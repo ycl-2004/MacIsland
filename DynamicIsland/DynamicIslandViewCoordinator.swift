@@ -38,7 +38,7 @@ enum SneakContentType: Equatable {
     case capsLock
 }
 
-struct sneakPeek {
+struct SneakPeek {
     var show: Bool = false
     var type: SneakContentType = .music
     var value: CGFloat = 0
@@ -62,7 +62,7 @@ class DynamicIslandViewCoordinator: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var hoverOpenSuppressedUntil: Date = .distantPast
     
-    private static let tabOrder: [NotchViews] = [.home, .shelf, .timer, .stats, .agents, .colorPicker]
+    private static let tabOrder: [NotchViews] = [.home, .shelf, .timer, .stats, .agents, .extraSpace, .colorPicker]
     
     /// Direction of the most recent tab switch (true = forward/right, false = backward/left)
     @Published var tabSwitchForward: Bool = true
@@ -87,7 +87,6 @@ class DynamicIslandViewCoordinator: ObservableObject {
     
     
     @AppStorage("firstLaunch") var firstLaunch: Bool = true
-    @AppStorage("showWhatsNew") var showWhatsNew: Bool = true
     @AppStorage("musicLiveActivityEnabled") var musicLiveActivityEnabled: Bool = true
     @AppStorage("timerLiveActivityEnabled") var timerLiveActivityEnabled: Bool = true
 
@@ -144,6 +143,16 @@ class DynamicIslandViewCoordinator: ObservableObject {
             }
             .store(in: &cancellables)
 
+        Defaults.publisher(.enableExtraSpaceFeature)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] change in
+                guard let self, !change.newValue else { return }
+                if self.currentView == .extraSpace { self.currentView = .home }
+                if self.lastActiveView == .extraSpace { self.lastActiveView = .home }
+                if Defaults[.shortcutDefaultTab] == .extraSpace { Defaults[.shortcutDefaultTab] = .lastActive }
+            }
+            .store(in: &cancellables)
+
         // Observe all tab-affecting settings to enforce minimum notch width
         Publishers.MergeMany(
             Defaults.publisher(.showStandardMediaControls).map { _ in () }.eraseToAnyPublisher(),
@@ -153,7 +162,8 @@ class DynamicIslandViewCoordinator: ObservableObject {
             Defaults.publisher(.enableTimerFeature).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.timerDisplayMode).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.enableStatsFeature).map { _ in () }.eraseToAnyPublisher(),
-            Defaults.publisher(.enableAgentsFeature).map { _ in () }.eraseToAnyPublisher()
+            Defaults.publisher(.enableAgentsFeature).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.enableExtraSpaceFeature).map { _ in () }.eraseToAnyPublisher()
         )
         .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
         .sink { _ in
@@ -260,7 +270,7 @@ class DynamicIslandViewCoordinator: ObservableObject {
         }
     }
     
-    @Published var sneakPeek: sneakPeek = .init() {
+    @Published var sneakPeek: SneakPeek = .init() {
         didSet {
             if sneakPeek.show {
                 scheduleSneakPeekHide(after: sneakPeekDuration)

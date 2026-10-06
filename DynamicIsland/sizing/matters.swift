@@ -144,6 +144,10 @@ func enabledStandardTabCount() -> Int {
         count += 1
     }
 
+    if Defaults[.enableExtraSpaceFeature] {
+        count += 1
+    }
+
     return count
 }
 

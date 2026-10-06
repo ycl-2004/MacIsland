@@ -360,14 +360,32 @@ struct DynamicIslandBatteryView: View {
 }
 
 
-private struct BatteryTemporaryHUDMetrics {
+/// The frame and corner radii a temporary battery HUD draws at. ContentView's
+/// layout frame and AppDelegate's window size read the same numbers, so the
+/// hover area and the window always cover what is drawn.
+struct BatteryTemporaryHUDMetrics: Equatable {
     let width: CGFloat
     let height: CGFloat
     let topRadius: CGFloat
     let bottomRadius: CGFloat
+
+    var size: CGSize { CGSize(width: width, height: height) }
 }
 
-private extension BatteryTemporaryHUDKind {
+extension BatteryTemporaryHUDKind {
+    /// Charging always uses the compact strip; the two alerts follow their
+    /// own style settings.
+    func style(
+        lowBattery: BatteryNotificationStyle,
+        fullBattery: BatteryNotificationStyle
+    ) -> BatteryNotificationStyle {
+        switch self {
+        case .charging: return .compact
+        case .lowBattery: return lowBattery
+        case .fullBattery: return fullBattery
+        }
+    }
+
     func metrics(
         style: BatteryNotificationStyle,
         closedNotchWidth: CGFloat,
@@ -454,30 +472,12 @@ struct BatteryTemporaryActivityView: View {
     let baseHeight: CGFloat
     let isDynamicIslandMode: Bool
     let topCornerRadius: CGFloat
-    @Default(.lowBatteryHUDStyle) var lowBatteryHUDStyle
-    @Default(.fullBatteryHUDStyle) var fullBatteryHUDStyle
-    var styleOverride: BatteryNotificationStyle? = nil
+    /// Resolved by the caller with `BatteryTemporaryHUDKind.style(lowBattery:fullBattery:)`.
+    let style: BatteryNotificationStyle
 
     @State private var pulse = false
     @State private var showBatteryIndicator = false
     @State private var changeBatteryIndicator = true
-
-    private var style: BatteryNotificationStyle {
-        if kind == .charging {
-            return .compact
-        }
-        if let styleOverride {
-            return styleOverride
-        }
-        switch kind {
-        case .charging:
-            return .compact
-        case .lowBattery:
-            return lowBatteryHUDStyle
-        case .fullBattery:
-            return fullBatteryHUDStyle
-        }
-    }
 
     private var metrics: BatteryTemporaryHUDMetrics {
         kind.metrics(

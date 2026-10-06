@@ -21,7 +21,7 @@ struct AgentConversationView: View {
 
     private var session: AgentSession? { store.session(id: sessionID) }
     private var draft: Binding<String> {
-        Binding(get: { service.drafts[sessionID] ?? "" }, set: { service.drafts[sessionID] = $0 })
+        Binding(get: { service.drafts[sessionID] ?? "" }, set: { service.setDraft($0, for: sessionID) })
     }
     private var isSending: Bool { service.sending.contains(sessionID) }
     private var isUncertain: Bool { service.uncertainIDs.contains(sessionID) && !isSending }

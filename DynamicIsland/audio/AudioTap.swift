@@ -30,7 +30,9 @@ import os.log
 private let audioTapLog = OSLog(subsystem: "com.atoll.dynamicisland", category: "AudioTap")
 
 // Debug: track callback invocations
+#if DEBUG
 private var callbackCount: Int = 0
+#endif
 
 // CoreAudio fires this on a high-priority background real-time thread.
 let audioIOProc: AudioDeviceIOProc = {
@@ -53,17 +55,19 @@ let audioIOProc: AudioDeviceIOProc = {
         // Pass the mono array directly to C++
         scanner.bridge.processBuffer(floatData, count: floatCount)
         
+#if DEBUG
         // Debug: log periodically with audio level info
         callbackCount += 1
         if callbackCount % 1000 == 0 {
             // Calculate max absolute value in buffer to check if audio is present
             var maxVal: Float = 0.0
-            for i in 0..<Int(floatCount) {
-                let absVal = abs(floatData[i])
+            for sampleIndex in 0..<Int(floatCount) {
+                let absVal = abs(floatData[sampleIndex])
                 if absVal > maxVal { maxVal = absVal }
             }
             os_log(.debug, log: audioTapLog, "🔊 Audio callback fired %d times, buffer size: %d, max amplitude: %f", callbackCount, floatCount, maxVal)
         }
+#endif
     }
 
     return noErr
@@ -150,9 +154,9 @@ class AudioTap: NSObject {
         
         let smoothingFactor: Float = 0.4
         
-        for i in 0..<min(targetLevels.count, displayMagnitudes.count) {
-            let difference = targetLevels[i] - displayMagnitudes[i]
-            displayMagnitudes[i] += difference * smoothingFactor
+        for index in 0..<min(targetLevels.count, displayMagnitudes.count) {
+            let difference = targetLevels[index] - displayMagnitudes[index]
+            displayMagnitudes[index] += difference * smoothingFactor
         }
     }
 
@@ -171,12 +175,9 @@ class AudioTap: NSObject {
     
     private func startCaptureSync() {
         guard !captureIsRunning else {
-            print("⚠️ [AudioTap] Capture already running, skipping start")
+            debugLog("⚠️ [AudioTap] Capture already running, skipping start")
             return
         }
-
-        var targetProcessObjects = Set<AudioObjectID>()
-        var bundleIdentifierByProcessObject: [AudioObjectID: String] = [:]
 
         // AirPods/Bluetooth output + Spotify don't mix: process-tapping Spotify into our
         // private aggregate device disturbs the system Now Playing / AVRCP session, so the
@@ -186,54 +187,12 @@ class AudioTap: NSObject {
         // active, skip tapping Spotify to preserve media control — the visualizer stays live
         // for Spotify on wired/built-in output and for every other app on any output.
         let bluetoothOutputActive = AudioRouteManager.shared.isDefaultOutputBluetooth()
-
-        // Enumerate CoreAudio's process objects rather than relying only on
-        // NSRunningApplication. Electron players commonly render and play from
-        // nested helpers; TIDAL, for example, emits audio from
-        // `com.tidal.desktop.player`, while its main app PID has no audio object.
-        for processObject in getAudioProcessObjectIDs() {
-            guard let processBundleIdentifier = getBundleIdentifier(for: processObject),
-                  let targetBundleIdentifier = AudioTapTargetMatcher.targetBundleIdentifier(
-                    for: processBundleIdentifier,
-                    among: targetBundleIDs
-                  ) else {
-                continue
-            }
-
-            if shouldSkipSpotifyTap(
-                bundleIdentifier: targetBundleIdentifier,
-                bluetoothOutputActive: bluetoothOutputActive
-            ) {
-                print("⏭️ [AudioTap] Bluetooth output active — skipping Spotify tap to preserve AirPods media control")
-                continue
-            }
-
-            targetProcessObjects.insert(processObject)
-            bundleIdentifierByProcessObject[processObject] = processBundleIdentifier
-            let pidDescription = getPID(for: processObject).map(String.init) ?? "unknown"
-            print("🎯 [AudioTap] Found audio process \(processBundleIdentifier) with PID: \(pidDescription), AudioObjectID: \(processObject)")
-        }
-
-        // Preserve the previous PID translation as a fallback for applications
-        // whose CoreAudio process does not publish a bundle identifier.
-        for app in NSWorkspace.shared.runningApplications {
-            guard let bundleIdentifier = app.bundleIdentifier,
-                  targetBundleIDs.contains(bundleIdentifier) else { continue }
-            if shouldSkipSpotifyTap(
-                bundleIdentifier: bundleIdentifier,
-                bluetoothOutputActive: bluetoothOutputActive
-            ) {
-                continue
-            }
-            if let processObject = getAudioObjectID(for: app.processIdentifier),
-               targetProcessObjects.insert(processObject).inserted {
-                bundleIdentifierByProcessObject[processObject] = bundleIdentifier
-                print("🎯 [AudioTap] Found \(app.localizedName ?? "App") with PID: \(app.processIdentifier), AudioObjectID: \(processObject)")
-            }
-        }
+        let targets = collectTapTargets(bluetoothOutputActive: bluetoothOutputActive)
+        let targetProcessObjects = targets.processes
+        let bundleIdentifierByProcessObject = targets.bundleIdentifiers
 
         if targetProcessObjects.isEmpty {
-            print("⚠️ [AudioTap] None of our target apps are running right now.")
+            debugLog("⚠️ [AudioTap] None of our target apps are running right now.")
             return
         }
 
@@ -250,15 +209,15 @@ class AudioTap: NSObject {
         description.isMixdown = true
         description.isMono = true
         
-        print("📋 [AudioTap] Creating tap for \(sortedTargetProcessObjects.count) processes: \(sortedTargetProcessObjects)")
+        debugLog("📋 [AudioTap] Creating tap for \(sortedTargetProcessObjects.count) processes: \(sortedTargetProcessObjects)")
 
         tapID = AudioObjectID(kAudioObjectUnknown)
         var status = AudioHardwareCreateProcessTap(description, &tapID)
         guard status == noErr else {
-            print("🛑 [AudioTap] Tap Error: \(status) (\(fourCharCodeToString(status)))")
+            Logger.log("[AudioTap] Tap Error: \(status) (\(fourCharCodeToString(status)))", category: .error)
             return
         }
-        print("✅ [AudioTap] Created process tap with ID: \(tapID)")
+        debugLog("✅ [AudioTap] Created process tap with ID: \(tapID)")
 
         // Get the tap's unique hardware UID
         var tapUID: CFString = "" as CFString
@@ -273,11 +232,11 @@ class AudioTap: NSObject {
             AudioObjectGetPropertyData(tapID, &propertyAddress, 0, nil, &propertySize, uidPtr)
         }
         guard status == noErr else {
-            print("🛑 [AudioTap] UID Error: \(status) (\(fourCharCodeToString(status)))")
+            Logger.log("[AudioTap] UID Error: \(status) (\(fourCharCodeToString(status)))", category: .error)
             cleanupPartialSetup()
             return
         }
-        print("✅ [AudioTap] Got tap UID: \(tapUID)")
+        debugLog("✅ [AudioTap] Got tap UID: \(tapUID)")
 
         // Create the Aggregate Device (a "virtual microphone" that we can route the tap into)
         let tapList = [[kAudioSubTapUIDKey: tapUID]]
@@ -292,33 +251,35 @@ class AudioTap: NSObject {
         status = AudioHardwareCreateAggregateDevice(
             aggregateDict as CFDictionary, &aggregateDeviceID)
         guard status == noErr else {
-            print("🛑 [AudioTap] Aggregate Error: \(status) (\(fourCharCodeToString(status)))")
+            Logger.log("[AudioTap] Aggregate Error: \(status) (\(fourCharCodeToString(status)))", category: .error)
             cleanupPartialSetup()
             return
         }
-        print("✅ [AudioTap] Created aggregate device with ID: \(aggregateDeviceID)")
+        debugLog("✅ [AudioTap] Created aggregate device with ID: \(aggregateDeviceID)")
 
         // Bind the Callback to the device
         let selfPointer = Unmanaged.passUnretained(self).toOpaque()
         status = AudioDeviceCreateIOProcID(aggregateDeviceID, audioIOProc, selfPointer, &ioProcID)
 
         guard status == noErr, let validIOProcID = ioProcID else {
-            print("🛑 [AudioTap] IOProc Error: \(status) (\(fourCharCodeToString(status)))")
+            Logger.log("[AudioTap] IOProc Error: \(status) (\(fourCharCodeToString(status)))", category: .error)
             cleanupPartialSetup()
             return
         }
-        print("✅ [AudioTap] Created IO proc")
+        debugLog("✅ [AudioTap] Created IO proc")
 
         // Start listening
         status = AudioDeviceStart(aggregateDeviceID, validIOProcID)
         guard status == noErr else {
-            print("🛑 [AudioTap] Start Error: \(status) (\(fourCharCodeToString(status)))")
+            Logger.log("[AudioTap] Start Error: \(status) (\(fourCharCodeToString(status)))", category: .error)
             cleanupPartialSetup()
             return
         }
 
         captureIsRunning = true
+#if DEBUG
         callbackCount = 0
+#endif
         
         DispatchQueue.main.async { [weak self] in
             self?.updateTimer?.invalidate()
@@ -327,7 +288,61 @@ class AudioTap: NSObject {
             self?.updateTimer = timer
         }
         
-        print("🟢 [AudioTap] CoreAudio CATap flowing through Aggregate Device!")
+        debugLog("🟢 [AudioTap] CoreAudio CATap flowing through Aggregate Device!")
+    }
+
+    /// CoreAudio process objects worth tapping, with their bundle identifiers.
+    ///
+    /// Electron players commonly render and play from nested helpers; TIDAL,
+    /// for example, emits audio from `com.tidal.desktop.player`, while its main
+    /// app PID has no audio object. CoreAudio process objects are enumerated
+    /// directly, and NSRunningApplication keeps the previous PID translation
+    /// as a fallback for applications whose CoreAudio process does not publish
+    /// a bundle identifier.
+    private func collectTapTargets(bluetoothOutputActive: Bool)
+        -> (processes: Set<AudioObjectID>, bundleIdentifiers: [AudioObjectID: String]) {
+        var processes = Set<AudioObjectID>()
+        var bundleIdentifiers: [AudioObjectID: String] = [:]
+
+        for processObject in getAudioProcessObjectIDs() {
+            guard let processBundleIdentifier = getBundleIdentifier(for: processObject),
+                  let targetBundleIdentifier = AudioTapTargetMatcher.targetBundleIdentifier(
+                    for: processBundleIdentifier,
+                    among: targetBundleIDs
+                  ) else {
+                continue
+            }
+
+            if shouldSkipSpotifyTap(
+                bundleIdentifier: targetBundleIdentifier,
+                bluetoothOutputActive: bluetoothOutputActive
+            ) {
+                debugLog("⏭️ [AudioTap] Bluetooth output active — skipping Spotify tap to preserve AirPods media control")
+                continue
+            }
+
+            processes.insert(processObject)
+            bundleIdentifiers[processObject] = processBundleIdentifier
+            debugLog("🎯 [AudioTap] Found audio process \(processBundleIdentifier) with PID: \(getPID(for: processObject).map(String.init) ?? "unknown"), AudioObjectID: \(processObject)")
+        }
+
+        for app in NSWorkspace.shared.runningApplications {
+            guard let bundleIdentifier = app.bundleIdentifier,
+                  targetBundleIDs.contains(bundleIdentifier) else { continue }
+            if shouldSkipSpotifyTap(
+                bundleIdentifier: bundleIdentifier,
+                bluetoothOutputActive: bluetoothOutputActive
+            ) {
+                continue
+            }
+            if let processObject = getAudioObjectID(for: app.processIdentifier),
+               processes.insert(processObject).inserted {
+                bundleIdentifiers[processObject] = bundleIdentifier
+                debugLog("🎯 [AudioTap] Found \(app.localizedName ?? "App") with PID: \(app.processIdentifier), AudioObjectID: \(processObject)")
+            }
+        }
+
+        return (processes, bundleIdentifiers)
     }
 
     private func shouldSkipSpotifyTap(
@@ -365,7 +380,7 @@ class AudioTap: NSObject {
         // Debounce: wait 500ms before actually restarting
         let workItem = DispatchWorkItem { [weak self] in
             self?.audioQueue.async {
-                print("🔄 [AudioTap] Restarting capture...")
+                debugLog("🔄 [AudioTap] Restarting capture...")
                 self?.stopCaptureSync()
                 // Small delay to let CoreAudio fully release resources
                 Thread.sleep(forTimeInterval: 0.1)
@@ -373,7 +388,7 @@ class AudioTap: NSObject {
                 // waveform can be switched off during the debounce window, and a stale
                 // restart must not bring capture back up behind the user's back.
                 guard Defaults[.enableRealTimeWaveform] else {
-                    print("⏹️ [AudioTap] Waveform disabled during restart, staying stopped")
+                    debugLog("⏹️ [AudioTap] Waveform disabled during restart, staying stopped")
                     return
                 }
                 self?.startCaptureSync()
@@ -424,7 +439,7 @@ class AudioTap: NSObject {
             self?.displayMagnitudes = Array(repeating: 0, count: 6)
         }
 
-        print("🔴 [AudioTap] CoreAudio CATap capture stopped")
+        debugLog("🔴 [AudioTap] CoreAudio CATap capture stopped")
     }
     
     var isCapturing: Bool {

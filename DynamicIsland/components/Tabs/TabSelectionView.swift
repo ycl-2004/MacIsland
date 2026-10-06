@@ -39,6 +39,7 @@ struct TabSelectionView: View {
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableAgentsFeature) private var enableAgentsFeature
+    @Default(.enableExtraSpaceFeature) private var enableExtraSpaceFeature
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
     @Default(.timerDisplayMode) var timerDisplayMode
     @Default(.showCalendar) private var showCalendar
@@ -71,6 +72,9 @@ struct TabSelectionView: View {
 
         if enableAgentsFeature {
             tabsArray.append(TabModel(label: "Agents", icon: "sparkles", view: .agents))
+        }
+        if enableExtraSpaceFeature {
+            tabsArray.append(TabModel(label: "Extra Space", icon: "text.alignleft", view: .extraSpace))
         }
         return SavedRowOrder.apply(tabOrder, to: tabsArray, key: \.orderKey)
     }

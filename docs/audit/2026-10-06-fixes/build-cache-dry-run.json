@@ -1,0 +1,28 @@
+{
+  "mode": "dry-run",
+  "kept_test_results": 3,
+  "kept_installed_backups": 2,
+  "candidates": [
+    {
+      "path": "Build/InstalledBackups/20261006-083717",
+      "allocated_KiB": 53592,
+      "action": "candidate"
+    },
+    {
+      "path": "Build/InstalledBackups/20261005-104245",
+      "allocated_KiB": 53876,
+      "action": "candidate"
+    },
+    {
+      "path": "Build/InstalledBackups/20261005-102936",
+      "allocated_KiB": 55620,
+      "action": "candidate"
+    }
+  ],
+  "untouched": [
+    "SourcePackages",
+    "current builds",
+    "app content",
+    "git data"
+  ]
+}

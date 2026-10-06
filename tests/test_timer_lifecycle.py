@@ -41,6 +41,7 @@ class TimerLifecycleTests(unittest.TestCase):
     def test_chosen_sound_is_kept_as_atolls_own_copy(self):
         run_swift_regression(
             "DynamicIsland/managers/TimerSoundStore.swift",
+            "DynamicIsland/utils/PrivateContentFile.swift",
             "tests/TimerSoundStoreRegression.swift",
         )
 

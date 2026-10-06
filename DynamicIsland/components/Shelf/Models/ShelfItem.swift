@@ -66,6 +66,10 @@ enum ShelfItemKind: Codable, Equatable, Sendable {
 @MainActor
 struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
+    var storageTextBytes: Int {
+        if case .text(let text) = kind { return text.utf8.count }
+        return 0
+    }
     var kind: ShelfItemKind
     var isTemporary: Bool
     // Cached display name and icon to avoid blocking on bookmark resolution

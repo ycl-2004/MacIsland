@@ -1,0 +1,227 @@
+{
+  "repository": "cshariq/Sapphire",
+  "commit": "dac4dd52e12cc419c28ebea0664ed1412a44f1e8",
+  "files": [
+    {
+      "path": "LICENSE",
+      "bytes": 34523,
+      "lines": 661,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/LICENSE",
+      "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+    },
+    {
+      "path": "CREDITS.md",
+      "bytes": 13302,
+      "lines": 264,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/CREDITS.md",
+      "sha256": "0e752c3d4eeb7b910188d22036f9cf9d7fd79782fcb8dc13409c979eb83e30f1"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5529,
+      "lines": 102,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/README.md",
+      "sha256": "2006b8c3d2a40443d6f62812aae23511daf9d1474f947c721eeef4ef588aa13b"
+    },
+    {
+      "path": "Sapphire/Notch/WidgetLayoutPolicy.swift",
+      "bytes": 3331,
+      "lines": 104,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Notch/WidgetLayoutPolicy.swift",
+      "sha256": "728f2ed00b07a6609bac1e7a7cbc96642e8b951db0588dfbaf48980d9d8547f8"
+    },
+    {
+      "path": "Sapphire/Notch/NotchRuntimeState.swift",
+      "bytes": 2438,
+      "lines": 85,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Notch/NotchRuntimeState.swift",
+      "sha256": "668e7e53ebba5c4f523ec64e01de5b573a1c6defcee6c0ae3c0d3d715d8c430b"
+    },
+    {
+      "path": "Sapphire/Notch/NotchHoverMonitor.swift",
+      "bytes": 34580,
+      "lines": 911,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Notch/NotchHoverMonitor.swift",
+      "sha256": "571eea26426c6b6f8adf5beb48cb59621320ecbf7cdf9f14c654233000eea0e2"
+    },
+    {
+      "path": "Sapphire/Notch/HiddenNotchRevealMonitor.swift",
+      "bytes": 4014,
+      "lines": 100,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Notch/HiddenNotchRevealMonitor.swift",
+      "sha256": "dece5dfc6a613a3484d24759b936c0d985e72a46ea1f7721a831e9bd4ae19c6a"
+    },
+    {
+      "path": "Sapphire/LiveActivities/ActivityType.swift",
+      "bytes": 2824,
+      "lines": 95,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/LiveActivities/ActivityType.swift",
+      "sha256": "70e0ce19409b2a560e2efba579974edf801279f6a50ed78123c1560d415e66e5"
+    },
+    {
+      "path": "Sapphire/LiveActivities/LiveActivityRegistry.swift",
+      "bytes": 3288,
+      "lines": 105,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/LiveActivities/LiveActivityRegistry.swift",
+      "sha256": "c5ec39b392a439cf6a561e16eb15561b06aa02c1ef0a49971a2f9ed7be1f66a2"
+    },
+    {
+      "path": "Sapphire/Services/DevActivity/DevActivityMonitor.swift",
+      "bytes": 7429,
+      "lines": 250,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/DevActivity/DevActivityMonitor.swift",
+      "sha256": "152abd5388fbb0020977bae17522468ccd0a44ac533dbd71e21bae1b874d10f1"
+    },
+    {
+      "path": "Sapphire/Services/DevActivity/DevActivityScanEngine.swift",
+      "bytes": 14229,
+      "lines": 398,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/DevActivity/DevActivityScanEngine.swift",
+      "sha256": "68871c756fee380d17e8bffda6181a6d8034b6258d992a79be99a75b79631b74"
+    },
+    {
+      "path": "Sapphire/Services/DevActivity/DevAgentSessionActivity.swift",
+      "bytes": 4872,
+      "lines": 143,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/DevActivity/DevAgentSessionActivity.swift",
+      "sha256": "652949e9597977129eacdb3f5d712cbc930bf8a557ec328a2495b02993f37439"
+    },
+    {
+      "path": "Sapphire/Services/DevActivity/DevProcessScanner.swift",
+      "bytes": 8377,
+      "lines": 232,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/DevActivity/DevProcessScanner.swift",
+      "sha256": "871714df7c5efc6f591115ed0d11687576fca086632740e883da4034de50b0aa"
+    },
+    {
+      "path": "Sapphire/Services/Notes/NotesManager.swift",
+      "bytes": 4046,
+      "lines": 132,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/Notes/NotesManager.swift",
+      "sha256": "1baa35eafb624dc951706b398c4cebd5d0a89a150950df47a43ae8a6985341d2"
+    },
+    {
+      "path": "Sapphire/Widgets/Notes/NotesWidgetView.swift",
+      "bytes": 11408,
+      "lines": 309,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Widgets/Notes/NotesWidgetView.swift",
+      "sha256": "1e6e83dcce0cd132b7bb22c2cbc7929babedb07642b3407099ade870e10c6bab"
+    },
+    {
+      "path": "Sapphire/Services/Clipboard/ClipboardManager.swift",
+      "bytes": 27583,
+      "lines": 708,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/Clipboard/ClipboardManager.swift",
+      "sha256": "6914dea8c21fff8c71e7eab8db91ce70596e801a58d146068f40680f839c7e87"
+    },
+    {
+      "path": "Sapphire/Services/Miscellaneous/EyeBreakManager.swift",
+      "bytes": 11528,
+      "lines": 359,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/Miscellaneous/EyeBreakManager.swift",
+      "sha256": "3c6593cf6231b79a67905f6f2826d0083ddbbd9bf36a7e7a4459c6a98dcb6226"
+    },
+    {
+      "path": "Sapphire/Services/System/CaffeinateManager.swift",
+      "bytes": 23555,
+      "lines": 667,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Services/System/CaffeinateManager.swift",
+      "sha256": "4a7c18c6ac268210a21cdef4106776b005547659fee46a5d4140fc028adf97ba"
+    },
+    {
+      "path": "Sapphire/App Settings/DevActivitySettingsView.swift",
+      "bytes": 12710,
+      "lines": 325,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/App%20Settings/DevActivitySettingsView.swift",
+      "sha256": "5c92ac1412d06880e6660c987bbdba358f41ea584172cec15b7e10414695ce2f"
+    },
+    {
+      "path": "Sapphire/App Settings/DataViewerView.swift",
+      "bytes": 11875,
+      "lines": 395,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/App%20Settings/DataViewerView.swift",
+      "sha256": "e590b74144a61a55dbfcfaebbaa007270b00e4bedb8f0873e9955a627b5e6c58"
+    },
+    {
+      "path": "Sapphire/App Settings/SettingsSidebar.swift",
+      "bytes": 9650,
+      "lines": 233,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/App%20Settings/SettingsSidebar.swift",
+      "sha256": "c131cadf0624ff23beaccd3a754a97699ebf8a535e6827f693883e5ee761ee47"
+    },
+    {
+      "path": "Sapphire/Stubs/BlipHubView.swift",
+      "bytes": 573,
+      "lines": 25,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Stubs/BlipHubView.swift",
+      "sha256": "33bd9937a789227a130a140316467b469fd5c107607b9354b9658b920e5dc4b2"
+    },
+    {
+      "path": "Sapphire/Stubs/IntelligenceNotchView.swift",
+      "bytes": 580,
+      "lines": 25,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Stubs/IntelligenceNotchView.swift",
+      "sha256": "a26c9bac02c761ed54a95e881d67cae7690ba3e51a8a38aa7c323c5e9828b4e1"
+    },
+    {
+      "path": "Sapphire/Stubs/IntelligenceNotchViewModel.swift",
+      "bytes": 1098,
+      "lines": 41,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire/Stubs/IntelligenceNotchViewModel.swift",
+      "sha256": "c13bfc425a3600b6a2b114ba42a8cde72dab9bde469f22b61b60c20a65ada111"
+    },
+    {
+      "path": "Sapphire.xcodeproj/project.pbxproj",
+      "bytes": 145743,
+      "lines": 2607,
+      "url": "https://raw.githubusercontent.com/cshariq/Sapphire/dac4dd52e12cc419c28ebea0664ed1412a44f1e8/Sapphire.xcodeproj/project.pbxproj",
+      "sha256": "fdb65e52375aba8a05a1f066f8572977ea757a0dbec2c1b409b7f241caa90836"
+    }
+  ],
+  "review_date": "2026-10-06",
+  "method": "Official pages, repositories and releases; targeted read-only source inspection; no competitor binaries installed, built or executed.",
+  "landscape_products": 20,
+  "requirements_completed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "local_sources": [
+    "docs/project-audit-fixes-2026-10-06.md",
+    "docs/architecture.md",
+    "docs/extra-space.md",
+    "DynamicIsland/components/Tabs/TabSelectionView.swift",
+    "DynamicIsland/models/Constants.swift",
+    "DynamicIsland/components/Settings/SettingsView.swift",
+    "DynamicIsland/components/Calendar/DynamicIslandCalendar.swift",
+    "DynamicIsland/components/ExtraSpace/ExtraSpaceScrollView.swift",
+    "DynamicIsland/Shortcuts/ShortcutConstants.swift"
+  ],
+  "information_gaps": [
+    "NotchNook current official website could not be fetched; English Setapp route redirects to all-apps directory.",
+    "No same-hardware competitor performance benchmarks.",
+    "Sapphire public source inspection is a sample, not a full audit of the shipping binary.",
+    "Sapphire v3.4 is a prerelease; public non-FULL_BUILD source includes Blip/Intelligence stubs."
+  ],
+  "verified_status_sources": [
+    {
+      "name": "Sapphire release channel",
+      "url": "https://github.com/cshariq/Sapphire/releases",
+      "observation": "v3.4 prerelease; v3.0 marked latest in fetched release page"
+    },
+    {
+      "name": "Alcove release repository",
+      "url": "https://github.com/henrikruscon/alcove-releases",
+      "observation": "Repository archived 2026-06-01; it is not product source code"
+    },
+    {
+      "name": "Droppy current commercial terms",
+      "url": "https://getdroppy.app/docs/license",
+      "observation": "Official current page lists paid license and trial; old source/forks must not be treated as shipping product"
+    }
+  ],
+  "report_sha256": "2e541c847632b775a45f84ced8060c1d27a7748604e922a400327fba1c4891fa"
+}

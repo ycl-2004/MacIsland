@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-struct AntigravityAgentSource: AgentSource {
+struct AntigravityAgentSource: HookConfigAgentSource {
     let id = "agy"
     let displayName = "Antigravity"
     let symbolName = "atom"

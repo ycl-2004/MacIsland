@@ -56,3 +56,17 @@
 }
 
 @end
+
+#include <atomic>
+static_assert(std::atomic<float>::is_always_lock_free, "Audio gain must be lock-free");
+@implementation AtollAtomicFloat {
+    std::atomic<float> gain;
+}
+- (instancetype)init {
+    self = [super init];
+    if (self) { gain.store(1.0f, std::memory_order_relaxed); }
+    return self;
+}
+- (float)value { return gain.load(std::memory_order_relaxed); }
+- (void)setValue:(float)value { gain.store(value, std::memory_order_relaxed); }
+@end

@@ -38,10 +38,12 @@ final class AppVolumeTap {
     let processObjectIDs: [AudioObjectID]
     let outputDeviceUID: String
 
-    /// Linear gain, 0...1. Read on the realtime thread, written from the main
-    /// thread; a 32-bit aligned store cannot tear on arm64, so the realtime
-    /// side always observes either the old or the new value, never a mix.
-    nonisolated(unsafe) var gain: Float = 1.0
+    /// The realtime callback uses one lock-free atomic load per buffer.
+    private let gainStorage = AtollAtomicFloat()
+    var gain: Float {
+        get { gainStorage.value }
+        set { gainStorage.value = newValue }
+    }
 
     /// Gain actually applied to the last sample of the previous buffer.
     ///

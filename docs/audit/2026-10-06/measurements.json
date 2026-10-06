@@ -1,0 +1,174 @@
+{
+  "baseline_commit": "27efb914a30a55391d28d6678354183d58d277a0",
+  "worktree": "pre-existing dirty; this audit adds documentation and read-only probes only",
+  "storage_snapshot": [
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build",
+      "allocated_KiB": 2886132
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug",
+      "allocated_KiB": 158400
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release",
+      "allocated_KiB": 183696
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups",
+      "allocated_KiB": 270976
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/SourcePackages",
+      "allocated_KiB": 490780
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Intermediates.noindex",
+      "allocated_KiB": 585124
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Logs",
+      "allocated_KiB": 147540
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/.git",
+      "allocated_KiB": 182244
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/DynamicIsland",
+      "allocated_KiB": 15524
+    },
+    {
+      "path": "/Applications/Atoll.app",
+      "allocated_KiB": 54012
+    },
+    {
+      "path": "/Users/yichenlin/Library/Application Support/Atoll",
+      "allocated_KiB": 48,
+      "immediate_children": [
+        {
+          "name": "AgentBridge",
+          "mode": "0o700",
+          "allocated_KiB": 44
+        },
+        {
+          "name": "ExtraSpace",
+          "mode": "0o755",
+          "allocated_KiB": 4
+        }
+      ]
+    },
+    {
+      "path": "/Users/yichenlin/Library/Application Support/DynamicIsland",
+      "allocated_KiB": 9196,
+      "immediate_children": [
+        {
+          "name": "TimerSounds",
+          "mode": "0o755",
+          "allocated_KiB": 9196
+        }
+      ]
+    },
+    {
+      "path": "/Users/yichenlin/Library/Caches/com.ebullioscopic.Atoll",
+      "allocated_KiB": 80
+    },
+    {
+      "extra_space_metadata_only": true,
+      "bytes": 114,
+      "mode": "0o644"
+    }
+  ],
+  "temporary_storage": {
+    "root": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/Atoll",
+    "children": []
+  },
+  "runtime_samples": [
+    {
+      "sample": 0,
+      "pid": "95411",
+      "utc": "2026-10-06T21:25:29Z",
+      "ps": "95411   0.1 113872 01:29:07   1:45.95 S"
+    },
+    {
+      "sample": 1,
+      "pid": "95411",
+      "utc": "2026-10-06T21:25:34Z",
+      "ps": "95411   0.5 113824 01:29:12   1:46.05 S"
+    },
+    {
+      "sample": 2,
+      "pid": "95411",
+      "utc": "2026-10-06T21:25:39Z",
+      "ps": "95411   3.7 114080 01:29:17   1:46.51 S"
+    },
+    {
+      "sample": 3,
+      "pid": "95411",
+      "utc": "2026-10-06T21:25:44Z",
+      "ps": "95411   1.4 113200 01:29:22   1:46.64 S"
+    },
+    {
+      "sample": 4,
+      "pid": "95411",
+      "utc": "2026-10-06T21:25:49Z",
+      "ps": "95411   3.4 113168 01:29:27   1:46.68 S"
+    },
+    {
+      "sample": 5,
+      "pid": "95411",
+      "utc": "2026-10-06T21:25:54Z",
+      "ps": "95411   0.1 113552 01:29:32   1:46.92 S"
+    },
+    {
+      "sample": 6,
+      "pid": "95411",
+      "utc": "2026-10-06T21:25:59Z",
+      "ps": "95411   0.0 113568 01:29:37   1:46.94 S"
+    },
+    {
+      "sample": 7,
+      "pid": "95411",
+      "utc": "2026-10-06T21:26:04Z",
+      "ps": "95411   5.2 113808 01:29:42   1:47.00 S"
+    },
+    {
+      "sample": 8,
+      "pid": "95411",
+      "utc": "2026-10-06T21:26:09Z",
+      "ps": "95411   0.4 113872 01:29:47   1:47.21 S"
+    },
+    {
+      "sample": 9,
+      "pid": "95411",
+      "utc": "2026-10-06T21:26:14Z",
+      "ps": "95411   0.9 114144 01:29:52   1:47.37 S"
+    }
+  ],
+  "ioreg_metadata": {
+    "exit": 0,
+    "output_bytes": 0,
+    "stderr_bytes": 0,
+    "elapsed_seconds": 0.014,
+    "sandbox": "escalated_read_only"
+  },
+  "xctest_summary": {
+    "result": "Passed",
+    "passedTests": 149,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "runtimeWarnings": [],
+    "totalTestCount": 149,
+    "environmentDescription": "DynamicIsland · Built with macOS 27.0.1"
+  },
+  "python_checks": {
+    "count": 7,
+    "result": "passed",
+    "log": "/tmp/atoll-audit-python-tests.log"
+  },
+  "source_hashes": {
+    "DynamicIsland/managers/Agents/AgentSession.swift": "9f255db540a158f7181b3721fce44bf2a279149a59b03c6500d1b1b40aa38e8b",
+    "DynamicIsland/managers/Agents/AgentSessionStore.swift": "184310a35e96080d7ab86c0acaee2acf120b0099ec2741dff855d9c0b21148ff",
+    "DynamicIsland/MediaControllers/NowPlayingController.swift": "00dc2e4db67c43d766d4b2f53cad383eb557ecb9c4487bf563b743af2a54c65f"
+  }
+}

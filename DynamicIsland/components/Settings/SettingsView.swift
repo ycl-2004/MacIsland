@@ -58,6 +58,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case battery
     case stats
     case colorPicker
+    case extraSpace
     case downloads
     case shelf
     case shortcuts
@@ -72,7 +73,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
         case .timer, .calendar:                                              return .productivity
-        case .colorPicker, .shelf,
+        case .colorPicker, .extraSpace, .shelf,
              .downloads, .shortcuts:                                         return .utilities
         case .stats:                                                         return .developer
         case .agents:                                                        return .integrations
@@ -95,6 +96,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .battery: return String(localized: "Battery")
         case .stats: return String(localized: "Stats")
         case .colorPicker: return String(localized: "Color Picker")
+        case .extraSpace: return String(localized: "Extra Space")
         case .downloads: return String(localized: "Downloads")
         case .shelf: return String(localized: "Shelf")
         case .shortcuts: return String(localized: "Shortcuts")
@@ -117,6 +119,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .battery: return "battery.100.bolt"
         case .stats: return "chart.xyaxis.line"
         case .colorPicker: return "eyedropper"
+        case .extraSpace: return "text.alignleft"
         case .downloads: return "square.and.arrow.down"
         case .shelf: return "books.vertical"
         case .shortcuts: return "keyboard"
@@ -139,6 +142,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .battery: return Color(red: 0.202, green: 0.783, blue: 0.348, opacity: 1.000)
         case .stats: return .teal
         case .colorPicker: return .accentColor
+        case .extraSpace: return .teal
         case .downloads: return .gray
         case .shelf: return .brown
         case .shortcuts: return .orange
@@ -204,6 +208,7 @@ enum LockScreenSettingsSection: String, CaseIterable, Identifiable {
 
 private enum SettingsSearchIndex {
     static let entries: [SettingsSearchEntry] = [
+        SettingsSearchEntry(tab: .extraSpace, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: SettingsTab.extraSpace.highlightID(for: "Enable Extra Space")),
         // General
         SettingsSearchEntry(tab: .general, title: "Menubar icon", keywords: ["menu bar", "status bar", "icon"], highlightID: SettingsTab.general.highlightID(for: "Menubar icon")),
         SettingsSearchEntry(tab: .general, title: "Launch at login", keywords: ["autostart", "startup"], highlightID: SettingsTab.general.highlightID(for: "Launch at login")),
@@ -376,7 +381,7 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .lockScreen, title: "Reminder vertical offset", keywords: ["reminder", "offset", "position"], highlightID: SettingsTab.lockScreen.highlightID(for: "Reminder vertical offset"), lockScreenSection: .widgets),
 
         // Agents
-        SettingsSearchEntry(tab: .agents, title: "Enable agent tracking", keywords: ["agents", "claude code", "codex", "antigravity", "hooks"], highlightID: SettingsTab.agents.highlightID(for: "Enable agent tracking")),
+        SettingsSearchEntry(tab: .agents, title: "Enable agent tracking", keywords: ["agents", "claude code", "codex", "antigravity", "pi", "opencode", "grok", "hooks"], highlightID: SettingsTab.agents.highlightID(for: "Enable agent tracking")),
         SettingsSearchEntry(tab: .agents, title: "Screen question agent", keywords: ["screen question", "screenshot", "ask", "assistant", "model"], highlightID: SettingsTab.agents.highlightID(for: "Screen question agent")),
         SettingsSearchEntry(tab: .agents, title: "Show agent activity in the closed notch", keywords: ["agents", "live activity", "closed notch"], highlightID: SettingsTab.agents.highlightID(for: "Show agent activity in the closed notch")),
 
@@ -724,6 +729,7 @@ struct SettingsView: View {
             .calendar,
             // Utilities
             .colorPicker,
+            .extraSpace,
             .shelf,
             .downloads,
             .shortcuts,
@@ -973,6 +979,10 @@ struct SettingsView: View {
         case .colorPicker:
             SettingsForm(tab: .colorPicker) {
                 ColorPickerSettings()
+            }
+        case .extraSpace:
+            SettingsForm(tab: .extraSpace) {
+                ExtraSpaceSettings()
             }
         case .downloads:
             SettingsForm(tab: .downloads) {
@@ -3134,6 +3144,15 @@ struct Shelf: View {
                     Text("General")
                 }
             }
+            Section("Storage") {
+                LabeledContent("Items", value: "\(shelfState.items.count) / 200")
+                Text("Text: 1 MB per item, 4 MB total. Copied files: 100 MB per import, 250 MB total. Finder file references do not copy their contents.")
+                    .foregroundStyle(.secondary)
+                Button("Show Saved Shelf Data") {
+                    NSWorkspace.shared.open(ShelfPersistenceService.shared.directory)
+                }
+                if let feedback = shelfState.feedback { Text(feedback).foregroundStyle(.secondary).textSelection(.enabled) }
+            }
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Shelf")
@@ -3435,6 +3454,7 @@ struct Appearance: View {
 
     @State private var isIconImporterPresented = false
     @State private var isIconDropTarget = false
+    @State private var iconImportGeneration = UUID()
     @State private var iconImportError: String?
 
     @State private var isPresented: Bool = false
@@ -3902,31 +3922,34 @@ struct Appearance: View {
     }
 
     private func importCustomIcon(from url: URL) {
-        guard let image = NSImage(contentsOf: url) else {
-            iconImportError = "That file could not be loaded as an image."
-            return
+        guard customAppIcons.count < 32 else { iconImportError = "Keep up to 32 custom icons. Remove an icon before importing another."; return }
+        let generation = UUID()
+        iconImportGeneration = generation
+        Task {
+            let result = await Task.detached(priority: .utility) { Result { try CustomIconImport.load(url) } }.value
+            guard iconImportGeneration == generation else { return }
+            switch result {
+            case .success(let data):
+                let id = UUID(), fileName = "custom-icon-\(UUID().uuidString).png"
+                let destination = CustomAppIcon.iconDirectory.appendingPathComponent(fileName)
+                let failure = await Task.detached(priority: .utility) { () -> String? in
+                    do { try PrivateContentFile.write(data, to: destination, keepingPrevious: false); return nil }
+                    catch { return error.localizedDescription }
+                }.value
+                guard iconImportGeneration == generation else {
+                    Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: destination) }
+                    return
+                }
+                if let failure { iconImportError = failure; return }
+                let name = url.deletingPathExtension().lastPathComponent
+                let newIcon = CustomAppIcon(id: id, name: name.isEmpty ? "Custom Icon" : name, fileName: fileName)
+                customAppIcons.append(newIcon)
+                selectedAppIconID = newIcon.id.uuidString
+                NSApp.applicationIconImage = NSImage(data: data)
+                iconImportError = nil
+            case .failure(let error): iconImportError = error.localizedDescription
+            }
         }
-        let name = url.deletingPathExtension().lastPathComponent
-        let ext = url.pathExtension.isEmpty ? "png" : url.pathExtension
-        let id = UUID()
-        let fileName = "custom-icon-\(id.uuidString).\(ext)"
-        let destination = CustomAppIcon.iconDirectory.appendingPathComponent(fileName)
-
-        do {
-            let data = try Data(contentsOf: url)
-            try data.write(to: destination, options: [.atomic])
-        } catch {
-            iconImportError = "Unable to save the icon file."
-            return
-        }
-
-        let newIcon = CustomAppIcon(id: id, name: name.isEmpty ? "Custom Icon" : name, fileName: fileName)
-        if !customAppIcons.contains(newIcon) {
-            customAppIcons.append(newIcon)
-        }
-        selectedAppIconID = newIcon.id.uuidString
-        NSApp.applicationIconImage = image
-        iconImportError = nil
     }
 
     private func removeCustomIcon(_ icon: CustomAppIcon) {
@@ -5660,6 +5683,7 @@ struct Shortcuts: View {
     @Default(.enableShortcuts) var enableShortcuts
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
+    @Default(.enableExtraSpaceFeature) private var enableExtraSpaceFeature
     @Default(.shortcutDefaultTab) var shortcutDefaultTab
 
     private func highlightID(_ title: String) -> String {
@@ -5714,6 +5738,7 @@ struct Shortcuts: View {
                     Picker("Open to Tab:", selection: $shortcutDefaultTab) {
                         ForEach(ShortcutDefaultTab.allCases) { tab in
                             Text(tab.rawValue).tag(tab)
+                                .disabled(tab == .extraSpace && !enableExtraSpaceFeature)
                         }
                     }
                     .disabled(!enableShortcuts)
@@ -5853,6 +5878,7 @@ struct TimerSettings: View {
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.timerPresets) private var timerPresets
     @Default(.customTimerSoundPath) private var customTimerSoundPath
+    @State private var isTimerSoundImporting = false
     @State private var timerSoundImportError: String?
     @Default(.timerIconColorMode) private var colorMode
     @Default(.timerSolidColor) private var solidColor
@@ -6254,6 +6280,7 @@ struct TimerSettings: View {
     }
 
     private func selectCustomTimerSound() {
+        guard !isTimerSoundImporting else { return }
         let panel = NSOpenPanel()
         panel.title = "Select Timer Sound"
         panel.allowedContentTypes = [.audio]
@@ -6262,11 +6289,14 @@ struct TimerSettings: View {
         panel.canChooseFiles = true
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            customTimerSoundPath = try TimerSoundStore.shared.importSound(from: url).path
-            timerSoundImportError = nil
-        } catch {
-            timerSoundImportError = String(localized: "Couldn't copy \(url.lastPathComponent): \(error.localizedDescription)")
+        isTimerSoundImporting = true
+        Task {
+            defer { isTimerSoundImporting = false }
+            let result = await Task.detached(priority: .utility) { Result { try TimerSoundStore.shared.importSound(from: url) } }.value
+            switch result {
+            case .success(let saved): customTimerSoundPath = saved.path; timerSoundImportError = nil
+            case .failure(let error): timerSoundImportError = String(localized: "Couldn't copy \(url.lastPathComponent): \(error.localizedDescription)")
+            }
         }
     }
 }

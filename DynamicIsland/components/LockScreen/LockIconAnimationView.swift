@@ -77,8 +77,8 @@ final class LockIconAnimator: ObservableObject {
         }
     }
 
-    private func easeOutCubic(_ t: Double) -> Double {
-        let clamped = max(0.0, min(1.0, t))
+    private func easeOutCubic(_ time: Double) -> Double {
+        let clamped = max(0.0, min(1.0, time))
         return 1.0 - pow(1.0 - clamped, 3)
     }
 }
@@ -170,7 +170,7 @@ struct LockIconLottieView: View {
         if let animation = LottieAnimation.named("Lock") {
             return animation
         } else {
-            print("⚠️ [LockIconLottieView] Missing Lock.json animation – falling back to SF Symbols")
+            debugLog("⚠️ [LockIconLottieView] Missing Lock.json animation – falling back to SF Symbols")
             return nil
         }
     }()

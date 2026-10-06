@@ -33,10 +33,8 @@ func CGSRegisterNotifyProc(
     _ context: UnsafeMutableRawPointer?
 ) -> Bool
 
-private func screenRecordingDebugLog(_ message: String) {
-#if DEBUG
-    print("ScreenRecordingManager: \(message)")
-#endif
+private func screenRecordingDebugLog(_ message: @autoclosure () -> String) {
+    debugLog("ScreenRecordingManager: \(message())")
 }
 
 private let screenSharingAppBundleIdentifiers: Set<String> = [

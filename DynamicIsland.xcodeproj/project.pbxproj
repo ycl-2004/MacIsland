@@ -248,6 +248,7 @@
 				F54406E32CD4987A00C7AFD9 /* Sources */,
 				F54406E42CD4987A00C7AFD9 /* Frameworks */,
 				F54406E52CD4987A00C7AFD9 /* Resources */,
+                A70F1A022F90000100F1A120 /* Build OSD recovery helper */,
 			);
 			buildRules = (
 			);
@@ -302,13 +303,11 @@
 			packageReferences = (
 				14D032182C68F32E0096E6A1 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
 				B18654372C6F4990000B926A /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
-				9A987A112C73CAA1005CA465 /* XCRemoteSwiftPackageReference "Pow" */,
 				B19016202CC15B3D00E3F12E /* XCRemoteSwiftPackageReference "Defaults" */,
 				B1628B902CC260C0003D8DF3 /* XCRemoteSwiftPackageReference "swiftui-introspect" */,
 				B19424072CD0DB52003E5DC2 /* XCRemoteSwiftPackageReference "LottieUI" */,
 				146BC4352D366E9B0047C66A /* XCRemoteSwiftPackageReference "MacroVisionKit" */,
 				7E61181F2E24071E0050006C /* XCRemoteSwiftPackageReference "SkyLightWindow" */,
-				7E09D5962EB7B497005AF41D /* XCRemoteSwiftPackageReference "open-meteo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F54406E82CD4987A00C7AFD9 /* Products */;
@@ -349,6 +348,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+        A70F1A022F90000100F1A120 /* Build OSD recovery helper */ = {
+            isa = PBXShellScriptBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = ("$(SRCROOT)/Tools/OSDRecoveryGuardian.c",);
+            outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/AtollOSDGuardian",);
+            name = "Build OSD recovery helper";
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh;
+            shellScript = "set -eu\nmkdir -p \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nset --\nfor ATOLL_HELPER_ARCH in $ARCHS; do set -- \"$@\" -arch \"$ATOLL_HELPER_ARCH\"; done\nxcrun clang \"$@\" -std=c11 -Os -Wall -Wextra -Werror -mmacosx-version-min=14.6 \"$SRCROOT/Tools/OSDRecoveryGuardian.c\" -o \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/AtollOSDGuardian\"\nif [ \"$CODE_SIGNING_ALLOWED\" = YES ]; then /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" --options runtime \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/AtollOSDGuardian\"; fi\n";
+        };
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		838F3057E237C722BA8D6CA6 /* Sources */ = {
@@ -805,28 +818,13 @@
 				kind = branch;
 			};
 		};
-		7E09D5962EB7B497005AF41D /* XCRemoteSwiftPackageReference "open-meteo" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/open-meteo/open-meteo";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.4.16;
-			};
-		};
+
 		7E61181F2E24071E0050006C /* XCRemoteSwiftPackageReference "SkyLightWindow" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Lakr233/SkyLightWindow";
 			requirement = {
 				branch = main;
 				kind = branch;
-			};
-		};
-		9A987A112C73CAA1005CA465 /* XCRemoteSwiftPackageReference "Pow" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/EmergeTools/Pow";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.4;
 			};
 		};
 		B1628B902CC260C0003D8DF3 /* XCRemoteSwiftPackageReference "swiftui-introspect" */ = {

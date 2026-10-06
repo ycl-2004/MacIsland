@@ -1,0 +1,20 @@
+{
+  "json_lines_exact_source": {
+    "stdout": "WHOLE_UTF8=[\"你好🐳\"]; SPLIT_UTF8=[]\nCANCEL_AND_CLOSE_COMPLETED=false",
+    "stderr": "SWIFT TASK CONTINUATION MISUSE: readData() leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever."
+  },
+  "agent_store_exact_source": {
+    "stdout": "SESSIONS=1 BYTES=641813 SAVE_MAIN_THREAD_MS=14.312028884887695 RELOADED=1\nSESSIONS=14 BYTES=8985006 SAVE_MAIN_THREAD_MS=43.39289665222168 RELOADED=0\nSESSIONS=60 BYTES=38507115 SAVE_MAIN_THREAD_MS=180.0609827041626 RELOADED=0",
+    "stderr": ""
+  },
+  "combine_lifetime_control": {
+    "stdout": "DISCARDED_SINK_EVENTS=0 RETAINED_SINK_EVENTS=1",
+    "stderr": ""
+  },
+  "pipe_order_control": {
+    "wait_before_drain_blocked": true,
+    "drained_bytes": 1048576,
+    "exit": 0,
+    "elapsed_seconds": 0.515
+  }
+}

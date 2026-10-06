@@ -65,3 +65,9 @@ These are scoped resource checks, not a long-duration CPU/RSS profile of all ena
 - [Sharing failure and user cancellation](https://developer.apple.com/documentation/appkit/nssharingservicedelegate/sharingservice(_:didfailtoshareitems:error:))
 - [Cancelling thumbnail requests](https://developer.apple.com/documentation/quicklookthumbnailing/qlthumbnailgenerator/cancel(_:))
 - [Pasteboard ownership](https://developer.apple.com/documentation/appkit/nspasteboard/declaretypes(_:owner:))
+
+Audit safeguards (2026-10-06): loads/saves use a serial utility queue and
+coalesced snapshots. New imports enforce item, text, queue and owned-file
+budgets; zip uses bounded snapshots and capacity reservations. File-version
+cache keys and per-URL invalidation avoid stale images. Settings exposes storage
+limits and the saved-data folder. See [exact limits and acceptance boundaries](project-audit-fixes-2026-10-06.md).

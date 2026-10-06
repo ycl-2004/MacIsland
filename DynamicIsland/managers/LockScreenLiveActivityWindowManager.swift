@@ -52,12 +52,6 @@ class LockScreenLiveActivityWindowManager {
         registerScreenChangeObservers()
     }
 
-    private func timestamp() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss.SSS"
-        return formatter.string(from: Date())
-    }
-
     /// Rounds the notch up to whole points.
     ///
     /// `safeAreaInsets.top` is fractional on notched hardware -- 33.5pt on a
@@ -131,12 +125,12 @@ class LockScreenLiveActivityWindowManager {
 
     private func lockContext() -> (notchSize: CGSize, screen: NSScreen)? {
         guard let screen = LockScreenDisplayContextProvider.shared.contextSnapshot()?.screen ?? NSScreen.main else {
-            print("[\(timestamp())] LockScreenLiveActivityWindowManager: no main screen available")
+            debugLog("LockScreenLiveActivityWindowManager: no main screen available")
             return nil
         }
 
         guard let viewModel else {
-            print("[\(timestamp())] LockScreenLiveActivityWindowManager: no view model configured")
+            debugLog("LockScreenLiveActivityWindowManager: no view model configured")
             return nil
         }
 
@@ -188,7 +182,7 @@ class LockScreenLiveActivityWindowManager {
 
         currentNotchSize = context.notchSize
 
-        print("[\(timestamp())] LockScreenLiveActivityWindowManager: realigned window due to \(reason)")
+        debugLog("LockScreenLiveActivityWindowManager: realigned window due to \(reason)")
     }
 
     private func present(notchSize: CGSize, on screen: NSScreen) {
@@ -258,7 +252,7 @@ class LockScreenLiveActivityWindowManager {
             }
         }
 
-        print("[\(timestamp())] LockScreenLiveActivityWindowManager: showing locked state")
+        debugLog("LockScreenLiveActivityWindowManager: showing locked state")
     }
 
     func showUnlockAndScheduleHide() {
@@ -322,7 +316,7 @@ class LockScreenLiveActivityWindowManager {
         overlayModel.opacity = 0
         currentNotchSize = nil
 
-        print("[\(timestamp())] LockScreenLiveActivityWindowManager: HUD hidden")
+        debugLog("LockScreenLiveActivityWindowManager: HUD hidden")
     }
 
     func configure(viewModel: DynamicIslandViewModel) {

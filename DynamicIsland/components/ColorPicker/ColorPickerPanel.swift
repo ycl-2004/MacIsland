@@ -58,13 +58,13 @@ class ColorPickerPanelManager: ObservableObject {
             newPanel.makeKey()
         }
         
-        print("ColorPicker: Panel shown and positioned")
+        debugLog("ColorPicker: Panel shown and positioned")
     }
     
     func hideColorPickerPanel() {
         panel?.close()
         panel = nil
-        print("ColorPicker: Panel hidden")
+        debugLog("ColorPicker: Panel hidden")
     }
     
     func toggleColorPickerPanel() {
@@ -158,12 +158,12 @@ class ColorPickerPanel: NSPanel {
     
     private func getSavedPosition() -> NSPoint? {
         let defaults = UserDefaults.standard
-        let x = defaults.double(forKey: "colorPickerPanelPositionX")
-        let y = defaults.double(forKey: "colorPickerPanelPositionY")
+        let savedX = defaults.double(forKey: "colorPickerPanelPositionX")
+        let savedY = defaults.double(forKey: "colorPickerPanelPositionY")
         
         // Check if we have valid saved coordinates (not default 0.0)
-        if x != 0.0 || y != 0.0 {
-            return NSPoint(x: x, y: y)
+        if savedX != 0.0 || savedY != 0.0 {
+            return NSPoint(x: savedX, y: savedY)
         }
         return nil
     }
@@ -703,7 +703,7 @@ struct NativeStyleCloseButton: View {
 
 #Preview {
     ColorPickerPanelView {
-        print("Close panel")
+        debugLog("Close panel")
     }
     .frame(width: 450, height: 600)
     .onAppear {

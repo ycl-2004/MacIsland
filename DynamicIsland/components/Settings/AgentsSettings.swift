@@ -36,7 +36,7 @@ struct AgentsSettingsView: View {
             } header: {
                 Text("Connected agents")
             } footer: {
-                Text("Installing adds Atoll's hooks to the agent's own config and leaves your other hooks alone. The file as it was before is kept beside it with an .atoll-backup extension.")
+                Text("Installing adds Atoll's hooks to the agent's own config and leaves your other hooks alone; the file as it was before is kept beside it with an .atoll-backup extension. Agents that load plugins instead (Pi, OpenCode) get a plugin file of Atoll's own, which Remove deletes. Atoll's hooks only report what the agent does and never approve, block or change a tool call.")
             }
 
             Section {
@@ -44,7 +44,7 @@ struct AgentsSettingsView: View {
             } header: {
                 Text("Replying from Atoll")
             } footer: {
-                Text("Codex takes messages from Atoll in terminals that run on its shared service; a terminal started with --no-daemon is read-only here. Claude Code takes them while it waits for you, and Antigravity while it works, through Atoll's hooks.")
+                Text("Codex takes messages from Atoll in terminals that run on its shared service; a terminal started with --no-daemon is read-only here. Claude Code takes them while it waits for you, and Antigravity while it works, through Atoll's hooks. Pi, OpenCode and Grok Build take them in terminals Atoll can type into.")
             }
 
             Section {
@@ -147,7 +147,7 @@ private struct AgentSourceRow: View {
             }
             errorMessage = nil
         } catch {
-            errorMessage = String(localized: "Could not update \(source.hooksFileURL.path): \(error.localizedDescription)")
+            errorMessage = String(localized: "Could not update \(source.installation.fileURL.path): \(error.localizedDescription)")
         }
         refresh()
     }

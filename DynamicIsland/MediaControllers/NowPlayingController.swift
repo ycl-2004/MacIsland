@@ -41,9 +41,6 @@ final class NowPlayingController: ObservableObject {
     var playbackStatePublisher: AnyPublisher<PlaybackState, Never> {
         $playbackState.eraseToAnyPublisher()
     }
-    
-    private var lastMusicItem:
-        (title: String, artist: String, album: String, duration: TimeInterval, artworkData: Data?)?
 
     // MARK: - Media Remote Functions
     private let mediaRemoteBundle: CFBundle
@@ -120,7 +117,7 @@ final class NowPlayingController: ObservableObject {
             try pkill.run()
             pkill.waitUntilExit()
         } catch {
-            print("NowPlayingController: could not look for orphaned adapters: \(error)")
+            Logger.log("NowPlayingController: could not look for orphaned adapters: \(error)", category: .warning)
         }
     }
 
@@ -232,7 +229,7 @@ final class NowPlayingController: ObservableObject {
                     .trimmingCharacters(in: .whitespacesAndNewlines),
                   !message.isEmpty
             else { return }
-            print("NowPlayingController [stderr]: \(message)")
+            debugLog("NowPlayingController [stderr]: \(message)")
         }
         
         self.process = process
@@ -497,79 +494,46 @@ extension NowPlayingPayload {
 }
 
 actor JSONLinesPipeHandler {
-    private let pipe: Pipe
-    private let fileHandle: FileHandle
-    private var buffer = ""
-    
-    init() {
-        self.pipe = Pipe()
-        self.fileHandle = pipe.fileHandleForReading
-    }
-    
-    func getPipe() -> Pipe {
-        return pipe
-    }
-    
+    static let maximumLineBytes = 4 * 1024 * 1024
+    private let pipe = Pipe()
+    private lazy var reader = PipeReadWaiter(pipe.fileHandleForReading)
+    private var buffer = Data()
+    private var discardingOversizedLine = false
+
+    func getPipe() -> Pipe { pipe }
+
     func readJSONLines<T: Decodable>(as type: T.Type, onLine: @escaping (T) async -> Void) async {
         do {
-            try await self.processLines(as: type) { decodedObject in
-                await onLine(decodedObject)
-            }
-        } catch {
-            print("Error processing JSON stream: \(error)")
-        }
-    }
-    
-    private func processLines<T: Decodable>(as type: T.Type, onLine: @escaping (T) async -> Void) async throws {
-        while true {
-            let data = try await readData()
-            guard !data.isEmpty else { break }
-            
-            if let chunk = String(data: data, encoding: .utf8) {
-                buffer.append(chunk)
-                
-                while let range = buffer.range(of: "\n") {
-                    let line = String(buffer[..<range.lowerBound])
-                    buffer = String(buffer[range.upperBound...])
-                    
-                    if !line.isEmpty {
-                        await processJSONLine(line, as: type, onLine: onLine)
+            try await withTaskCancellationHandler {
+                while !Task.isCancelled {
+                    let data = try await reader.read()
+                    guard !data.isEmpty else { break }
+                    var start = data.startIndex
+                    while start < data.endIndex {
+                        let newline = data[start...].firstIndex(of: 10)
+                        let end = newline ?? data.endIndex
+                        if !discardingOversizedLine {
+                            if buffer.count + data.distance(from: start, to: end) <= Self.maximumLineBytes {
+                                buffer.append(data[start..<end])
+                            } else { buffer.removeAll(keepingCapacity: true); discardingOversizedLine = true }
+                        }
+                        guard let newline else { break }
+                        if !discardingOversizedLine, !buffer.isEmpty,
+                           let object = try? JSONDecoder().decode(T.self, from: buffer) { await onLine(object) }
+                        buffer.removeAll(keepingCapacity: true)
+                        discardingOversizedLine = false
+                        start = data.index(after: newline)
                     }
                 }
-            }
-        }
+            } onCancel: { Task { await self.close() } }
+        } catch is CancellationError {
+        } catch { Logger.log("Error processing JSON stream: \(error)", category: .error) }
+        buffer.removeAll()
     }
-    
-    private func processJSONLine<T: Decodable>(_ line: String, as type: T.Type, onLine: @escaping (T) async -> Void) async {
-        guard let data = line.data(using: .utf8) else {
-            return
-        }
-        do {
-            let decodedObject = try JSONDecoder().decode(T.self, from: data)
-            await onLine(decodedObject)
-        } catch {
-            // Ignore lines that can't be decoded
-        }
-    }
-    
-    private func readData() async throws -> Data {
-        return try await withCheckedThrowingContinuation { continuation in
-            
-            fileHandle.readabilityHandler = { handle in
-                let data = handle.availableData
-                handle.readabilityHandler = nil
-                continuation.resume(returning: data)
-            }
-        }
-    }
-    
+
     func close() async {
-        do {
-            fileHandle.readabilityHandler = nil
-            try fileHandle.close()
-            try pipe.fileHandleForWriting.close()
-        } catch {
-            print("Error closing pipe handler: \(error)")
-        }
+        reader.close()
+        try? pipe.fileHandleForWriting.close()
+        buffer.removeAll()
     }
 }

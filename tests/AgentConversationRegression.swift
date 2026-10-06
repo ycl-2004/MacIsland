@@ -487,13 +487,34 @@ struct AgentConversationRegression {
         precondition(keepGoing["decision"] as? String == "continue" && (keepGoing["reason"] as! String).contains("Also lint"))
         precondition(agy.replyOutput("x", atEvent: "PostToolUse") == nil && claude.replyOutput("x", atEvent: "Stop") == nil)
 
+        // Pi keeps every branch in one file: only the chain back from the newest entry counts.
+        let pi = PiAgentSource()
+        let entries: [[String: Any]] = [
+            ["type": "session", "version": 3, "id": "header-uuid", "cwd": "/tmp/project"],
+            ["type": "message", "id": "s1", "parentId": NSNull(), "message": ["role": "system", "content": "HIDDEN prompt"]],
+            ["type": "message", "id": "u1", "parentId": "s1", "message": ["role": "user", "content": "Fix the build"]],
+            ["type": "message", "id": "a1", "parentId": "u1", "message": ["role": "assistant", "content": [
+                ["type": "thinking", "thinking": "HIDDEN"],
+                ["type": "text", "text": "Looking."],
+                ["type": "toolCall", "id": "call-1", "name": "bash", "arguments": ["command": "swift build"]],
+            ]]],
+            ["type": "message", "id": "r1", "parentId": "a1", "message": ["role": "toolResult", "toolName": "bash", "content": [["type": "text", "text": "HIDDEN output"]]]],
+            ["type": "message", "id": "x1", "parentId": "r1", "message": ["role": "assistant", "content": [["type": "text", "text": "HIDDEN abandoned branch"]]]],
+            ["type": "session_info", "id": "n1", "parentId": "r1", "name": "Build fix"],
+            ["type": "message", "id": "u2", "parentId": "n1", "message": ["role": "user", "content": [["type": "text", "text": "Ship it"]]]],
+            ["type": "message", "id": "a2", "parentId": "u2", "message": ["role": "assistant", "content": [["type": "text", "text": "Done."]]]],
+        ]
+        let piTranscript = pi.transcript(from: entries)!
+        precondition(piTranscript.messages.map(\.text) == ["Fix the build", "Looking.", "swift build", "Ship it", "Done."])
+        precondition(piTranscript.messages[2].toolKind == .command && piTranscript.title == "Build fix")
+
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("atoll-claude-\(UUID()).jsonl")
         defer { try? FileManager.default.removeItem(at: file) }
         let lines = try rows.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }
         try Data((String(repeating: "x", count: Int(AgentTranscriptFile.tailBytes)) + "\n" + lines.joined(separator: "\n") + "\n").utf8).write(to: file)
         let tail = AgentTranscriptFile.rows(AgentTranscriptFile.tail(path: file.path)!)
         precondition(claude.transcript(from: tail)!.messages.count == 5, "a long file is read from its end")
-        print("PASS: Atoll envelope, Claude and Antigravity transcripts without hidden rows, Antigravity reply outputs, tail read")
+        print("PASS: Atoll envelope, Claude, Antigravity and Pi transcripts without hidden rows or abandoned branches, Antigravity reply outputs, tail read")
     }
 
     static func verifyHookInstall() throws {
@@ -521,7 +542,63 @@ struct AgentConversationRegression {
         precondition(after == before, "installing twice changes nothing")
         format.remove(from: &root)
         precondition(!format.containsAtoll(in: root))
-        print("PASS: Claude's parked Stop hook installs beside the user's, upgrades old installs, idempotent and removable")
+
+        // Grok: plain observers. No reply on stdout (an empty reply lets everything through) and no parked hook.
+        let grok = GrokAgentSource()
+        let grokHandlers = grok.hookHandlers(scriptPath: script)
+        precondition(grokHandlers.values.allSatisfy { $0.count == 1 } && grok.hookReply == nil && grok.replyDelivery == nil)
+        precondition(grokHandlers.values.flatMap { $0 }.allSatisfy { ($0["command"] as! String).hasPrefix("/bin/sh '\(script)' grok ") && $0["timeout"] as? Int == 5 })
+        precondition(grok.phase(forEvent: "Stop", payload: ["reason": "end_turn"]) == .turnFinished)
+        precondition(grok.phase(forEvent: "Stop", payload: ["reason": "channel_closed"]) == nil, "the session-end Stop is not a turn")
+        precondition(grok.phase(forEvent: "PreToolUse", payload: ["subagentType": "explore"]) == nil, "a subagent belongs to its parent's card")
+        precondition(grok.phase(forEvent: "Notification", payload: ["notificationType": "idle_prompt"]) == nil)
+        precondition(grok.phase(forEvent: "Notification", payload: ["notificationType": "permission_prompt"]) == .needsAttention)
+        let grokEvent = grok.makeEvent(eventName: "PreToolUse", payload: [
+            "hookEventName": "pre_tool_use", "sessionId": "g1", "session_id": "g1", "cwd": "/tmp/project",
+            "tool_name": "read_file", "tool_input": ["target_file": "/tmp/project/App.swift"],
+        ], hostBundleID: nil)!
+        precondition(grokEvent.sessionKey == "g1" && grokEvent.toolKind == .read && grokEvent.toolDetail == "App.swift")
+        precondition(grok.makeEvent(eventName: "Stop", payload: ["sessionId": "g1", "lastAssistantMessage": "Done"], hostBundleID: nil)?.lastReply == "Done")
+
+        // Both kinds of install leave nothing behind once removed.
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("atoll-install-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let grokFile = HookConfigInstallation(fileURL: home.appendingPathComponent("grok/hooks/atoll.json"), format: GroupedHookFormat(), handlers: grok.hookHandlers(scriptPath:))
+        try grokFile.install(scriptPath: script)
+        precondition(grokFile.isInstalled(scriptPath: script) && !grokFile.isOutdated(scriptPath: script))
+        try grokFile.remove()
+        precondition(!FileManager.default.fileExists(atPath: grokFile.fileURL.path), "a hooks file Atoll created goes away again")
+
+        for source in [PiAgentSource() as PluginAgentSource, OpenCodeAgentSource()] {
+            let file = AgentPluginFile(fileURL: home.appendingPathComponent("\(source.id)/plugins/\(source.pluginFileURL.lastPathComponent)"),
+                                       sourceID: source.id, body: source.pluginBody)
+            try file.install(scriptPath: script)
+            precondition(file.isInstalled(scriptPath: script) && file.contents(scriptPath: script).contains(AgentHooksFile.marker))
+            precondition(file.isOutdated(scriptPath: script + ".moved") && !file.isInstalled(scriptPath: script + ".moved"))
+            try file.remove()
+            precondition(!FileManager.default.fileExists(atPath: file.fileURL.deletingLastPathComponent().path), "the folder Atoll made goes too")
+            // A file of the same name that Atoll did not write is never replaced or removed.
+            try FileManager.default.createDirectory(at: file.fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("// mine".utf8).write(to: file.fileURL)
+            precondition((try? file.install(scriptPath: script)) == nil)
+            try file.remove()
+            precondition((try? String(contentsOf: file.fileURL, encoding: .utf8)) == "// mine")
+
+            // Every event the plugin reports means something here, and every one meant here is reported.
+            let body = source.pluginBody
+            func quoted(after marker: String) -> Set<String> {
+                Set(body.components(separatedBy: marker).dropFirst().compactMap { $0.split(separator: "\"").first.map(String.init) })
+            }
+            // OpenCode passes a matched `case` label on as `report(type, ...)`.
+            let reported = quoted(after: "report(\"")
+            let named = reported.union(quoted(after: "case \"").filter { source.hookEvents[$0] != nil })
+            precondition(reported.isSubset(of: source.hookEvents.keys) && Set(source.hookEvents.keys) == named, "\(source.id) plugin and hookEvents disagree")
+            // Never a hook that can change or stop what the agent does.
+            for blocking in ["\"tool_call\"", "\"tool_result\"", "\"input\"", "\"tool.execute.before\"", "\"permission.ask\"", "\"chat.params\""] {
+                precondition(!body.contains("on(\(blocking)") && !body.contains("\(blocking):"), "\(source.id) plugin subscribes to \(blocking)")
+            }
+        }
+        print("PASS: Claude's parked Stop hook installs beside the user's, upgrades old installs, idempotent and removable; Grok observes only; plugin files install, update and remove without residue and never replace the user's")
     }
 
     @MainActor
@@ -594,13 +671,13 @@ struct AgentConversationRegression {
         try await waitUntil { FileManager.default.fileExists(atPath: directory.appendingPathComponent("port").path) }
         let script = directory.appendingPathComponent("agent-hook.sh").path
 
-        func run(_ arguments: [String], payload: [String: Any], environment: [String: String] = [:]) throws -> Process {
+        func launch(_ executable: String, _ arguments: [String], input data: Data, environment: [String: String] = [:]) throws -> Process {
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/sh")
-            process.arguments = [script] + arguments
+            process.executableURL = URL(fileURLWithPath: executable)
+            process.arguments = arguments
             // Only what each case sets: not the terminal the suite runs in.
             let inherited = ProcessInfo.processInfo.environment.filter { key, _ in
-                !["ATOLL_SUPPRESS_HOOKS", "CLAUDE_CODE_SESSION_KIND", "__CFBundleIdentifier"].contains(key)
+                !["ATOLL_SUPPRESS_HOOKS", "CLAUDE_CODE_SESSION_KIND", "__CFBundleIdentifier", "GROK_HOOK_EVENT"].contains(key)
                     && !key.hasPrefix("CMUX_") && !key.hasPrefix("GHOSTTY_")
             }
             process.environment = inherited.merging(environment) { $1 }
@@ -609,9 +686,12 @@ struct AgentConversationRegression {
             process.standardOutput = Pipe()
             process.standardError = Pipe()
             try process.run()
-            input.fileHandleForWriting.write(try JSONSerialization.data(withJSONObject: payload))
+            input.fileHandleForWriting.write(data)
             try input.fileHandleForWriting.close()
             return process
+        }
+        func run(_ arguments: [String], payload: [String: Any], environment: [String: String] = [:]) throws -> Process {
+            try launch("/bin/sh", [script] + arguments, input: try JSONSerialization.data(withJSONObject: payload), environment: environment)
         }
         // Atoll answers hooks on the main actor, so never block it while one runs.
         func finished(_ process: Process) async throws -> Process {
@@ -655,6 +735,96 @@ struct AgentConversationRegression {
         let injected = try JSONSerialization.jsonObject(with: Data(output(next, \.standardOutput).utf8)) as! [String: Any]
         precondition(((injected["injectSteps"] as! [[String: Any]])[0]["userMessage"] as! String) == "Also run lint")
 
+        // Grok Build also runs the Claude Code hooks in ~/.claude/settings.json. Those
+        // are not Claude sessions, and Claude's `wait` must never hold Grok's Stop gate.
+        let grokPayload: [String: Any] = ["sessionId": "grok-session", "session_id": "grok-session", "cwd": "/tmp/project",
+                                          "tool_name": "run_terminal_command", "tool_input": ["command": "npm test"]]
+        let viaClaude = try await finished(try run(["claude", "PreToolUse"], payload: grokPayload, environment: ["GROK_HOOK_EVENT": "pre_tool_use"]))
+        let parkedViaClaude = try run(["claude", "wait"], payload: grokPayload, environment: ["GROK_HOOK_EVENT": "stop", "CLAUDE_CODE_ENTRYPOINT": "cli"])
+        for _ in 0..<300 where parkedViaClaude.isRunning { try await Task.sleep(for: .milliseconds(10)) }
+        let heldGrok = parkedViaClaude.isRunning
+        if heldGrok { parkedViaClaude.terminate() }
+        precondition(!heldGrok, "Claude's wait hook parked inside Grok, which would hold Grok's Stop gate")
+        precondition(viaClaude.terminationStatus == 0 && parkedViaClaude.terminationStatus == 0 && output(parkedViaClaude, \.standardError).isEmpty)
+        let grokID = AgentSession.key(sourceID: "grok", sessionKey: "grok-session")
+        let grokTool = try await finished(try run(["grok", "PreToolUse"], payload: grokPayload, environment: ["GROK_HOOK_EVENT": "pre_tool_use"]))
+        precondition(grokTool.terminationStatus == 0 && output(grokTool, \.standardOutput).isEmpty, "an empty reply: Grok runs the tool as it would anyway")
+        try await waitUntil { store.session(id: grokID)?.state == .tool(.command, name: "run_terminal_command", detail: "npm test") }
+        precondition(store.session(id: AgentSession.key(sourceID: "claude", sessionKey: "grok-session")) == nil && !service.parkedSessions.contains { $0.hasSuffix("grok-session") })
+        _ = try await finished(try run(["grok", "Stop"], payload: ["session_id": "grok-session", "reason": "end_turn", "lastAssistantMessage": "Tests pass."],
+                                       environment: ["GROK_HOOK_EVENT": "stop"]))
+        try await waitUntil { store.session(id: grokID)?.lastReply == "Tests pass." && store.session(id: grokID)?.state == .finished }
+
+        // Atoll's Pi and OpenCode plugins, loaded the way the agents load them and fed
+        // their events, reach the notch through the same script.
+        if let node = ["/opt/homebrew/bin/node", "/usr/local/bin/node"].first(where: FileManager.default.isExecutableFile(atPath:)) {
+            func load(_ source: PluginAgentSource, driver: String) async throws -> String {
+                let plugin = directory.appendingPathComponent("\(source.id)-plugin.mjs")
+                try Data(AgentPluginFile(fileURL: plugin, sourceID: source.id, body: source.pluginBody).contents(scriptPath: script).utf8).write(to: plugin)
+                let harness = "const plugin = await import(process.argv[1]);\n" + driver
+                let process = try await finished(try launch(node, ["--input-type=module", "-e", harness, plugin.path], input: Data()))
+                precondition(process.terminationStatus == 0, "\(source.id) plugin failed: \(output(process, \.standardError))")
+                return output(process, \.standardOutput)
+            }
+
+            let piSubscribed = try await load(PiAgentSource(), driver: """
+                const handlers = {};
+                plugin.default({ on: (name, handler) => { (handlers[name] ??= []).push(handler); } });
+                const context = (mode, id) => ({ mode, cwd: "/tmp/project", isIdle: () => false,
+                  sessionManager: { getSessionId: () => id, getSessionFile: () => undefined } });
+                const fire = async (name, event, ctx) => { for (const handler of handlers[name] ?? []) await handler(event, ctx); };
+                const tui = context("tui", "pi-session");
+                await fire("session_start", { reason: "startup" }, context("json", "pi-subagent"));
+                await fire("session_start", { reason: "startup" }, tui);
+                await fire("message_start", { message: { role: "user", content: "Fix the build" } }, tui);
+                await fire("tool_execution_start", { toolName: "bash", args: { command: "swift build" } }, tui);
+                await fire("tool_execution_end", { toolName: "bash" }, tui);
+                await fire("agent_end", { messages: [{ role: "assistant", content: [{ type: "text", text: "Fixed." }], stopReason: "stop" }] }, tui);
+                await fire("agent_settled", {}, tui);
+                await fire("session_shutdown", { reason: "quit" }, tui);
+                console.log(Object.keys(handlers).join(","));
+                """)
+            precondition(!piSubscribed.split(separator: ",").contains { $0.hasPrefix("tool_call") || $0 == "tool_result" || $0 == "input" })
+            let piID = AgentSession.key(sourceID: "pi", sessionKey: "pi-session")
+            try await waitUntil { store.session(id: piID)?.isDisconnected == true }
+            let piSession = store.session(id: piID)!
+            precondition(piSession.lastPrompt == "Fix the build" && piSession.lastReply == "Fixed." && piSession.messages.contains { $0.text == "swift build" })
+            precondition(store.session(id: AgentSession.key(sourceID: "pi", sessionKey: "pi-subagent")) == nil, "only terminal runs show")
+
+            let openCodeHooks = try await load(OpenCodeAgentSource(), driver: """
+                const hooks = await plugin.AtollPlugin({ directory: "/tmp/project" });
+                const send = (type, properties) => hooks.event({ event: { type, properties } });
+                const tool = (sessionID, status, input) => send("message.part.updated",
+                  { part: { type: "tool", callID: sessionID + "-call", tool: "bash", sessionID, messageID: "m2", state: { status, input } } });
+                const text = (messageID, value) => send("message.part.updated", { part: { type: "text", messageID, sessionID: "oc", text: value } });
+                await send("session.created", { info: { id: "oc" } });
+                await send("session.created", { info: { id: "oc-child", parentID: "oc" } });
+                await send("message.updated", { info: { id: "m1", sessionID: "oc", role: "user" } });
+                await text("m1", "Fix the build");
+                await text("m1", "Fix the build");
+                await send("message.updated", { info: { id: "m2", sessionID: "oc", role: "assistant" } });
+                await tool("oc", "pending", {});
+                await tool("oc", "running", { command: "swift build" });
+                await tool("oc", "running", { command: "swift build" });
+                await tool("oc-child", "running", { command: "HIDDEN child" });
+                await tool("oc", "completed", { command: "swift build" });
+                await text("m2", "Fix");
+                await text("m2", "Fixed.");
+                await send("session.idle", { sessionID: "oc" });
+                await hooks.dispose();
+                console.log(Object.keys(hooks).join(","));
+                """)
+            precondition(openCodeHooks.trimmingCharacters(in: .whitespacesAndNewlines) == "event,dispose", "OpenCode plugin registers only observers")
+            let openCodeID = AgentSession.key(sourceID: "opencode", sessionKey: "oc")
+            try await waitUntil { store.session(id: openCodeID)?.isDisconnected == true }
+            let openCode = store.session(id: openCodeID)!
+            precondition(openCode.lastPrompt == "Fix the build" && openCode.lastReply == "Fixed.")
+            precondition(openCode.messages.filter { $0.role == .user }.count == 1 && openCode.messages.filter { $0.text == "swift build" }.count == 1)
+            precondition(store.session(id: AgentSession.key(sourceID: "opencode", sessionKey: "oc-child")) == nil && !openCode.messages.contains { $0.text.contains("HIDDEN") })
+        } else {
+            print("SKIP: no node, so the Pi and OpenCode plugins were not loaded")
+        }
+
         // Where the agent runs: the hosting app's own pane variable, and the
         // hook's parent (this process) for the terminal device.
         terminals.devices[getpid()] = "/dev/ttys990"
@@ -675,7 +845,7 @@ struct AgentConversationRegression {
                                        environment: ["__CFBundleIdentifier": "com.cmuxterm.app", "CMUX_SURFACE_ID": "x&pid=1"]))
         try await waitUntil { store.session(id: paneID)?.hostBundleID == "com.cmuxterm.app" }
         precondition(store.session(id: paneID)?.terminalPane == nil && terminals.commands.isEmpty)
-        print("PASS: hook script parks and exits 2 with the message, skips non-interactive Claude, cleans up abandoned waits, injects Antigravity steps, reports its pane and process")
+        print("PASS: hook script parks and exits 2 with the message, skips non-interactive Claude, cleans up abandoned waits, injects Antigravity steps, drops hooks Grok runs for Claude, lets Grok through untouched, carries Pi and OpenCode plugin events, reports its pane and process")
     }
 
     /// What each terminal is asked to run: a multi-line message stays one

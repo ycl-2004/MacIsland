@@ -194,17 +194,15 @@ public struct LiquidGlassBackground<Content: View>: NSViewRepresentable {
 
     private func callPrivateVariantSetter(on object: AnyObject, value: Int) {
         guard
-            let sel   = setterSelector(for: "variant", privateVariant: true),
-            let m     = class_getInstanceMethod(object_getClass(object), sel)
+            let sel = setterSelector(for: "variant", privateVariant: true),
+            let method = class_getInstanceMethod(object_getClass(object), sel)
         else {
-            #if DEBUG
-            print("✗ LiquidGlassBackground: selector set_variant: not found. falling back to default")
-            #endif
+            debugLog("✗ LiquidGlassBackground: selector set_variant: not found. falling back to default")
             return
         }
-        let imp = method_getImplementation(m)
-        let f   = unsafeBitCast(imp, to: VariantSetterIMP.self)
-        f(object, sel, value)
+        let imp = method_getImplementation(method)
+        let setter = unsafeBitCast(imp, to: VariantSetterIMP.self)
+        setter(object, sel, value)
     }
 
 

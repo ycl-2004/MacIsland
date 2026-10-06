@@ -64,15 +64,15 @@ struct TimerSoundStore {
     /// previous sound is only removed once the new copy is complete, so a
     /// failed import leaves the current choice working.
     func importSound(from source: URL) throws -> URL {
-        let fileManager = FileManager.default
         let destination = directory.appendingPathComponent(source.lastPathComponent)
         if source.standardizedFileURL == destination.standardizedFileURL { return destination }
 
-        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let staging = directory.appendingPathComponent(".import-\(UUID().uuidString)")
-        try fileManager.copyItem(at: source, to: staging)
-        removeImportedSounds(except: staging)
-        try fileManager.moveItem(at: staging, to: destination)
+        let values = try source.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+        guard values.isRegularFile == true else { throw CocoaError(.fileReadUnknown) }
+        let data = try PrivateContentFile.read(source, limit: 20 * 1024 * 1024)
+        // Atomic replacement succeeds before any previous sound is removed.
+        try PrivateContentFile.write(data, to: destination, keepingPrevious: false)
+        removeImportedSounds(except: destination)
         return destination
     }
 

@@ -34,17 +34,21 @@ import Foundation
 final class ShelfPersistenceService {
     static let shared = ShelfPersistenceService()
 
-    private let directory: URL
+    let directory: URL
+    private let lock = NSRecursiveLock()
+    static let maximumStoreBytes = 16 * 1024 * 1024
     private var fileURL: URL { directory.appendingPathComponent("items.json") }
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-    private(set) var needsRecovery = false
-    private(set) var lastError: String?
+    private var recoveryRequired = false
+    var needsRecovery: Bool { lock.withLock { recoveryRequired } }
+    private var savedError: String?
+    var lastError: String? { lock.withLock { savedError } }
     private var recoveryCopySaved = false
     private var hasRecoveryCopy = false
-    var permitsCleanup: Bool { !needsRecovery && !hasRecoveryCopy && lastError == nil }
+    var permitsCleanup: Bool { lock.withLock { !recoveryRequired && !hasRecoveryCopy && savedError == nil } }
     var recoveryWarning: String? {
-        needsRecovery || hasRecoveryCopy ? String(localized: "Some Shelf data could not be read. The original data has been kept.") : nil
+        lock.withLock { recoveryRequired || hasRecoveryCopy ? String(localized: "Some Shelf data could not be read. The original data has been kept.") : nil }
     }
 
     /// `directory` is only ever passed by tests: the default is the one the
@@ -57,6 +61,7 @@ final class ShelfPersistenceService {
     }
 
     static var defaultDirectory: URL {
+        if AppRuntimeEnvironment.isTesting { return AppRuntimeEnvironment.testDirectory.appendingPathComponent("Shelf", isDirectory: true) }
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
         return support
@@ -64,47 +69,53 @@ final class ShelfPersistenceService {
             .appendingPathComponent("Shelf", isDirectory: true)
     }
 
-    func load() -> [ShelfItem] {
+    func load() -> [ShelfItem] { lock.withLock { loadLocked() } }
+
+    private func loadLocked() -> [ShelfItem] {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
         do {
-            let data = try Data(contentsOf: fileURL)
+            let data = try PrivateContentFile.read(fileURL, limit: Self.maximumStoreBytes)
             if let items = try? decoder.decode([ShelfItem].self, from: data) {
                 if items.isEmpty { try removeStore() }
                 return items
             }
-            needsRecovery = true
-            lastError = String(localized: "Some Shelf data could not be read. The original data has been kept.")
+            recoveryRequired = true
+            savedError = String(localized: "Some Shelf data could not be read. The original data has been kept.")
             guard let array = try JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
             return array.compactMap { value in
                 guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]) else { return nil }
                 return try? decoder.decode(ShelfItem.self, from: data)
             }
         } catch {
-            needsRecovery = true
-            lastError = String(localized: "Some Shelf data could not be read. The original data has been kept.")
+            recoveryRequired = true
+            savedError = String(localized: "Some Shelf data could not be read. The original data has been kept.")
             return []
         }
     }
 
     @discardableResult
-    func save(_ items: [ShelfItem]) -> Bool {
+    func save(_ items: [ShelfItem]) -> Bool { lock.withLock { saveLocked(items) } }
+
+    private func saveLocked(_ items: [ShelfItem]) -> Bool {
         do {
-            if needsRecovery && !recoveryCopySaved {
+            if recoveryRequired && !recoveryCopySaved {
                 // Preserve the exact source before any mutation overwrites it.
                 let backup = directory.appendingPathComponent("items.recovery-\(UUID().uuidString).json")
                 try FileManager.default.copyItem(at: fileURL, to: backup)
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: backup.path)
                 recoveryCopySaved = true
                 hasRecoveryCopy = true
             }
             if items.isEmpty { try removeStore() }
             else {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try encoder.encode(items).write(to: fileURL, options: .atomic)
+                let data = try encoder.encode(items)
+                guard data.count <= Self.maximumStoreBytes else { throw PrivateContentFile.Failure.tooLarge(Self.maximumStoreBytes) }
+                try PrivateContentFile.write(data, to: fileURL, keepingPrevious: false)
             }
-            lastError = nil
+            savedError = nil
             return true
         } catch {
-            lastError = String(localized: "Shelf changes could not be saved. Check available disk space and folder access.")
+            savedError = String(localized: "Shelf changes could not be saved. Check available disk space and folder access.")
             return false
         }
     }

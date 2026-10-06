@@ -81,7 +81,7 @@ extension NSItemProvider {
         await providerValue { (cont: ProviderLoad<URL>) in
             loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
                 if let error {
-                    print("❌ Error loading item for type \(typeIdentifier): \(error.localizedDescription)")
+                    debugLog("❌ Error loading item for type \(typeIdentifier): \(error.localizedDescription)")
                     cont.finish(nil)
                     return
                 }

@@ -41,23 +41,23 @@ final class AgentBridge {
 
     // MARK: Hooks
 
-    /// Adds Atoll's hooks to the agent's config. The script they call is
-    /// written first, so a hook never points at a file that is not there.
+    /// Adds Atoll's hooks to the agent. The script they call is written
+    /// first, so a hook never points at a file that is not there.
     func installHooks(for source: AgentSource) throws {
         try prepareDirectory()
-        try source.installHooks(scriptPath: scriptPath)
+        try source.installation.install(scriptPath: scriptPath)
     }
 
     func removeHooks(for source: AgentSource) throws {
-        try source.removeHooks()
+        try source.installation.remove()
     }
 
     func hooksInstalled(for source: AgentSource) -> Bool {
-        source.hooksInstalled(scriptPath: scriptPath)
+        source.installation.isInstalled(scriptPath: scriptPath)
     }
 
     func hooksOutdated(for source: AgentSource) -> Bool {
-        source.hooksOutdated(scriptPath: scriptPath)
+        source.installation.isOutdated(scriptPath: scriptPath)
     }
 
     // MARK: Server
@@ -142,9 +142,15 @@ final class AgentBridge {
             guard case .environment(let variable) = host.paneDiscovery else { return nil }
             return "  \(host.bundleIdentifier)) pane=\"${\(variable):-}\" ;;"
         }.joined(separator: "\n")
+        // Agents that also run other agents' hooks, by the variable they set on every hook.
+        let foreignHookGuards = AgentSourceRegistry.all.compactMap { source -> String? in
+            guard let variable = source.hookEnvironmentVariable else { return nil }
+            return "[ \"$1\" != \(source.id) ] && [ -n \"${\(variable):-}\" ] && { cat >/dev/null; finish; }"
+        }.joined(separator: "\n")
         let script = """
         #!/bin/sh
-        # Installed by Atoll. Forwards agent hook events to Atoll's notch.
+        # Installed by Atoll. Forwards agent hook events to Atoll's notch, from
+        # agents' hook commands and from Atoll's plugins for agents without them.
         # usage: agent-hook.sh <source> <event> [reply]   (hook payload JSON on stdin)
         #        agent-hook.sh <source> wait
         # An event never blocks or changes the agent: exit 0 within a second,
@@ -158,6 +164,9 @@ final class AgentBridge {
         finish() { [ -n "$reply" ] && printf '%s' "$reply"; exit 0; }
         # Atoll's own headless runs (screen questions) are not sessions to show.
         [ -n "${ATOLL_SUPPRESS_HOOKS:-}" ] && { cat >/dev/null; finish; }
+        # A hook one agent ran from another agent's config (Grok Build runs Claude
+        # Code's) belongs to neither card, and must never park as that agent's `wait`.
+        \(foreignHookGuards)
         port=$(cat "$dir/port" 2>/dev/null) || { cat >/dev/null; finish; }
         url="http://127.0.0.1:$port/v1/agent"
         # Where the agent runs: the app hosting it, the pane when that app names

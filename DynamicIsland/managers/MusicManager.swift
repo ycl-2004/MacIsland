@@ -1530,7 +1530,7 @@ class MusicManager: ObservableObject {
 
     func openMusicApp() {
         guard let bundleID = bundleIdentifier else {
-            print("Error: appBundleIdentifier is nil")
+            debugLog("Error: appBundleIdentifier is nil")
             return
         }
 
@@ -1539,13 +1539,13 @@ class MusicManager: ObservableObject {
             let configuration = NSWorkspace.OpenConfiguration()
             workspace.openApplication(at: appURL, configuration: configuration) { (_, error) in
                 if let error = error {
-                    print("Failed to launch app with bundle ID: \(bundleID), error: \(error)")
+                    Logger.log("Failed to launch app with bundle ID: \(bundleID), error: \(error)", category: .error)
                 } else {
-                    print("Launched app with bundle ID: \(bundleID)")
+                    debugLog("Launched app with bundle ID: \(bundleID)")
                 }
             }
         } else {
-            print("Failed to find app with bundle ID: \(bundleID)")
+            Logger.log("Failed to find app with bundle ID: \(bundleID)", category: .error)
         }
     }
 

@@ -33,7 +33,7 @@ private func cameraPropertyListener(
     let monitor = Unmanaged<CameraMonitor>.fromOpaque(context).takeUnretainedValue()
     
     DispatchQueue.main.async {
-        print("CameraMonitor: 📷 Camera property changed")
+        debugLog("CameraMonitor: 📷 Camera property changed")
         monitor.checkCameraStatus()
     }
     
@@ -87,11 +87,11 @@ class CameraMonitor: ObservableObject {
     /// Start monitoring camera usage
     func startMonitoring() {
         guard !isMonitoring else {
-            print("CameraMonitor: Already monitoring, skipping start")
+            debugLog("CameraMonitor: Already monitoring, skipping start")
             return
         }
         
-        print("CameraMonitor: 🟢 Starting camera monitoring...")
+        debugLog("CameraMonitor: 🟢 Starting camera monitoring...")
         
         isMonitoring = true
         
@@ -99,9 +99,9 @@ class CameraMonitor: ObservableObject {
         cameraDeviceIDs = enumerateCameraDevices()
         
         if cameraDeviceIDs.isEmpty {
-            print("CameraMonitor: ⚠️ No camera devices found")
+            debugLog("CameraMonitor: ⚠️ No camera devices found")
         } else {
-            print("CameraMonitor: 📷 Found \(cameraDeviceIDs.count) camera device(s)")
+            debugLog("CameraMonitor: 📷 Found \(cameraDeviceIDs.count) camera device(s)")
         }
         
         // Setup event listener (CoreMediaIO approach)
@@ -110,17 +110,17 @@ class CameraMonitor: ObservableObject {
         // Check initial state
         checkCameraStatus()
         
-        print("CameraMonitor: ✅ Started monitoring (event-driven CMIO + AVFoundation check)")
+        debugLog("CameraMonitor: ✅ Started monitoring (event-driven CMIO + AVFoundation check)")
     }
     
     /// Stop monitoring camera usage
     func stopMonitoring() {
         guard isMonitoring else {
-            print("CameraMonitor: Not monitoring, skipping stop")
+            debugLog("CameraMonitor: Not monitoring, skipping stop")
             return
         }
         
-        print("CameraMonitor: 🛑 Stopping monitoring...")
+        debugLog("CameraMonitor: 🛑 Stopping monitoring...")
         
         isMonitoring = false
         
@@ -135,7 +135,7 @@ class CameraMonitor: ObservableObject {
         }
         activeApp = nil
         
-        print("CameraMonitor: ✅ Stopped monitoring")
+        debugLog("CameraMonitor: ✅ Stopped monitoring")
     }
     
     /// Toggle monitoring state
@@ -167,7 +167,7 @@ class CameraMonitor: ObservableObject {
         )
         
         guard status == OSStatus(kCMIOHardwareNoError), dataSize > 0 else {
-            print("CameraMonitor: ⚠️ Failed to get devices data size (status: \(status))")
+            Logger.log("CameraMonitor: Failed to get devices data size (status: \(status))", category: .warning)
             return []
         }
         
@@ -185,7 +185,7 @@ class CameraMonitor: ObservableObject {
         )
         
         guard status == OSStatus(kCMIOHardwareNoError) else {
-            print("CameraMonitor: ⚠️ Failed to get devices (status: \(status))")
+            Logger.log("CameraMonitor: Failed to get devices (status: \(status))", category: .warning)
             return []
         }
         
@@ -241,10 +241,10 @@ class CameraMonitor: ObservableObject {
             )
             
             if status == OSStatus(kCMIOHardwareNoError) {
-                print("CameraMonitor: ✅ Property listener registered for device \(deviceID)")
+                debugLog("CameraMonitor: ✅ Property listener registered for device \(deviceID)")
                 isListenerRegistered = true
             } else {
-                print("CameraMonitor: ⚠️ Failed to register listener for device \(deviceID) (status: \(status))")
+                Logger.log("CameraMonitor: Failed to register listener for device \(deviceID) (status: \(status))", category: .warning)
             }
         }
     }
@@ -270,9 +270,9 @@ class CameraMonitor: ObservableObject {
             )
             
             if status == OSStatus(kCMIOHardwareNoError) {
-                print("CameraMonitor: ✅ Property listener removed for device \(deviceID)")
+                debugLog("CameraMonitor: ✅ Property listener removed for device \(deviceID)")
             } else {
-                print("CameraMonitor: ⚠️ Failed to remove listener for device \(deviceID) (status: \(status))")
+                debugLog("CameraMonitor: ⚠️ Failed to remove listener for device \(deviceID) (status: \(status))")
             }
         }
         
@@ -340,22 +340,22 @@ class CameraMonitor: ObservableObject {
         let isActive = isCMIOActive || isAVActive
         
         // Debug logging
-        print("CameraMonitor: 🔍 Checking... current=\(isCameraActive), CMIO=\(isCMIOActive), AV=\(isAVActive), final=\(isActive)")
+        debugLog("CameraMonitor: 🔍 Checking... current=\(isCameraActive), CMIO=\(isCMIOActive), AV=\(isAVActive), final=\(isActive)")
         
         // Update state if changed
         if isActive != isCameraActive {
-            print("CameraMonitor: 🔄 State change detected (\(isCameraActive) -> \(isActive))")
+            debugLog("CameraMonitor: 🔄 State change detected (\(isCameraActive) -> \(isActive))")
             
             withAnimation(.smooth) {
                 isCameraActive = isActive
             }
             
             if isActive {
-                print("CameraMonitor: 📷 Camera ACTIVE")
+                debugLog("CameraMonitor: 📷 Camera ACTIVE")
                 // Could try to identify app here (TODO: investigate)
                 activeApp = "Unknown App"
             } else {
-                print("CameraMonitor: ⚪ Camera INACTIVE")
+                debugLog("CameraMonitor: ⚪ Camera INACTIVE")
                 activeApp = nil
             }
         }

@@ -52,7 +52,7 @@ class CapsLockManager: ObservableObject {
             }
         }
         
-        print("CapsLockManager: ✅ Initialized with Caps Lock \(isCapsLockActive ? "ON" : "OFF")")
+        debugLog("CapsLockManager: ✅ Initialized with Caps Lock \(isCapsLockActive ? "ON" : "OFF")")
     }
     
     deinit {
@@ -73,6 +73,6 @@ class CapsLockManager: ObservableObject {
             isCapsLockActive = newState
         }
         
-        print("CapsLockManager: Caps Lock \(newState ? "ACTIVATED" : "DEACTIVATED")")
+        debugLog("CapsLockManager: Caps Lock \(newState ? "ACTIVATED" : "DEACTIVATED")")
     }
 }

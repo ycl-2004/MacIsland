@@ -1,0 +1,10 @@
+{
+  "installed": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-153307/Atoll.app",
+  "installed_sha256": "3d8fd3cd80364d9c3e141800c3860bdabf1de8494d28c317c6731f47fcc9c323",
+  "previous_sha256": "840b64880050ded7963548d37a0d4af9a28384ebe6787837f437e0f83aeb1e66",
+  "installed_at": "2026-10-06T15:33:08.637368-07:00",
+  "signature_matches_previous": true,
+  "configuration": "Release",
+  "relaunched": false
+}

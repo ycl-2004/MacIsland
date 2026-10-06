@@ -92,18 +92,42 @@ final class MemoryUsageMonitor {
         }
     }
 
-    private func relaunchApplication() {
+    func relaunchApplication() {
         let workspace = NSWorkspace.shared
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
 
-        let appURL = workspace.urlForApplication(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "") ?? Bundle.main.bundleURL
+        let appURL = Bundle.main.bundleURL
 
-        workspace.openApplication(at: appURL, configuration: configuration) { _, error in
-            if let error {
-                Logger.log("[MemoryMonitor] Failed to launch replacement app: \(error.localizedDescription)", category: .error)
+        for window in NSApp.windows {
+            if let editor = window.firstResponder as? ExtraSpaceTextView {
+                if editor.hasMarkedText() { editor.unmarkText(); editor.didChangeText() }
+                window.makeFirstResponder(nil)
             }
+        }
+        ExtraSpaceStore.shared.isRelaunching = true
+        ExtraSpaceStore.shared.flushPendingSave()
+        AgentSessionStore.shared.flushPendingSave()
+        ShelfStateViewModel.shared.flushPendingSave()
+        if ExtraSpaceStore.shared.isDirty || ShelfPersistenceService.shared.lastError != nil {
+            ExtraSpaceStore.shared.isRelaunching = false
+            let alert = NSAlert()
+            alert.messageText = "Atoll could not save before restarting"
+            alert.informativeText = ExtraSpaceStore.shared.errorMessage ?? ShelfPersistenceService.shared.lastError ?? "Try saving again before restarting."
+            alert.runModal()
+            return
+        }
+        workspace.openApplication(at: appURL, configuration: configuration) { application, error in
             Task { @MainActor in
+                guard error == nil, let application, !application.isTerminated,
+                      application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+                    ExtraSpaceStore.shared.isRelaunching = false
+                    let alert = NSAlert()
+                    alert.messageText = "Atoll could not restart"
+                    alert.informativeText = error?.localizedDescription ?? "The replacement did not start. Your current session remains open."
+                    alert.runModal()
+                    return
+                }
                 NSApplication.shared.terminate(nil)
             }
         }

@@ -30,14 +30,14 @@ final class AgentEventServer {
             self.queue = queue
         }
 
-        func send(_ body: Data?) {
-            queue.async { [self] in
-                guard !answered else { return }
-                answered = true
-                onClose = nil
-                finish()
-                AgentEventServer.respond(on: connection, status: body == nil ? "204 No Content" : "200 OK", body: body ?? Data())
-            }
+        func send(_ body: Data?) { queue.async { [self] in sendNow(body) } }
+
+        fileprivate func sendNow(_ body: Data?) {
+            guard !answered else { return }
+            answered = true
+            onClose = nil
+            finish()
+            AgentEventServer.respond(on: connection, status: body == nil ? "204 No Content" : "200 OK", body: body ?? Data())
         }
 
         private func finish() {
@@ -67,20 +67,41 @@ final class AgentEventServer {
     /// Hook payloads can quote whole files (a `Write` tool call), but nothing
     /// Atoll reads is anywhere near this.
     private static let maxRequestBytes = 2 * 1024 * 1024
+    private static let maxHeaderBytes = 16 * 1024
+    private static let maxConnections = 32
+    private static let maxBufferedBytes = 16 * 1024 * 1024
+    private final class Incoming {
+        let connection: NWConnection
+        var buffer = Data()
+        var chargedBytes = 0
+        var deadline: DispatchWorkItem?
+        init(_ connection: NWConnection) { self.connection = connection }
+    }
+    private var incoming: [ObjectIdentifier: Incoming] = [:]
+    private var bufferedBytes = 0
+    private var running = false
 
     private let queue = DispatchQueue(label: "Atoll.AgentEventServer")
+    private let requestTimeout: TimeInterval
     private let expectedAuthorization: Data
     private let onRequest: (Request, Reply) -> Void
     private var listener: NWListener?
     /// Requests not answered yet, on `queue`.
     private var waiting: [ObjectIdentifier: Reply] = [:]
 
-    init(token: String, onRequest: @escaping (Request, Reply) -> Void) {
+    init(token: String, requestTimeout: TimeInterval = 5, onRequest: @escaping (Request, Reply) -> Void) {
+        self.requestTimeout = requestTimeout
         self.expectedAuthorization = Data("Bearer \(token)".utf8)
         self.onRequest = onRequest
     }
 
     func start(onReady: @escaping (UInt16) -> Void, onFailure: @escaping (Error) -> Void) {
+        queue.async { [self] in startListener(onReady: onReady, onFailure: onFailure) }
+    }
+
+    private func startListener(onReady: @escaping (UInt16) -> Void, onFailure: @escaping (Error) -> Void) {
+        guard !running else { return }
+        running = true
         let params = NWParameters.tcp
         params.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
         do {
@@ -101,50 +122,84 @@ final class AgentEventServer {
             listener.start(queue: queue)
             self.listener = listener
         } catch {
+            running = false
             onFailure(error)
         }
     }
 
     func stop() {
-        listener?.cancel()
-        listener = nil
-        // Waiting hooks let their agents carry on without a message.
         queue.async { [self] in
-            for reply in waiting.values { reply.send(nil) }
+            running = false
+            listener?.cancel(); listener = nil
+            for reply in Array(waiting.values) { reply.sendNow(nil) }
+            for state in Array(incoming.values) { release(state.connection, cancel: true) }
         }
     }
 
     private func accept(_ connection: NWConnection) {
-        guard Self.isLoopback(connection.endpoint) else {
-            connection.cancel()
-            return
+        guard running, Self.isLoopback(connection.endpoint), incoming.count < Self.maxConnections else {
+            connection.cancel(); return
         }
+        let state = Incoming(connection)
+        incoming[ObjectIdentifier(connection)] = state
         connection.start(queue: queue)
-        receive(on: connection, buffer: Data())
+        setDeadline(state, seconds: requestTimeout)
+        receive(on: connection)
     }
 
-    private func receive(on connection: NWConnection, buffer: Data) {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] chunk, _, isComplete, error in
-            guard let self else { return connection.cancel() }
-            var buffer = buffer
-            if let chunk { buffer.append(chunk) }
+    private func setDeadline(_ state: Incoming, seconds: TimeInterval, reply: Reply? = nil) {
+        state.deadline?.cancel()
+        let work = DispatchWorkItem { [weak self, weak state, weak reply] in
+            guard let self, let state else { return }
+            if let reply { reply.peerClosed() }
+            self.release(state.connection, cancel: true)
+        }
+        state.deadline = work
+        queue.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
 
-            guard buffer.count <= Self.maxRequestBytes else {
-                return self.respond(on: connection, status: "413 Payload Too Large")
+    private func release(_ connection: NWConnection, cancel: Bool) {
+        if let state = incoming.removeValue(forKey: ObjectIdentifier(connection)) {
+            state.deadline?.cancel()
+            bufferedBytes -= state.chargedBytes
+        }
+        if cancel { connection.cancel() }
+    }
+
+    private func receive(on connection: NWConnection) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] chunk, _, isComplete, error in
+            guard let self, self.running, let state = self.incoming[ObjectIdentifier(connection)] else { return connection.cancel() }
+            if let chunk {
+                guard state.chargedBytes + chunk.count <= Self.maxRequestBytes,
+                      self.bufferedBytes + chunk.count <= Self.maxBufferedBytes else {
+                    return self.respond(on: connection, status: "413 Payload Too Large")
+                }
+                state.buffer.append(chunk)
+                state.chargedBytes += chunk.count
+                self.bufferedBytes += chunk.count
             }
-            switch Self.parse(buffer) {
+            let delimiter = state.buffer.range(of: Data("\r\n\r\n".utf8))
+            if (delimiter?.lowerBound ?? state.buffer.count) > Self.maxHeaderBytes {
+                return self.respond(on: connection, status: "431 Request Header Fields Too Large")
+            }
+            switch Self.parse(state.buffer) {
             case .incomplete where error == nil && !isComplete:
-                self.receive(on: connection, buffer: buffer)
+                self.receive(on: connection)
             case .incomplete, .malformed:
                 self.respond(on: connection, status: "400 Bad Request")
             case .complete(let request, let authorization):
                 guard Self.constantTimeEquals(authorization, self.expectedAuthorization) else {
                     return self.respond(on: connection, status: "401 Unauthorized")
                 }
+                state.buffer.removeAll(keepingCapacity: false)
                 let reply = Reply(connection: connection, queue: self.queue)
                 let key = ObjectIdentifier(reply)
                 self.waiting[key] = reply
-                reply.onFinish = { [weak self] in self?.waiting[key] = nil }
+                reply.onFinish = { [weak self] in
+                    self?.waiting[key] = nil
+                    self?.release(connection, cancel: false)
+                }
+                self.setDeadline(state, seconds: 8 * 60 * 60, reply: reply)
                 self.watchForHangUp(connection, reply: reply)
                 self.onRequest(request, reply)
             }
@@ -160,6 +215,7 @@ final class AgentEventServer {
     }
 
     private func respond(on connection: NWConnection, status: String) {
+        release(connection, cancel: false)
         Self.respond(on: connection, status: status, body: Data())
     }
 
@@ -191,7 +247,7 @@ final class AgentEventServer {
         }
 
         let length = Int(headers["content-length"] ?? "0") ?? -1
-        guard length >= 0 else { return .malformed }
+        guard length >= 0, length <= Self.maxRequestBytes - headerEnd.upperBound else { return .malformed }
         let bodyStart = headerEnd.upperBound
         guard buffer.count - bodyStart >= length else { return .incomplete }
 
@@ -203,6 +259,12 @@ final class AgentEventServer {
             body: buffer.subdata(in: bodyStart..<(bodyStart + length))
         )
         return .complete(request, authorization: Data((headers["authorization"] ?? "").utf8))
+    }
+
+    func resourceCounts() async -> (connections: Int, bufferedBytes: Int, waiting: Int) {
+        await withCheckedContinuation { continuation in
+            queue.async { continuation.resume(returning: (self.incoming.count, self.bufferedBytes, self.waiting.count)) }
+        }
     }
 
     /// Only this Mac may post: the listener binds loopback, and this checks the peer too.

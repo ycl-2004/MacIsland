@@ -71,6 +71,7 @@ struct ShelfDropService {
         }
 
         if let text = await provider.extractText() {
+            guard text.utf8.count <= 1024 * 1024 else { return nil }
             return await ShelfItem(kind: .text(string: text), isTemporary: false)
         }
 

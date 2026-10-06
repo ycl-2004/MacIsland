@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-struct CodexAgentSource: AgentSource {
+struct CodexAgentSource: HookConfigAgentSource {
     let id = "codex"
     let displayName = "Codex"
     let symbolName = "chevron.left.forwardslash.chevron.right"

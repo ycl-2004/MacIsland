@@ -76,6 +76,7 @@ public enum NotchViews {
     case timer
     case stats
     case agents
+    case extraSpace
     case colorPicker
 }
 
@@ -86,6 +87,7 @@ public enum ShortcutDefaultTab: String, CaseIterable, Defaults.Serializable, Ide
     case timer = "Timer"
     case stats = "Stats"
     case agents = "Agents"
+    case extraSpace = "Extra Space"
 
     public var id: String { rawValue }
 
@@ -98,6 +100,7 @@ public enum ShortcutDefaultTab: String, CaseIterable, Defaults.Serializable, Ide
         case .timer: return .timer
         case .stats: return .stats
         case .agents: return .agents
+        case .extraSpace: return .extraSpace
         }
     }
 }

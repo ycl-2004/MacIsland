@@ -23,13 +23,13 @@ struct AgentTranscript {
 
 /// One coding agent Atoll can follow through its hooks (Claude Code, Codex, ...).
 ///
-/// A source only *declares* what is specific to its agent: where its hooks file
-/// lives and how it is laid out, which hook events it has and what they mean,
-/// what its tools are called, how its transcript reads and how a typed message
-/// reaches it. Everything mechanical — turning a hook payload into an
-/// `AgentHookEvent`, adding or removing Atoll's hook entries, reading
-/// transcripts and carrying messages — is shared, so a new agent is one small
-/// type plus one line in `AgentSourceRegistry`.
+/// A source only *declares* what is specific to its agent: how Atoll's hooks
+/// get into it (`HookConfigAgentSource` or `PluginAgentSource`), which hook
+/// events it has and what they mean, what its tools are called, how its
+/// transcript reads and how a typed message reaches it. Everything mechanical —
+/// turning a hook payload into an `AgentHookEvent`, adding or removing Atoll's
+/// hooks, reading transcripts and carrying messages — is shared, so a new agent
+/// is one small type plus one line in `AgentSourceRegistry`.
 protocol AgentSource {
     /// Stable identifier, used in hook commands and to route incoming events.
     var id: String { get }
@@ -38,15 +38,15 @@ protocol AgentSource {
     var accentColor: Color { get }
     /// Name of the CLI, used to tell the user whether the agent is installed.
     var executableName: String { get }
-    /// The user-level JSON file the agent reads hooks from.
-    var hooksFileURL: URL { get }
-    /// How hooks are laid out in `hooksFileURL`.
-    var hookFormat: AgentHookConfigFormat { get }
-    /// What the hook prints back, for agents that require a reply on stdout.
-    var hookReply: String? { get }
-    /// Hook event names this agent emits, mapped to the lifecycle step they mean.
-    /// Only these are installed, so an event the agent does not know about is
-    /// never written into its config.
+    /// Where Atoll's hooks go and how they are added and removed.
+    var installation: AgentHookInstallation { get }
+    /// Set on every hook this agent runs. Another source's hook that runs with
+    /// it set came from this agent reading that source's config (Grok Build runs
+    /// Claude Code's hooks), so it is dropped instead of showing a second card.
+    var hookEnvironmentVariable: String? { get }
+    /// Hook event names this agent emits (or Atoll's plugin reports for it),
+    /// mapped to the lifecycle step they mean. Only these are installed, so an
+    /// event the agent does not know about is never written into its config.
     var hookEvents: [String: AgentEventPhase] { get }
     /// Tool names this agent uses, where the name alone does not reveal the kind.
     var toolKinds: [String: AgentToolKind] { get }
@@ -66,8 +66,7 @@ protocol AgentSource {
 }
 
 extension AgentSource {
-    var hookFormat: AgentHookConfigFormat { GroupedHookFormat() }
-    var hookReply: String? { nil }
+    var hookEnvironmentVariable: String? { nil }
     var installNote: String? { nil }
     var replyDelivery: AgentReplyDelivery? { nil }
     func transcript(from rows: [[String: Any]]) -> AgentTranscript? { nil }
@@ -80,7 +79,9 @@ extension AgentSource {
     // MARK: Payload normalisation
 
     // Claude Code and Codex send snake_case keys; Antigravity sends camelCase
-    // protojson. Reading both here keeps every source free of payload parsing.
+    // protojson; Grok Build sends both for some fields and camelCase for the
+    // rest. Atoll's own plugins send Claude's keys. Reading every spelling here
+    // keeps each source free of payload parsing.
 
     func makeEvent(eventName: String, payload: [String: Any], hostBundleID: String?, now: Date = Date()) -> AgentHookEvent? {
         guard let phase = phase(forEvent: eventName, payload: payload) else { return nil }
@@ -107,7 +108,7 @@ extension AgentSource {
             toolKind: toolName.map(toolKind(for:)),
             toolDetail: toolInput.flatMap(Self.toolDetail(from:)),
             message: message,
-            lastReply: payload["last_assistant_message"] as? String,
+            lastReply: (payload["last_assistant_message"] ?? payload["lastAssistantMessage"]) as? String,
             hostBundleID: hostBundleID,
             transcriptPath: ((payload["transcript_path"] ?? payload["transcriptPath"]) as? String)?.nonBlank,
             eventName: eventName,
@@ -134,8 +135,9 @@ extension AgentSource {
     /// matched case-insensitively (`command` vs Antigravity's `CommandLine`).
     static func toolDetail(from input: [String: Any]) -> String? {
         let byLowercasedKey = Dictionary(input.map { ($0.key.lowercased(), $0.value) }, uniquingKeysWith: { first, _ in first })
-        let fileKeys: Set = ["file_path", "filepath", "targetfile", "absolutepath", "path"]
-        let keys = ["command", "commandline", "cmd", "file_path", "filepath", "targetfile", "absolutepath", "path", "pattern", "query", "url", "description"]
+        let fileKeys: Set = ["file_path", "filepath", "targetfile", "target_file", "absolutepath", "path", "target_directory"]
+        let keys = ["command", "commandline", "cmd", "file_path", "filepath", "targetfile", "target_file", "absolutepath", "path",
+                    "target_directory", "pattern", "query", "url", "description"]
         for key in keys {
             let value: String?
             switch byLowercasedKey[key] {
@@ -153,10 +155,42 @@ extension AgentSource {
         return nil
     }
 
-    // MARK: Hook installation
-
     var isCLIAvailable: Bool {
         AgentExecutableLocator.path(for: executableName) != nil
+    }
+}
+
+// MARK: - Installation
+
+/// Where Atoll's hooks live in one agent, and how they are added and removed.
+/// Every kind tells Atoll's hooks apart by `AgentHooksFile.marker`.
+protocol AgentHookInstallation {
+    /// The file Atoll writes, named when writing it fails.
+    var fileURL: URL { get }
+    func isInstalled(scriptPath: String) -> Bool
+    /// Some of Atoll's hooks are there, but not the current set.
+    func isOutdated(scriptPath: String) -> Bool
+    func install(scriptPath: String) throws
+    func remove() throws
+}
+
+/// An agent that runs the commands listed in a JSON hooks config (Claude Code,
+/// Codex, Antigravity, Grok Build). Atoll adds its own entries beside the user's.
+protocol HookConfigAgentSource: AgentSource {
+    /// The user-level JSON file the agent reads hooks from.
+    var hooksFileURL: URL { get }
+    /// How hooks are laid out in `hooksFileURL`.
+    var hookFormat: AgentHookConfigFormat { get }
+    /// What the hook prints back, for agents that require a reply on stdout.
+    var hookReply: String? { get }
+}
+
+extension HookConfigAgentSource {
+    var hookFormat: AgentHookConfigFormat { GroupedHookFormat() }
+    var hookReply: String? { nil }
+
+    var installation: AgentHookInstallation {
+        HookConfigInstallation(fileURL: hooksFileURL, format: hookFormat, handlers: hookHandlers(scriptPath:))
     }
 
     func hookCommand(event: String, scriptPath: String) -> String {
@@ -177,27 +211,33 @@ extension AgentSource {
         }
         return handlers
     }
+}
 
-    func hooksInstalled(scriptPath: String) -> Bool {
-        guard let root = try? AgentHooksFile(url: hooksFileURL).read() else { return false }
-        return hookFormat.containsAll(hookHandlers(scriptPath: scriptPath), in: root)
+/// Atoll's entries in an agent's JSON hooks config.
+struct HookConfigInstallation: AgentHookInstallation {
+    let fileURL: URL
+    let format: AgentHookConfigFormat
+    let handlers: (_ scriptPath: String) -> [String: [[String: Any]]]
+
+    func isInstalled(scriptPath: String) -> Bool {
+        guard let root = try? AgentHooksFile(url: fileURL).read() else { return false }
+        return format.containsAll(handlers(scriptPath), in: root)
     }
 
-    /// Some of Atoll's hooks are there, but not the current set.
-    func hooksOutdated(scriptPath: String) -> Bool {
-        guard let root = try? AgentHooksFile(url: hooksFileURL).read() else { return false }
-        return hookFormat.containsAtoll(in: root) && !hookFormat.containsAll(hookHandlers(scriptPath: scriptPath), in: root)
+    func isOutdated(scriptPath: String) -> Bool {
+        guard let root = try? AgentHooksFile(url: fileURL).read() else { return false }
+        return format.containsAtoll(in: root) && !format.containsAll(handlers(scriptPath), in: root)
     }
 
-    func installHooks(scriptPath: String) throws {
-        try AgentHooksFile(url: hooksFileURL).update { root in
-            hookFormat.install(hookHandlers(scriptPath: scriptPath), into: &root)
+    func install(scriptPath: String) throws {
+        try AgentHooksFile(url: fileURL).update { root in
+            format.install(handlers(scriptPath), into: &root)
         }
     }
 
-    func removeHooks() throws {
-        try AgentHooksFile(url: hooksFileURL).update { root in
-            hookFormat.remove(from: &root)
+    func remove() throws {
+        try AgentHooksFile(url: fileURL).update { root in
+            format.remove(from: &root)
         }
     }
 }
@@ -350,9 +390,11 @@ struct AgentHooksFile {
 }
 
 enum AgentExecutableLocator {
-    /// GUI apps do not inherit the shell's `PATH`, so look where installers put CLIs.
+    /// GUI apps do not inherit the shell's `PATH`, so look where installers put
+    /// CLIs, including the agents' own installers (OpenCode, Grok Build).
     private static let searchDirectories = [
-        "~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "~/.npm-global/bin", "~/.bun/bin", "/usr/bin",
+        "~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "~/.npm-global/bin", "~/.bun/bin",
+        "~/.opencode/bin", "~/.grok/bin", "/usr/bin",
     ].map { NSString(string: $0).expandingTildeInPath }
 
     static func path(for executable: String) -> String? {

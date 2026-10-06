@@ -30,6 +30,10 @@ final class LockScreenWeatherManager: ObservableObject {
     private let provider = LockScreenWeatherProvider()
     private let locationProvider = LockScreenWeatherLocationProvider()
     private var lastFetchDate: Date?
+    private var inFlight: Task<LockScreenWeatherSnapshot?, Never>?
+    private var refreshGeneration = UUID()
+    private var retryAfter: Date = .distantPast
+    private var failureCount = 0
     private var latestWeatherPayload: LockScreenWeatherSnapshot?
     private var cancellables = Set<AnyCancellable>()
 
@@ -37,6 +41,7 @@ final class LockScreenWeatherManager: ObservableObject {
         observeAccessoryChanges()
         Task { @MainActor [weak self] in
             guard let self else { return }
+            guard Defaults[.enableLockScreenWeatherWidget], !AppDelegate.isHostingUnitTests else { return }
             self.locationProvider.prepareAuthorization()
             _ = await self.refresh(force: true)
         }
@@ -90,6 +95,27 @@ final class LockScreenWeatherManager: ObservableObject {
 
     @discardableResult
     func refresh(force: Bool = false) async -> LockScreenWeatherSnapshot? {
+        guard Defaults[.enableLockScreenWeatherWidget], !AppDelegate.isHostingUnitTests else { return nil }
+        if let inFlight { return await inFlight.value }
+        guard Date() >= retryAfter else { return snapshot }
+        let generation = refreshGeneration
+        let task = Task { await performRefresh(force: force) }
+        inFlight = task
+        let result = await task.value
+        if generation == refreshGeneration { inFlight = nil }
+        return result
+    }
+
+    private func invalidateRefresh() {
+        refreshGeneration = UUID()
+        inFlight?.cancel(); inFlight = nil
+        locationProvider.cancelPendingRequests()
+        retryAfter = .distantPast
+        failureCount = 0
+    }
+
+    @discardableResult
+    private func performRefresh(force: Bool) async -> LockScreenWeatherSnapshot? {
         NSLog("LockScreenWeatherManager: refresh requested (force=%@)", force ? "true" : "false")
         let interval = Defaults[.lockScreenWeatherRefreshInterval]
         if !force, let lastFetchDate, Date().timeIntervalSince(lastFetchDate) < interval {
@@ -118,7 +144,12 @@ final class LockScreenWeatherManager: ObservableObject {
                 provider.displayName,
                 location != nil ? "available" : "missing"
             )
+            try Task.checkCancellation()
             let payload = try await fetchWeatherPayload(location: location)
+            try Task.checkCancellation()
+            guard Defaults[.enableLockScreenWeatherWidget] else { return nil }
+            failureCount = 0
+            retryAfter = .distantPast
             latestWeatherPayload = payload
             if Defaults[.lockScreenBatteryShowsBluetooth] {
                 BluetoothAudioManager.shared.refreshConnectedDeviceBatteries()
@@ -130,6 +161,9 @@ final class LockScreenWeatherManager: ObservableObject {
             NSLog("LockScreenWeatherManager: weather refresh succeeded")
             return snapshot
         } catch {
+            guard !Task.isCancelled, Defaults[.enableLockScreenWeatherWidget] else { return nil }
+            failureCount = min(failureCount + 1, 5)
+            retryAfter = Date().addingTimeInterval(min(300, 30 * pow(2, Double(failureCount - 1))))
             NSLog("LockScreenWeatherManager: failed to fetch weather - \(error.localizedDescription)")
 
             let providerSource = Defaults[.lockScreenWeatherProviderSource]
@@ -171,6 +205,7 @@ final class LockScreenWeatherManager: ObservableObject {
         do {
             return try await provider.fetchSnapshot(location: location, source: primarySource)
         } catch {
+            try Task.checkCancellation()
             if primarySource == .openMeteo {
                 NSLog("LockScreenWeatherManager: Open Meteo fetch failed - %@. Falling back to wttr.in", error.localizedDescription)
                 do {
@@ -255,6 +290,7 @@ final class LockScreenWeatherManager: ObservableObject {
                 guard let self else { return }
                 self.latestWeatherPayload = nil
                 Task { @MainActor in
+                    self.invalidateRefresh()
                     NSLog("LockScreenWeatherManager: provider changed, forcing refresh")
                     _ = await self.refresh(force: true)
                 }
@@ -266,6 +302,7 @@ final class LockScreenWeatherManager: ObservableObject {
                 guard let self else { return }
                 self.latestWeatherPayload = nil
                 Task { @MainActor in
+                    self.invalidateRefresh()
                     NSLog("LockScreenWeatherManager: temperature unit changed, forcing refresh")
                     _ = await self.refresh(force: true)
                 }
@@ -277,6 +314,7 @@ final class LockScreenWeatherManager: ObservableObject {
                 guard let self else { return }
                 self.latestWeatherPayload = nil
                 Task { @MainActor in
+                    self.invalidateRefresh()
                     NSLog("LockScreenWeatherManager: AQI scale changed, forcing refresh")
                     _ = await self.refresh(force: true)
                 }
@@ -292,6 +330,7 @@ final class LockScreenWeatherManager: ObservableObject {
                         self.locationProvider.prepareAuthorization()
                         _ = await self.refresh(force: true)
                     } else {
+                        self.invalidateRefresh()
                         LockScreenWeatherPanelManager.shared.hide()
                     }
                 }
@@ -1091,7 +1130,8 @@ private func symbolAdjustedForDaylight(_ symbol: String, isDaytime: Bool) -> Str
 @MainActor
 private final class LockScreenWeatherLocationProvider: NSObject, CLLocationManagerDelegate {
     private let manager: CLLocationManager
-    private var pendingContinuations: [CheckedContinuation<CLLocation?, Never>] = []
+    private var pendingContinuations: [UUID: CheckedContinuation<CLLocation?, Never>] = [:]
+    private var deadlines: [UUID: Task<Void, Never>] = [:]
     private var lastLocation: CLLocation?
 
     override init() {
@@ -1102,23 +1142,32 @@ private final class LockScreenWeatherLocationProvider: NSObject, CLLocationManag
     }
 
     func prepareAuthorization() {
-        let status = CLLocationManager.authorizationStatus()
+        let status = manager.authorizationStatus
         if status == .notDetermined {
             manager.requestWhenInUseAuthorization()
         }
     }
 
     func currentLocation() async -> CLLocation? {
-        let status = CLLocationManager.authorizationStatus()
+        let status = manager.authorizationStatus
         switch status {
         case .authorizedAlways, .authorizedWhenInUse:
             if let lastLocation, abs(lastLocation.timestamp.timeIntervalSinceNow) < 1800 {
                 return lastLocation
             }
-            manager.requestLocation()
-            return await withCheckedContinuation { continuation in
-                self.pendingContinuations.append(continuation)
-            }
+            let id = UUID()
+            return await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    guard !Task.isCancelled else { continuation.resume(returning: nil); return }
+                    self.pendingContinuations[id] = continuation
+                    self.deadlines[id] = Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(8))
+                        guard !Task.isCancelled else { return }
+                        self?.finish(id, with: nil)
+                    }
+                    manager.requestLocation()
+                }
+            } onCancel: { Task { @MainActor in self.finish(id, with: nil) } }
         default:
             return nil
         }
@@ -1137,10 +1186,18 @@ private final class LockScreenWeatherLocationProvider: NSObject, CLLocationManag
         }
     }
 
+    func cancelPendingRequests() { flushContinuations(with: nil) }
+
+    private func finish(_ id: UUID, with location: CLLocation?) {
+        deadlines.removeValue(forKey: id)?.cancel()
+        pendingContinuations.removeValue(forKey: id)?.resume(returning: location)
+    }
+
     private func flushContinuations(with location: CLLocation?) {
         guard !pendingContinuations.isEmpty else { return }
         let continuations = pendingContinuations
         pendingContinuations.removeAll()
-        continuations.forEach { $0.resume(returning: location) }
+        deadlines.values.forEach { $0.cancel() }; deadlines.removeAll()
+        continuations.values.forEach { $0.resume(returning: location) }
     }
 }

@@ -31,4 +31,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+/// Lock-free scalar shared by the UI and the realtime audio callback.
+@interface AtollAtomicFloat : NSObject
+@property(nonatomic) float value;
+@end
+
 NS_ASSUME_NONNULL_END

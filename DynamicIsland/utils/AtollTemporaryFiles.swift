@@ -16,7 +16,7 @@ enum AtollTemporaryFiles {
         case logs = "Logs"
     }
 
-    static let root = FileManager.default.temporaryDirectory.appendingPathComponent("Atoll", isDirectory: true)
+    static let root = AppRuntimeEnvironment.contentURL(FileManager.default.temporaryDirectory.appendingPathComponent("Atoll", isDirectory: true), testPath: "Temporary")
 
     /// The folder for one feature's temporary files, created when missing and
     /// readable by this user only.

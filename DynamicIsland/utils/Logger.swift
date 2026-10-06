@@ -25,7 +25,7 @@ import OSLog
 import SwiftUI
 import Defaults
 
-enum LogCategory: String {
+enum LogCategory: String, CaseIterable {
     case lifecycle = "🔄"
     case memory = "💾"
     case performance = "⚡️"
@@ -62,6 +62,26 @@ enum LogCategory: String {
     }
 }
 
+/// Debug-only print replacement used across the app.
+///
+/// Release builds compile the body out entirely — including the string
+/// interpolation at the call site, which `@autoclosure` defers. Anything
+/// computed *before* the call still runs, so keep logging-only work inside
+/// the interpolation. Debug builds route through `Logger.log`, honoring the
+/// configured log level and os_log categories. Failures that matter in
+/// shipping builds belong in `Logger.log(_:category: .error)` instead.
+func debugLog(
+    _ message: @autoclosure () -> String,
+    category: LogCategory = .debug,
+    file: String = #file,
+    function: String = #function,
+    line: Int = #line
+) {
+#if DEBUG
+    Logger.log(message(), category: category, file: file, function: function, line: line)
+#endif
+}
+
 struct Logger {
     private static let subsystem = "com.ebullioscopic.Atoll"
     private static let dateFormatter: ISO8601DateFormatter = {
@@ -69,19 +89,17 @@ struct Logger {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
-    private static var osLoggerCache: [LogCategory: OSLog] = [:]
-
-    private static func osLogger(for category: LogCategory) -> OSLog {
-        if let cached = osLoggerCache[category] {
-            return cached
+    /// Built once, up front: `log` is called from any thread, and filling a
+    /// cache lazily would race on the dictionary.
+    private static let osLoggers: [LogCategory: OSLog] = Dictionary(
+        uniqueKeysWithValues: LogCategory.allCases.map {
+            ($0, OSLog(subsystem: subsystem, category: $0.osCategoryName))
         }
-        let logger = OSLog(subsystem: subsystem, category: category.osCategoryName)
-        osLoggerCache[category] = logger
-        return logger
-    }
+    )
 
+    /// `message` is only built when the configured level lets it through.
     static func log(
-        _ message: String,
+        _ message: @autoclosure () -> String,
         category: LogCategory,
         file: String = #file,
         function: String = #function,
@@ -94,9 +112,8 @@ struct Logger {
 
         let fileName = (file as NSString).lastPathComponent
         let timestamp = dateFormatter.string(from: Date())
-        let entry = "\(category.rawValue) [\(timestamp)] [\(fileName):\(line)] \(function) - \(message)"
-        let logger = osLogger(for: category)
-        os_log("%{public}@", log: logger, type: .default, entry)
+        let entry = "\(category.rawValue) [\(timestamp)] [\(fileName):\(line)] \(function) - \(message())"
+        os_log("%{public}@", log: osLoggers[category, default: .default], type: .default, entry)
 
 #if DEBUG
         Swift.print(entry)

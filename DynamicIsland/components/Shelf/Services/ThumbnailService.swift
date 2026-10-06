@@ -32,6 +32,8 @@ actor ThumbnailService {
     static let maximumEntries = 48
     static let maximumBytes = 8 * 1024 * 1024
     static let maximumConcurrent = 2
+    static let maximumPending = 256
+    static let maximumConsumersPerRequest = 32
 
     private struct Cached {
         let image: NSImage
@@ -65,7 +67,8 @@ actor ThumbnailService {
 
     func thumbnail(for url: URL, size: CGSize) async -> NSImage? {
         guard !Task.isCancelled else { return nil }
-        let key = "\(url.standardizedFileURL.path)_\(size.width)x\(size.height)"
+        let version = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey, .fileResourceIdentifierKey])
+        let key = "\(url.standardizedFileURL.path)_\(size.width)x\(size.height)_\(version?.contentModificationDate?.timeIntervalSince1970 ?? 0)_\(version?.fileSize ?? 0)_\(String(describing: version?.fileResourceIdentifier))"
         if let hit = cache[key] {
             lru.removeAll { $0 == key }; lru.append(key)
             return hit.image
@@ -74,9 +77,11 @@ actor ThumbnailService {
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 if Task.isCancelled { continuation.resume(returning: nil); return }
-                if pending[key] != nil {
+                if let work = pending[key] {
+                    guard work.consumers.count < Self.maximumConsumersPerRequest else { continuation.resume(returning: nil); return }
                     pending[key]?.consumers[id] = continuation
                 } else {
+                    guard pending.count < Self.maximumPending else { continuation.resume(returning: nil); return }
                     let bounded = CGSize(width: min(128, size.width), height: min(128, size.height))
                     let request = QLThumbnailGenerator.Request(fileAt: url, size: bounded, scale: 2, representationTypes: .all)
                     request.iconMode = true
@@ -144,6 +149,18 @@ actor ThumbnailService {
     private func cancel(key: String, consumer: UUID) {
         pending[key]?.consumers.removeValue(forKey: consumer)?.resume(returning: nil)
         if let work = pending[key], work.consumers.isEmpty { complete(key: key, id: work.id, image: nil) }
+    }
+
+    func invalidate(_ url: URL) {
+        let prefix = url.standardizedFileURL.path + "_"
+        let keys = cache.keys.filter { $0.hasPrefix(prefix) }
+        for key in keys {
+            bytes -= cache.removeValue(forKey: key)?.bytes ?? 0
+            lru.removeAll { $0 == key }
+        }
+        for (key, work) in pending.filter({ $0.key.hasPrefix(prefix) }) {
+            complete(key: key, id: work.id, image: nil)
+        }
     }
 
     func clear() {

@@ -122,14 +122,14 @@ final class SiriVisibilityMonitor: ObservableObject {
             intervals = (idle: 2.0, active: 0.25) // 4Hz active, 0.5Hz idle
         }
         
-        print("⏱️ [SiriVisibilityMonitor] Mode: \(effectiveMode) (User Pref: \(mode)) -> Intervals: Idle \(intervals.idle)s, Active \(intervals.active)s")
+        debugLog("⏱️ [SiriVisibilityMonitor] Mode: \(effectiveMode) (User Pref: \(mode)) -> Intervals: Idle \(intervals.idle)s, Active \(intervals.active)s")
         return intervals
     }
     
     private func updateMonitoringState() {
         let shouldMonitor = isScreenLocked && isDisplayOn
         
-        print("🔌 [SiriVisibilityMonitor] State Update - Locked: \(isScreenLocked), Display: \(isDisplayOn), Plugged: \(isPluggedIn), LPM: \(isInLowPowerMode)")
+        debugLog("🔌 [SiriVisibilityMonitor] State Update - Locked: \(isScreenLocked), Display: \(isDisplayOn), Plugged: \(isPluggedIn), LPM: \(isInLowPowerMode)")
         
         if shouldMonitor {
             startMonitoring()

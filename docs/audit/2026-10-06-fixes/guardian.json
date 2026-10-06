@@ -1,0 +1,1 @@
+[{"mode": "normal", "passed": true}, {"mode": "parent_sigkill", "passed": true}, {"mode": "guardian_sigterm", "passed": true}, {"mode": "already_stopped", "passed": true}]
