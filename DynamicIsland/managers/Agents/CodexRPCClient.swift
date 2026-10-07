@@ -209,7 +209,10 @@ final class CodexRPCClient: CodexConversationClient {
     private func receiveMessage(_ data: Data) {
             guard let message = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
             if let method = message["method"] as? String {
-                let params = message["params"] as? [String: Any] ?? [:]
+                var params = message["params"] as? [String: Any] ?? [:]
+                // Newer owners emit this before fan-out. Older servers omit it.
+                // Source: app-server-protocol/src/protocol/common.rs, ServerNotificationEnvelope.
+                if let emitted = message["emittedAtMs"] as? Double { params["_atollEmittedAtMs"] = emitted }
                 if let id = message["id"] { onRequest?(id, method, params) }
                 else { onEvent?(method, params) }
             } else if let id = message["id"] as? Int {

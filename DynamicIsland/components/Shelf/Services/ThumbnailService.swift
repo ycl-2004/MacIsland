@@ -53,6 +53,7 @@ actor ThumbnailService {
     private var pending: [String: Pending] = [:]
     private var waiting: [String] = []
     private var running: Set<String> = []
+    private var isEnabled = true
     private let generator = QLThumbnailGenerator.shared
     private let lifetime: ShelfFileLifetime
     private let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .global(qos: .utility))
@@ -66,7 +67,7 @@ actor ThumbnailService {
     deinit { pressure.cancel() }
 
     func thumbnail(for url: URL, size: CGSize) async -> NSImage? {
-        guard !Task.isCancelled else { return nil }
+        guard isEnabled, !Task.isCancelled else { return nil }
         let version = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey, .fileResourceIdentifierKey])
         let key = "\(url.standardizedFileURL.path)_\(size.width)x\(size.height)_\(version?.contentModificationDate?.timeIntervalSince1970 ?? 0)_\(version?.fileSize ?? 0)_\(String(describing: version?.fileResourceIdentifier))"
         if let hit = cache[key] {
@@ -161,6 +162,11 @@ actor ThumbnailService {
         for (key, work) in pending.filter({ $0.key.hasPrefix(prefix) }) {
             complete(key: key, id: work.id, image: nil)
         }
+    }
+
+    func setEnabled(_ enabled: Bool) {
+        isEnabled = enabled
+        if !enabled { clear() }
     }
 
     func clear() {

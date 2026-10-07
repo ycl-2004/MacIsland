@@ -24,6 +24,7 @@ import KeyboardShortcuts
 import SwiftUI
 
 extension KeyboardShortcuts.Name {
+    static let openExtraSpace = Self("openExtraSpace")
     static let colorPickerPanel = Self("colorPickerPanel", default: .init(.p, modifiers: [.shift, .command]))
     static let decreaseBacklight = Self("decreaseBacklight", default: .init(.f1, modifiers: [.command]))
     static let increaseBacklight = Self("increaseBacklight", default: .init(.f2, modifiers: [.command]))

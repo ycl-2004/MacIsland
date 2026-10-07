@@ -99,9 +99,9 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 - **Interactive ruler timer**: Scrollable ruler timer for quick Pomodoro intervals, countdowns, and stopwatch tracking.
 - **Centred timer HUD**: The timer icon and countdown sit left of the physical notch; Pause/Resume, Restart and Stop sit right, in equal-width wings. Seconds, minutes, hours and signed overtime share a stable width reservation. Restart resets an Atoll timer to its original duration; mirrored Clock timers must be restarted in Clock. The housing stays fixed even beside long app menus, which can overlap the HUD. Timer names remain available in the expanded panel and tooltip, or through the explicit name-display setting.
 - **Screen color picker**: Fast color sampler with a 10× pixel-level loupe and one-click HEX clipboard copying.
-- **Shelf dock**: Drag files, text, and links onto the notch to stage them. Turning Shelf off clears its items while keeping original files intact; temporary copies still being shared are retained until release. See [Shelf resource lifecycle](docs/shelf-lifecycle.md).
+- **Shelf dock**: Drag files, text, and links onto the notch to stage them. Turning Shelf off hides it and preserves its contents. Clear is a separate action; original files and active handoffs are protected. See [Shelf resource lifecycle](docs/shelf-lifecycle.md).
 - **Calendar glance**: Quick agenda view for upcoming calendar events.
-- **Extra Space**: Enable it in Settings → Utilities → Extra Space to add a main tab with one continuous, scrollable text area. Double-click the text area, or click Edit or Paste, to change text; Cmd+S or Save finishes editing. The close swipe saves and closes in reading mode. Changes persist locally across restarts. Turning the feature off hides the tab and keeps its contents. See [Extra Space](docs/extra-space.md).
+- **Extra Space**: Enable it in Settings → Utilities → Extra Space to add a main tab with one continuous, scrollable text area. Double-click the text area, or click Edit or Paste, to change text; Cmd+S or Save finishes editing. The close swipe saves and closes in reading mode. Cmd+F opens native find; Export saves a plain-text copy. Changes persist locally across restarts. Turning the feature off hides the tab and keeps its contents. See [Extra Space](docs/extra-space.md).
 
 ---
 
@@ -253,3 +253,6 @@ Atoll is free software released under the [GNU General Public License v3.0](LICE
 Refer to [NOTICE](NOTICE), [COPYRIGHT_ASSETS](COPYRIGHT_ASSETS), and [TRADEMARKS](TRADEMARKS) for asset licenses and trademark disclaimers.
 
 Reliability limits, recovery and verification: [2026-10-06 audit fixes](docs/project-audit-fixes-2026-10-06.md).
+
+Lightweight setup, optional settings preview/undo, Extra Space shortcut and
+Agent status semantics: [feature management guide](docs/lightweight-setup-and-agent-status.md).

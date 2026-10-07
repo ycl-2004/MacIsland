@@ -10,6 +10,9 @@ enum AgentEventPhase: Equatable {
     case thinking
     case toolStarted
     case needsAttention
+    case attentionResolved
+    case turnCancelled
+    case statusUncertain
     case turnFinished
     case turnFailed
     case sessionEnded
@@ -74,6 +77,9 @@ struct AgentHookEvent {
     var transcriptPath: String? = nil
     /// The agent's own name for the hook, where one phase covers several.
     var eventName: String? = nil
+    var turnID: String? = nil
+    var toolUseID: String? = nil
+    var requestID: String? = nil
     let receivedAt: Date
 }
 
@@ -130,9 +136,50 @@ struct AgentSession: Identifiable, Equatable, Codable {
     /// surface, a Ghostty terminal id, a Terminal tty), once Atoll found it.
     var terminalPane: String? = nil
 
+    // Optional fields keep snapshots from earlier versions decodable. These are
+    // bounded current-turn facts, not a second conversation history.
+    var attentionSince: Date? = nil
+    var currentTurnID: String? = nil
+    var retiredTurnIDs: [String]? = nil
+    var pendingRequests: [String: String]? = nil
+    var activityState: AgentState? = nil
+    var statusUncertain: Bool? = nil
+    var wasCancelled: Bool? = nil
+
+    var hasPendingRequests: Bool { !(pendingRequests ?? [:]).isEmpty }
+    /// Aggregate waiting flags establish attention, but do not identify extra requests.
+    var identifiedPendingRequestCount: Int {
+        (pendingRequests ?? [:]).keys.filter { !$0.hasPrefix("status:") }.count
+    }
+    var pendingRequestSummary: String {
+        let count = identifiedPendingRequestCount
+        return count > 0 ? String(localized: "\(count) pending") : String(localized: "Waiting reported")
+    }
+    var blocksInput: Bool { state.needsAttention || hasPendingRequests || statusUncertain == true }
+    var isWorking: Bool { state.isWorking || activityState?.isWorking == true }
+
+    mutating func restorePendingAttention() {
+        if hasPendingRequests {
+            state = .needsAttention(message: pendingRequests?.sorted { $0.key < $1.key }.first?.value)
+        }
+    }
+
+    mutating func beginTurn(_ turnID: String?) {
+        if let currentTurnID, currentTurnID != turnID {
+            retiredTurnIDs = Array(((retiredTurnIDs ?? []) + [currentTurnID]).suffix(16))
+        }
+        currentTurnID = turnID
+        pendingRequests = nil
+        attentionSince = nil
+        activityState = nil
+        wasCancelled = false
+        statusUncertain = false
+        finishedAt = nil
+    }
+
     /// Stopped on something only the user can answer, in a session still running.
     var isWaitingOnUser: Bool {
-        state.needsAttention && !isDisconnected
+        state.needsAttention && !isDisconnected && statusUncertain != true
     }
 
     /// Desktop apps have their own conversation UI; the notch follows terminals.
@@ -175,54 +222,109 @@ struct AgentSession: Identifiable, Equatable, Codable {
         "\(sourceID):\(sessionKey)"
     }
 
-    /// Applies one hook event. A session with a live feed takes its
-    /// conversation from that feed, so hooks then only move its lifecycle.
-    func applying(_ event: AgentHookEvent, recordingMessages: Bool = true) -> AgentSession {
+    /// Identified old events cannot change state or hook delivery routes.
+    func accepts(_ event: AgentHookEvent) -> Bool {
+        guard event.receivedAt >= updatedAt else { return false }
+        if let turn = event.turnID {
+            guard !(retiredTurnIDs ?? []).contains(turn) else { return false }
+            if let currentTurnID, currentTurnID != turn,
+               event.phase != .promptSubmitted && event.phase != .sessionStarted { return false }
+        }
+        return true
+    }
+
+    /// Healthy owner feeds provide conversation and lifecycle. Their hooks
+    /// can update terminal metadata without overwriting that authoritative state.
+    func applying(_ event: AgentHookEvent, recordingMessages: Bool = true, applyingLifecycle: Bool = true) -> AgentSession {
+        guard accepts(event) else { return self }
         var next = self
-        next.updatedAt = event.receivedAt
-        next.isDisconnected = false
-        next.lastSeenAt = event.receivedAt
         if let cwd = event.cwd { next.cwd = cwd }
         if let host = event.hostBundleID {
-            if host != next.hostBundleID { next.terminalPane = nil }  // A pane belongs to its terminal app.
+            if host != next.hostBundleID { next.terminalPane = nil }
             next.hostBundleID = host
         }
         if let path = event.transcriptPath { next.transcriptPath = path }
+        // Healthy owner feeds are authoritative. Hooks can still identify the
+        // terminal, but cannot overwrite a live approval or turn state.
+        guard applyingLifecycle else { return next }
+        next.updatedAt = event.receivedAt
+        if event.phase != .statusUncertain { next.lastSeenAt = event.receivedAt }
+        if event.phase != .statusUncertain { next.isDisconnected = false }
+        if next.currentTurnID == nil { next.currentTurnID = event.turnID }
+        let requestKey = event.requestID ?? event.toolUseID.map { "tool:\($0)" }
 
         switch event.phase {
         case .sessionStarted:
+            next.beginTurn(event.turnID)
             next.state = .idle
-            next.finishedAt = nil
         case .promptSubmitted:
+            next.beginTurn(event.turnID)
             let prompt = event.prompt.flatMap(AtollMessageEnvelope.visibleUserText)
             if let prompt { next.lastPrompt = prompt }
             if recordingMessages { next.appendMessage(role: .user, text: prompt) }
             next.lastReply = nil
             next.state = .thinking
-            next.finishedAt = nil
-        case .thinking:
+        case .thinking, .attentionResolved:
+            if let requestKey { next.pendingRequests?[requestKey] = nil }
+            // Anonymous legacy waits can only follow explicit continuation.
+            // An identified request survives unrelated tool completion.
+            next.activityState = .thinking
             next.state = .thinking
+            next.restorePendingAttention()
             next.finishedAt = nil
         case .toolStarted:
             let kind = event.toolKind ?? .other
-            next.state = .tool(kind, name: event.toolName ?? "", detail: event.toolDetail)
+            next.activityState = .tool(kind, name: event.toolName ?? "", detail: event.toolDetail)
+            if !next.state.needsAttention { next.state = next.activityState! }
+            next.restorePendingAttention()
             next.finishedAt = nil
             if recordingMessages, let detail = event.toolDetail ?? event.toolName {
-                next.upsertMessage(.activity(id: UUID().uuidString, kind: kind, detail: detail))
+                next.upsertMessage(.activity(id: event.toolUseID ?? UUID().uuidString, kind: kind, detail: detail))
             }
         case .needsAttention:
+            if let requestKey, requestKey.utf8.count <= 256 {
+                var requests = next.pendingRequests ?? [:]
+                if requests.count < 64 || requests[requestKey] != nil {
+                    requests[requestKey] = String((event.message ?? String(localized: "Approval required")).prefix(1024))
+                    next.pendingRequests = requests
+                } else { next.statusUncertain = true }
+            }
+            if next.state.isWorking { next.activityState = next.state }
             next.state = .needsAttention(message: event.message)
         case .turnFinished:
+            // Cancellation/failure followed by idle is not a successful turn.
+            guard next.wasCancelled != true, !next.hasPendingRequests else { return next }
+            if case .failed = next.state { return next }
+            if next.state != .finished { next.finishedAt = event.receivedAt }
             next.state = .finished
-            next.finishedAt = event.receivedAt
+            next.activityState = nil
             if let reply = event.lastReply { next.lastReply = reply }
             if recordingMessages { next.appendMessage(role: .assistant, text: event.lastReply) }
         case .turnFailed:
             next.state = .failed(message: event.message)
-            next.finishedAt = event.receivedAt
+            next.finishedAt = nil
+            next.activityState = nil
+            next.pendingRequests = nil
+        case .turnCancelled:
+            next.state = .idle
+            next.wasCancelled = true
+            next.activityState = nil
+            next.pendingRequests = nil
+            next.finishedAt = nil
+        case .statusUncertain:
+            next.statusUncertain = true
+            next.finishedAt = nil
         case .sessionEnded:
             next.isDisconnected = true
+            next.pendingRequests = nil
+            next.activityState = nil
+            next.finishedAt = nil
             if next.state.isWorking || next.state.needsAttention { next.state = .idle }
+        }
+        if next.isWaitingOnUser { next.attentionSince = attentionSince ?? event.receivedAt }
+        else { next.attentionSince = nil }
+        if [.turnFinished, .turnCancelled, .turnFailed].contains(event.phase), let turn = event.turnID {
+            next.retiredTurnIDs = Array(((next.retiredTurnIDs ?? []).filter { $0 != turn } + [turn]).suffix(16))
         }
         return next
     }

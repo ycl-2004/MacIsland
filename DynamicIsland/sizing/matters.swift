@@ -114,42 +114,8 @@ func maxAllowedNotchWidth() -> CGFloat {
 
 // MARK: - Tab-Based Notch Width
 
-/// Counts the number of currently enabled standard notch tabs.
-/// Mirrors the tab-building logic in ``TabSelectionView``.
-func enabledStandardTabCount() -> Int {
-    var count = 0
-
-    // Home tab
-    if Defaults[.showStandardMediaControls] || Defaults[.showCalendar] || Defaults[.showMirror] {
-        count += 1
-    }
-
-    // Shelf tab
-    if Defaults[.dynamicShelf] {
-        count += 1
-    }
-
-    // Timer tab (only in .tab display mode)
-    if Defaults[.enableTimerFeature] && Defaults[.timerDisplayMode] == .tab {
-        count += 1
-    }
-
-    // Stats tab
-    if Defaults[.enableStatsFeature] {
-        count += 1
-    }
-
-    // Agents tab
-    if Defaults[.enableAgentsFeature] {
-        count += 1
-    }
-
-    if Defaults[.enableExtraSpaceFeature] {
-        count += 1
-    }
-
-    return count
-}
+/// Counts the same available tabs used by navigation and the header.
+func enabledStandardTabCount() -> Int { NotchTabAvailability.current.tabs.count }
 
 /// Returns the recommended minimum notch width for the given tab count.
 func recommendedMinimumNotchWidth(forTabCount count: Int) -> CGFloat {

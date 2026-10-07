@@ -4,6 +4,12 @@ Enable **Settings → Utilities → Extra Space → Enable Extra Space**. The fe
 is off by default. Once enabled, **Extra Space** appears in the main tab row
 beside Home, Stats and Agents, and can be reordered like the other tabs.
 
+Set **Open Extra Space** in this page or Settings → Shortcuts for direct access.
+The shortcut is unassigned by default and follows the Shortcuts master switch.
+It opens reading mode when the feature is enabled; otherwise it opens Extra
+Space settings without enabling it. See [feature management and runtime
+policy](lightweight-setup-and-agent-status.md) for lightweight setup choices.
+
 The tab opens in reading mode. Double-click the text area or click **Edit** to
 type, select and change text. **Paste** enters editing and inserts at the cursor.
 **Copy all** copies the document. **Cmd+S** or **Save** writes locally and finishes
@@ -85,3 +91,17 @@ truncation; oversized or invalid files remain untouched. Repeated Save and
 teardown reuse a written revision. Settings shows storage use and offers local
 file reveal and explicit previous-version recovery. At most 200 undo groups
 are retained, reduced for large documents. See [limits and recovery details](project-audit-fixes-2026-10-06.md).
+
+## Finding and exporting
+
+**Find** or **Cmd+F** opens AppKit's find bar, including in reading mode. **Cmd+G / Cmd+Shift+G** navigate matches when
+the text view is the responder; the native bar supplies its own navigation controls. Escape hides the find interface before closing
+the notch. Search does not enter editing or change the document/undo history. The bar consumes existing internal height.
+[Native find support](https://developer.apple.com/documentation/appkit/nstextview/usesfindbar) provides incremental search.
+
+**Export** opens an [NSSavePanel](https://developer.apple.com/documentation/appkit/nssavepanel) for a `.txt` copy of the current
+committed document. An immutable UTF-8 snapshot writes atomically off the UI thread; export does not modify local persistence,
+edit state or undo. Cancelling has no write; errors appear on the tab. The notch suppresses automatic close while the find bar or
+export panel is open, and releases that suppression when they finish or the view disappears.
+
+The settings close hint follows the enabled/reversed gesture preference. No default height increase, note list or clipboard history was added.

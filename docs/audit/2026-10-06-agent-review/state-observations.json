@@ -1,0 +1,170 @@
+[
+  {
+    "id": "claude-plain-tool",
+    "met": true,
+    "observed": "Optional(main.AgentEventPhase.toolStarted)",
+    "policy": "A normal tool call is work, not a request for user action"
+  },
+  {
+    "id": "codex-plain-tool",
+    "met": true,
+    "observed": "Optional(main.AgentEventPhase.toolStarted)",
+    "policy": "A normal tool call is work, not a request for user action"
+  },
+  {
+    "id": "grok-plain-tool",
+    "met": true,
+    "observed": "Optional(main.AgentEventPhase.toolStarted)",
+    "policy": "A normal tool call is work, not a request for user action"
+  },
+  {
+    "id": "claude-notification-idle_prompt",
+    "met": true,
+    "observed": "nil",
+    "policy": "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id": "claude-notification-auth_success",
+    "met": false,
+    "observed": "Optional(main.AgentEventPhase.needsAttention)",
+    "policy": "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id": "claude-notification-agent_completed",
+    "met": false,
+    "observed": "Optional(main.AgentEventPhase.needsAttention)",
+    "policy": "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id": "claude-notification-elicitation_complete",
+    "met": false,
+    "observed": "Optional(main.AgentEventPhase.needsAttention)",
+    "policy": "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id": "claude-notification-unknown_future_type",
+    "met": false,
+    "observed": "Optional(main.AgentEventPhase.needsAttention)",
+    "policy": "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id": "claude-permission",
+    "met": true,
+    "observed": "Optional(main.AgentEventPhase.needsAttention)",
+    "policy": "An explicit permission prompt needs user action"
+  },
+  {
+    "id": "claude-tool-failure",
+    "met": false,
+    "observed": "nil",
+    "policy": "A finished failing tool must stop being presented as currently running"
+  },
+  {
+    "id": "claude-turn-failure",
+    "met": false,
+    "observed": "nil",
+    "policy": "An explicit API failure must settle the working state"
+  },
+  {
+    "id": "codex-tool-return",
+    "met": false,
+    "observed": "nil",
+    "policy": "Hook-only sessions need a state update when a tool finishes"
+  },
+  {
+    "id": "grok-unknown-notification",
+    "met": false,
+    "observed": "Optional(main.AgentEventPhase.needsAttention)",
+    "policy": "Unknown notification types should not manufacture a user request"
+  },
+  {
+    "id": "grok-cancel",
+    "met": false,
+    "observed": "Optional(main.AgentEventPhase.turnFinished)",
+    "policy": "Cancellation must not produce a successful completion flash"
+  },
+  {
+    "id": "resume-clears-wait",
+    "met": true,
+    "observed": "thinking",
+    "policy": "An explicit resumption clears an old wait"
+  },
+  {
+    "id": "end-clears-wait",
+    "met": true,
+    "observed": "idle, disconnected=true",
+    "policy": "Ending a session removes urgent attention"
+  },
+  {
+    "id": "late-hook",
+    "met": false,
+    "observed": "needsAttention(message: nil)",
+    "policy": "An older event must not replace a newer lifecycle state"
+  },
+  {
+    "id": "duplicate-finish",
+    "met": false,
+    "observed": "finishedAt moved=true",
+    "policy": "A duplicate completion must not restart the completion flash"
+  },
+  {
+    "id": "lost-live-feed",
+    "met": false,
+    "observed": "waiting=true",
+    "policy": "A lost authoritative feed must expose uncertainty rather than a confirmed live wait"
+  },
+  {
+    "id": "finish-expiry",
+    "met": true,
+    "observed": "highlight expired=true",
+    "policy": "Completion highlights expire after six seconds"
+  },
+  {
+    "id": "wait-priority",
+    "met": true,
+    "observed": "codex:12345678-1234-4123-8123-123456789abc",
+    "policy": "A confirmed wait is shown ahead of ordinary work"
+  },
+  {
+    "id": "single-removal-publication",
+    "met": false,
+    "observed": "updates=2",
+    "policy": "Removing cards should publish one collection update"
+  },
+  {
+    "id": "parallel-tool-vs-wait",
+    "met": false,
+    "observed": "thinking",
+    "policy": "Finishing another tool must not erase an explicit pending approval"
+  },
+  {
+    "id": "old-turn-completion",
+    "met": false,
+    "observed": "finished",
+    "policy": "A previous turn's completion must not finish the newer turn"
+  },
+  {
+    "id": "cancel-highlight",
+    "met": false,
+    "observed": "highlight=true",
+    "policy": "An interrupted turn must not interrupt music with a completion highlight"
+  },
+  {
+    "id": "live-turn-failure",
+    "met": true,
+    "observed": "failed(message: Optional(\"fixture error\"))",
+    "policy": "Explicit failure has an error state"
+  },
+  {
+    "id": "owned-approval-visible",
+    "met": true,
+    "observed": "requests=2",
+    "policy": "Requests for an Atoll-owned turn are visible"
+  },
+  {
+    "id": "multiple-approvals",
+    "met": false,
+    "observed": "requests=1, state=thinking",
+    "policy": "Answering one request must retain the wait for another"
+  }
+]

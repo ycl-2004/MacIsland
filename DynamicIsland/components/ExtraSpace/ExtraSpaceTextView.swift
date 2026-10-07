@@ -60,6 +60,14 @@ final class ExtraSpaceTextView: NSTextView {
             if isEditable { onFinishEditing?() }
             return true
         }
+        if isCommand, event.charactersIgnoringModifiers?.lowercased() == "f" {
+            showFindInterface()
+            return true
+        }
+        if event.charactersIgnoringModifiers?.lowercased() == "g", flags == .command || flags == [.command, .shift] {
+            performFindAction(flags == .command ? .nextMatch : .previousMatch)
+            return true
+        }
         guard !hasMarkedText() else { return false }
         let isControl = flags == .control
         let isRedo = flags == [.command, .shift] || flags == [.control, .shift]
@@ -84,6 +92,20 @@ final class ExtraSpaceTextView: NSTextView {
             return false
         }
         return true
+    }
+
+    func showFindInterface() {
+        guard let window else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(self)
+        performFindAction(.showFindInterface)
+    }
+
+    private func performFindAction(_ action: NSTextFinder.Action) {
+        let item = NSMenuItem()
+        item.tag = action.rawValue
+        performTextFinderAction(item)
     }
 
     override func paste(_ sender: Any?) { pasteAsPlainText(sender) }
@@ -143,7 +165,9 @@ final class ExtraSpaceTextView: NSTextView {
     }
 
     override func cancelOperation(_ sender: Any?) {
-        if hasMarkedText() { super.cancelOperation(sender) } else { onClose?() }
+        if hasMarkedText() { super.cancelOperation(sender) }
+        else if enclosingScrollView?.isFindBarVisible == true { performFindAction(.hideFindInterface) }
+        else { onClose?() }
     }
 
     deinit { windowObservers.forEach(NotificationCenter.default.removeObserver) }

@@ -65,8 +65,6 @@ class StatsManager: ObservableObject {
     @Published var diskWriteHistory: [Double] = []
     
     private var monitoringTimer: Timer?
-    private var delayedStopTimer: Timer?
-    private var delayedStartTimer: Timer?
     private let maxHistoryPoints = 30
     /// Cached host port to avoid leaking Mach send rights.
     /// Every call to `mach_host_self()` acquires a new send right that must be
@@ -88,10 +86,10 @@ class StatsManager: ObservableObject {
         return UInt64(ProcessInfo.processInfo.physicalMemory)
     }()
     
-    // Smart monitoring state
-    private var shouldMonitorForStats: Bool = false
-    private var lastNotchState: String = "closed"
-    private var lastCurrentView: String = "other"
+    // Keep the emitted policy: @Published subscribers run before the monitor
+    // assigns its new value. Sampling must not re-read that previous value.
+    private var runtimePolicy = AtollRuntimePolicy()
+    private var resumeBackgroundAfterUnlock = false
     
     // Network monitoring state
     private var previousNetworkStats: (bytesIn: UInt64, bytesOut: UInt64) = (0, 0)
@@ -123,8 +121,6 @@ class StatsManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let minUpdateInterval: TimeInterval = 1.0
     private let maxUpdateInterval: TimeInterval = 60.0
-    private let notchCloseStopDelay: TimeInterval = 3.0
-    private let tabSwitchStopDelay: TimeInterval = 0.1
     
     // MARK: - Initialization
     private init() {
@@ -146,70 +142,51 @@ class StatsManager: ObservableObject {
         let initialDiskStats = getDiskStats()
         previousDiskStats = initialDiskStats
 
+        RuntimePolicyMonitor.shared.$state.removeDuplicates().sink { [weak self] policy in
+            self?.applyRuntimePolicy(policy)
+        }.store(in: &cancellables)
+        Defaults.publisher(.enableStatsFeature, options: []).sink { [weak self] _ in
+            self?.applyRuntimePolicy(RuntimePolicyMonitor.shared.state)
+        }.store(in: &cancellables)
+
         Defaults.publisher(.statsUpdateInterval, options: []).sink { [weak self] change in
             self?.handleUpdateIntervalChange(change.newValue)
         }.store(in: &cancellables)
 
-        Defaults.publisher(.statsStopWhenNotchCloses, options: []).sink { [weak self] change in
-            guard let self else { return }
-
-            if change.newValue {
-                if self.isMonitoring && self.lastNotchState == "closed" {
-                    self.scheduleDelayedStop(after: self.notchCloseStopDelay)
-                }
-            } else {
-                self.delayedStopTimer?.invalidate()
-                self.delayedStopTimer = nil
-            }
+        Defaults.publisher(.statsStopWhenNotchCloses, options: []).sink { [weak self] _ in
+            self?.applyRuntimePolicy(RuntimePolicyMonitor.shared.state)
         }.store(in: &cancellables)
     }
     
     deinit {
         stopMonitoring()
-        delayedStartTimer?.invalidate()
-        delayedStopTimer?.invalidate()
     }
     
     // MARK: - Smart Monitoring
     func updateMonitoringState(notchIsOpen: Bool, currentView: String) {
-        let notchState = notchIsOpen ? "open" : "closed"
-        
-        // Only react to actual state changes
-        guard notchState != lastNotchState || currentView != lastCurrentView else { return }
-        
-        lastNotchState = notchState
-        lastCurrentView = currentView
-        
-        // Cancel any pending timers
-        delayedStartTimer?.invalidate()
-        delayedStopTimer?.invalidate()
-        
-        // Determine if we should be monitoring
-        shouldMonitorForStats = notchIsOpen && (currentView == "stats")
-        
-        if shouldMonitorForStats {
-            // Start monitoring after 3.5 seconds (when notch is open and stats tab is active)
-            delayedStartTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
-                DispatchQueue.main.async {
-                    self?.startMonitoring()
-                }
-            }
-        } else {
-            if notchIsOpen && currentView != "stats" {
-                scheduleDelayedStop(after: tabSwitchStopDelay)
-            } else if !notchIsOpen {
-                if Defaults[.statsStopWhenNotchCloses] {
-                    scheduleDelayedStop(after: notchCloseStopDelay)
-                }
-            } else {
-                scheduleDelayedStop(after: tabSwitchStopDelay)
-            }
-        }
+        RuntimePolicyMonitor.shared.setStatsSurface("legacy", visible: notchIsOpen && currentView == "stats")
     }
-    
+
+    func applyRuntimePolicy(_ policy: AtollRuntimePolicy) {
+        runtimePolicy = policy
+        if !Defaults[.enableStatsFeature] { resumeBackgroundAfterUnlock = false }
+        if policy.isLocked && isMonitoring { resumeBackgroundAfterUnlock = true }
+        let wasSampling = isMonitoring || (!policy.isLocked && resumeBackgroundAfterUnlock)
+        if !policy.isLocked { resumeBackgroundAfterUnlock = false }
+        let sample = policy.shouldSampleStats(enabled: Defaults[.enableStatsFeature],
+                                              keepInBackground: !Defaults[.statsStopWhenNotchCloses],
+                                              alreadySampling: wasSampling)
+        if sample {
+            if !isMonitoring { startMonitoring() }
+            else { scheduleMonitoringTimer() }
+        } else { stopMonitoring() }
+    }
+
     // MARK: - Public Monitoring Controls
     func startMonitoring() {
-        guard !isMonitoring else { return }
+        guard !isMonitoring, runtimePolicy.shouldSampleStats(
+            enabled: Defaults[.enableStatsFeature], keepInBackground: !Defaults[.statsStopWhenNotchCloses], alreadySampling: true
+        ) else { return }
         
         debugLog("StatsManager: Starting monitoring...")
         
@@ -243,8 +220,6 @@ class StatsManager: ObservableObject {
         // Clean up all timers
         monitoringTimer?.invalidate()
         monitoringTimer = nil
-        delayedStartTimer?.invalidate()
-        delayedStopTimer?.invalidate()
         
         processRefreshGeneration = UUID()
         processRefreshTask?.cancel(); processRefreshTask = nil
@@ -276,10 +251,11 @@ class StatsManager: ObservableObject {
         monitoringTimer?.invalidate()
 
         let configuredInterval = Defaults[.statsUpdateInterval]
-        let interval = validatedUpdateInterval(configuredInterval)
+        let validated = validatedUpdateInterval(configuredInterval)
+        let interval = runtimePolicy.statsInterval(configured: validated)
 
-        if abs(interval - configuredInterval) > 0.0001 {
-            Defaults[.statsUpdateInterval] = interval
+        if abs(validated - configuredInterval) > 0.0001 {
+            Defaults[.statsUpdateInterval] = validated
         }
 
         monitoringTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
@@ -310,21 +286,6 @@ class StatsManager: ObservableObject {
         min(max(value, minUpdateInterval), maxUpdateInterval)
     }
 
-    private func scheduleDelayedStop(after delay: TimeInterval) {
-        guard delay > 0 else {
-            stopMonitoring()
-            return
-        }
-
-        delayedStopTimer?.invalidate()
-
-        delayedStopTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.stopMonitoring()
-            }
-        }
-    }
-    
     // MARK: - Private Methods
     @MainActor
     private func updateSystemStats() {

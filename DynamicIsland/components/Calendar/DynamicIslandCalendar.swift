@@ -461,6 +461,7 @@ struct CalendarView: View {
             }
         }
         .onChange(of: vm.notchState) { _, _ in
+            guard vm.notchState == .open else { return }
             Task {
                 await calendarManager.updateCurrentDate(Date.now)
                 selectedDate = Date.now

@@ -1,0 +1,8 @@
+{
+  "fixture": "critical-terminal-event-at-capacity",
+  "queued_ordinary": 32,
+  "attempted_critical": "session.deleted",
+  "forwarded": 32,
+  "critical_forwarded": false,
+  "real_children_spawned": 0
+}

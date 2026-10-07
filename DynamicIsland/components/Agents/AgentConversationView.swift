@@ -4,6 +4,7 @@ import SwiftUI
 /// without squeezing the transcript into the notch's compact height.
 /// https://developer.apple.com/documentation/swiftui/view/popover(ispresented:attachmentanchor:arrowedge:content:)
 struct AgentConversationView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let sessionID: String
     let dismiss: () -> Void
     @ObservedObject private var store: AgentSessionStore
@@ -76,10 +77,10 @@ struct AgentConversationView: View {
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
-            Label(session.isDisconnected ? String(localized: "Session ended") : session.state.title,
-                  systemImage: session.isDisconnected ? "bolt.slash" : session.state.symbolName)
-                .font(.caption).foregroundStyle(session.isDisconnected ? .secondary : session.state.tint)
-                .symbolEffect(.pulse, isActive: session.state.isWorking && !session.isDisconnected)
+            Label(session.statusTitle,
+                  systemImage: session.statusSymbol)
+                .font(.caption).foregroundStyle(session.statusTint)
+                .symbolEffect(.pulse, isActive: !reduceMotion && session.state.isWorking && !session.isDisconnected && session.statusUncertain != true)
             Button(action: dismiss) { Image(systemName: "xmark") }
                 .buttonStyle(.plain).accessibilityLabel("Close conversation")
         }
@@ -99,6 +100,9 @@ struct AgentConversationView: View {
         let name = session.source?.displayName ?? String(localized: "The agent")
         if session.isDisconnected {
             return String(localized: "This session has ended. Its conversation stays readable here.")
+        }
+        if session.statusUncertain == true {
+            return String(localized: "The connection or event stream was interrupted. Check this session in its terminal before sending; the last observed status is not confirmed.")
         }
         switch route {
         case .sharedService:
@@ -149,7 +153,7 @@ struct AgentConversationView: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Label(session.source?.displayName ?? "Agent", systemImage: "ellipsis")
                                 .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                                .symbolEffect(.variableColor.iterative, isActive: true)
+                                .symbolEffect(.variableColor.iterative, isActive: !reduceMotion)
                             if !streamingText.isEmpty {
                                 Text(AgentMessageRow.markdown(streamingText)).font(.notch(.body)).textSelection(.enabled)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,7 +164,7 @@ struct AgentConversationView: View {
                     } else if session.state.isWorking, !session.isDisconnected {
                         Label(session.state.title, systemImage: session.state.symbolName)
                             .font(.caption).foregroundStyle(.secondary)
-                            .symbolEffect(.pulse, isActive: true)
+                            .symbolEffect(.pulse, isActive: !reduceMotion)
                     }
                     Color.clear.frame(height: 1).id("conversation-bottom")
                 }

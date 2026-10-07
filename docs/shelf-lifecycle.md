@@ -1,6 +1,6 @@
 # Shelf resource lifecycle
 
-Updated 2026-09-28. The shelf stages references and small previews for an app that remains running all day. It does not pre-load file contents or run a background cleanup loop.
+Updated 2026-10-06. The shelf stages references and small previews for an app that remains running all day. It does not pre-load file contents or run a background cleanup loop.
 
 ## Resource limits
 
@@ -71,3 +71,12 @@ coalesced snapshots. New imports enforce item, text, queue and owned-file
 budgets; zip uses bounded snapshots and capacity reservations. File-version
 cache keys and per-URL invalidation avoid stale images. Settings exposes storage
 limits and the saved-data folder. See [exact limits and acceptance boundaries](project-audit-fixes-2026-10-06.md).
+
+## Hiding and clearing
+
+Disabling Shelf cancels import batches and thumbnail work, releases thumbnail caches, and prevents fresh thumbnail requests.
+Saved tray references and owned temporary content remain protected by the same item, text and file budgets.
+Turning it back on restores the tray, including after restarting Atoll. The switch does not clear original files or tray entries.
+Settings offers a separate **Clear Shelf items…** confirmation; only that action removes entries.
+Active drag/share/clipboard leases and handoff grace still apply to cleanup. A disable before asynchronous loading completes
+does not discard the saved list; explicit clear uses a separate content generation.

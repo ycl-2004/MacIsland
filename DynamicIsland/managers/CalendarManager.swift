@@ -21,6 +21,7 @@
  */
 
 import Defaults
+import Combine
 import EventKit
 import SwiftUI
 
@@ -32,6 +33,7 @@ class CalendarManager: ObservableObject {
 
     @Published var currentWeekStartDate: Date
     @Published var events: [EventModel] = []
+    @Published private(set) var reminderEvents: [EventModel] = []
     @Published var allCalendars: [CalendarModel] = []
     @Published var eventCalendars: [CalendarModel] = []
     @Published var reminderLists: [CalendarModel] = []
@@ -43,8 +45,15 @@ class CalendarManager: ObservableObject {
     private var lockScreenPreviewEvents: [EventModel]?
 
     private var selectedCalendars: [CalendarModel] = []
-    private let calendarService = CalendarService()
+    private let calendarService: any CalendarServiceProviding
+    private var runtimePolicy = AtollRuntimePolicy()
+    private(set) var queryDemand = CalendarQueryDemand()
+    private var runtimeCancellables = Set<AnyCancellable>()
+    private var needsCalendarReload = true
+    private let refreshInterval: TimeInterval
     private var lastEventsFetchDate: Date?
+    private var lastReminderEventsFetchDate: Date?
+    private var reminderSnapshotDay: Date?
     private let reloadRefreshInterval: TimeInterval = 15
     private var eventStoreChangedObserver: NSObjectProtocol?
     private var pendingEventStoreRefreshTask: Task<Void, Never>?
@@ -60,13 +69,72 @@ class CalendarManager: ObservableObject {
     var hasCalendarAccess: Bool { isAuthorized(calendarAuthorizationStatus) }
     var hasReminderAccess: Bool { isAuthorized(reminderAuthorizationStatus) }
 
-    private init() {
+    init(service: any CalendarServiceProviding = CalendarService(), observeRuntime: Bool = true,
+         refreshInterval: TimeInterval = 60) {
+        calendarService = service
+        self.refreshInterval = refreshInterval
         currentWeekStartDate = CalendarManager.startOfDay(Date())
+        guard observeRuntime, !AppRuntimeEnvironment.isTesting else { return }
+        refreshAuthorizationSnapshot()
         setupEventStoreChangedObserver()
-        startLockScreenRefreshLoop()
-        Task {
-            await reloadCalendarAndReminderLists()
+        RuntimePolicyMonitor.shared.$state.removeDuplicates().sink { [weak self] policy in
+            MainActor.assumeIsolated { self?.applyRuntimePolicy(policy) }
+        }.store(in: &runtimeCancellables)
+        Publishers.MergeMany(
+            Defaults.publisher(.enableReminderLiveActivity).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.enableLockScreenWeatherWidget).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.lockScreenShowCalendarEvent).map { _ in () }.eraseToAnyPublisher()
+        ).sink { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.applyRuntimePolicy(self.runtimePolicy)
+            }
+        }.store(in: &runtimeCancellables)
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.refreshAuthorizationSnapshot()
+                    self.applyRuntimePolicy(self.runtimePolicy)
+                }
+            }.store(in: &runtimeCancellables)
+    }
+
+    /// Reads existing authorization only; permission requests stay in explicit settings actions.
+    func refreshAuthorizationSnapshot() {
+        calendarAuthorizationStatus = EKEventStore.authorizationStatus(for: .event)
+        reminderAuthorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
+    }
+
+    func applyRuntimePolicy(_ policy: AtollRuntimePolicy) {
+        setQueryDemand(policy: policy, remindersEnabled: Defaults[.enableReminderLiveActivity],
+                       lockScreenEnabled: Defaults[.enableLockScreenWeatherWidget] && Defaults[.lockScreenShowCalendarEvent])
+    }
+
+    func setQueryDemand(policy: AtollRuntimePolicy, remindersEnabled: Bool, lockScreenEnabled: Bool) {
+        let next = CalendarQueryDemand(policy: policy, remindersEnabled: remindersEnabled,
+                                       lockScreenEnabled: lockScreenEnabled, hasAccess: hasCalendarAccess || hasReminderAccess)
+        let changed = next != queryDemand || policy.isLowPower != runtimePolicy.isLowPower
+        runtimePolicy = policy
+        queryDemand = next
+        guard changed else { return }
+        lockScreenRefreshTask?.cancel()
+        lockScreenRefreshTask = nil
+        if !next.isActive {
+            pendingEventStoreRefreshTask?.cancel()
+            pendingEventStoreRefreshTask = nil
+            return
         }
+        startLockScreenRefreshLoop()
+    }
+
+    func refreshForCurrentDemand() async {
+        guard queryDemand.isActive, !Task.isCancelled else { return }
+        if needsCalendarReload { await reloadCalendarAndReminderLists() }
+        guard !Task.isCancelled else { return }
+        if queryDemand.dayEvents && runtimePolicy.calendarVisible && !runtimePolicy.isLocked { await updateEvents() }
+        if queryDemand.reminderEvents { await refreshReminderEvents() }
+        if queryDemand.lockScreenEvents { await updateLockScreenEvents() }
     }
 
     deinit {
@@ -89,6 +157,8 @@ class CalendarManager: ObservableObject {
 
     private func handleEventStoreChanged() {
         Logger.log("CalendarManager: Event store changed notification received", category: .lifecycle)
+        needsCalendarReload = true
+        guard queryDemand.isActive else { return }
         let now = Date()
         guard now >= ignoreEventStoreChangesUntil else { return }
 
@@ -110,6 +180,7 @@ class CalendarManager: ObservableObject {
                 let nanoseconds = UInt64(delay * 1_000_000_000)
                 try? await Task.sleep(nanoseconds: nanoseconds)
             }
+            guard !Task.isCancelled, self.queryDemand.isActive else { return }
             await self.performEventStoreRefresh()
         }
     }
@@ -118,8 +189,9 @@ class CalendarManager: ObservableObject {
     private func performEventStoreRefresh() async {
         pendingEventStoreRefreshTask = nil
         await reloadCalendarAndReminderLists()
-        await maybeRefreshEventsAfterReload()
-        await updateLockScreenEvents(force: true)
+        if queryDemand.dayEvents && runtimePolicy.calendarVisible && !runtimePolicy.isLocked { await maybeRefreshEventsAfterReload() }
+        if queryDemand.reminderEvents { await refreshReminderEvents(force: true) }
+        if queryDemand.lockScreenEvents { await updateLockScreenEvents(force: true) }
         nextAllowedEventStoreRefresh = Date().addingTimeInterval(eventStoreChangeThrottle)
         ignoreEventStoreChangesUntil = Date().addingTimeInterval(selfInducedChangeSuppression)
     }
@@ -127,6 +199,8 @@ class CalendarManager: ObservableObject {
     @MainActor
     func reloadCalendarAndReminderLists() async {
         let allCalendars = await calendarService.calendars()
+        guard !Task.isCancelled else { return }
+        needsCalendarReload = false
         eventCalendars = allCalendars.filter { !$0.isReminder }
         reminderLists = allCalendars.filter { $0.isReminder }
         self.allCalendars = allCalendars
@@ -135,7 +209,7 @@ class CalendarManager: ObservableObject {
 
     @MainActor
     private func maybeRefreshEventsAfterReload() async {
-        guard hasCalendarAccess else { return }
+        guard hasCalendarAccess || hasReminderAccess else { return }
         let now = Date()
         if let lastFetch = lastEventsFetchDate, now.timeIntervalSince(lastFetch) < reloadRefreshInterval {
             return
@@ -155,11 +229,13 @@ class CalendarManager: ObservableObject {
     func checkCalendarAuthorization() async {
         let status = EKEventStore.authorizationStatus(for: .event)
         calendarAuthorizationStatus = status
+        applyRuntimePolicy(runtimePolicy)
 
         switch status {
         case .notDetermined:
             let granted = await calendarService.requestAccess(to: .event)
             calendarAuthorizationStatus = granted ? .fullAccess : .denied
+            applyRuntimePolicy(runtimePolicy)
             if granted {
                 await reloadCalendarAndReminderLists()
                 await updateEvents(force: true)
@@ -181,11 +257,13 @@ class CalendarManager: ObservableObject {
     func checkReminderAuthorization() async {
         let status = EKEventStore.authorizationStatus(for: .reminder)
         reminderAuthorizationStatus = status
+        applyRuntimePolicy(runtimePolicy)
 
         switch status {
         case .notDetermined:
             let granted = await calendarService.requestAccess(to: .reminder)
             reminderAuthorizationStatus = granted ? .fullAccess : .denied
+            applyRuntimePolicy(runtimePolicy)
             if granted {
                 await reloadCalendarAndReminderLists()
             }
@@ -241,6 +319,7 @@ class CalendarManager: ObservableObject {
         Defaults[.calendarSelectionState] = selectionState
         updateSelectedCalendars()
         await updateEvents(force: true)
+        await refreshReminderEvents(force: true)
         await updateLockScreenEvents(force: true)
     }
 
@@ -265,6 +344,7 @@ class CalendarManager: ObservableObject {
             return
         }
 
+        guard queryDemand.lockScreenEvents, !Task.isCancelled else { return }
         let now = Date()
 
         if !force,
@@ -318,9 +398,11 @@ class CalendarManager: ObservableObject {
         let service = calendarService
 
         let fetched = await eventFetchLimiter.run {
-            await service.events(from: startDate, to: endDate, calendars: calendarIDs)
+            guard !Task.isCancelled else { return [EventModel]() }
+            return await service.events(from: startDate, to: endDate, calendars: calendarIDs)
         }
 
+        guard queryDemand.lockScreenEvents, !Task.isCancelled else { return }
         if lockScreenEvents == fetched {
             lastLockScreenEventsFetchDate = Date()
             return
@@ -346,18 +428,19 @@ class CalendarManager: ObservableObject {
 
     private func startLockScreenRefreshLoop() {
         lockScreenRefreshTask?.cancel()
+        let interval = refreshInterval * (runtimePolicy.isLowPower ? 2 : 1)
         lockScreenRefreshTask = Task { [weak self] in
-            guard let self else { return }
+            await self?.refreshForCurrentDemand()
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
-                if Task.isCancelled { break }
-                guard self.hasCalendarAccess else { continue }
-                await self.updateLockScreenEvents(force: false)
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled, let self, self.queryDemand.isActive else { return }
+                await self.refreshForCurrentDemand()
             }
         }
     }
 
     private func updateEvents(force: Bool = false) async {
+        guard (force || queryDemand.dayEvents), hasCalendarAccess || hasReminderAccess, !Task.isCancelled else { return }
         let now = Date()
         if !force, let lastFetch = lastEventsFetchDate, now.timeIntervalSince(lastFetch) < reloadRefreshInterval {
             return
@@ -371,15 +454,43 @@ class CalendarManager: ObservableObject {
         let service = calendarService
 
         let events = await eventFetchLimiter.run {
-            await service.events(
+            guard !Task.isCancelled else { return [EventModel]() }
+            return await service.events(
                 from: startDate,
                 to: endDate,
                 calendars: calendarIDs
             )
         }
 
+        guard !Task.isCancelled else { return }
         self.events = events
         lastEventsFetchDate = Date()
+    }
+
+    /// Reminders always follow today, even when Home is browsing another date
+    /// or stays hidden across midnight. Deadline scheduling remains independent.
+    func refreshReminderEvents(force: Bool = false, now: Date = Date()) async {
+        guard queryDemand.reminderEvents, !Task.isCancelled else { return }
+        let day = CalendarManager.startOfDay(now)
+        if !force, reminderSnapshotDay == day, let last = lastReminderEventsFetchDate,
+           now.timeIntervalSince(last) < reloadRefreshInterval { return }
+        let snapshot: [EventModel]
+        if currentWeekStartDate == day, let last = lastEventsFetchDate,
+           now.timeIntervalSince(last) < reloadRefreshInterval {
+            snapshot = events
+        } else {
+            guard let end = Calendar.current.date(byAdding: .day, value: 1, to: day) else { return }
+            let service = calendarService
+            let calendarIDs = selectedCalendars.map { $0.id }
+            snapshot = await eventFetchLimiter.run {
+                guard !Task.isCancelled else { return [EventModel]() }
+                return await service.events(from: day, to: end, calendars: calendarIDs)
+            }
+        }
+        guard queryDemand.reminderEvents, !Task.isCancelled else { return }
+        if reminderEvents != snapshot { reminderEvents = snapshot }
+        reminderSnapshotDay = day
+        lastReminderEventsFetchDate = now
     }
 
     func setCalendarsSelected(_ calendars: [CalendarModel], isSelected: Bool) async {
@@ -409,12 +520,14 @@ class CalendarManager: ObservableObject {
         Defaults[.calendarSelectionState] = selectionState
         updateSelectedCalendars()
         await updateEvents(force: true)
+        await refreshReminderEvents(force: true)
         await updateLockScreenEvents(force: true)
     }
 
     func setReminderCompleted(reminderID: String, completed: Bool) async {
         await calendarService.setReminderCompleted(reminderID: reminderID, completed: completed)
         await updateEvents(force: true)
+        await refreshReminderEvents(force: true)
     }
 }
 

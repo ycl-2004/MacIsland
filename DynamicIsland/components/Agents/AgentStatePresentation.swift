@@ -38,7 +38,7 @@ extension AgentState {
         case .thinking: return String(localized: "Thinking…")
         case .tool(let kind, let name, _):
             switch kind {
-            case .command: return String(localized: "Running a command")
+            case .command: return String(localized: "Processing a command")
             case .edit: return String(localized: "Editing files")
             case .read: return String(localized: "Reading files")
             case .search: return String(localized: "Searching the code")
@@ -47,7 +47,7 @@ extension AgentState {
             case .other: return name.isEmpty ? String(localized: "Using a tool") : String(localized: "Using \(name)")
             }
         case .needsAttention: return String(localized: "Needs you")
-        case .finished: return String(localized: "Finished")
+        case .finished: return String(localized: "This turn finished")
         case .failed: return String(localized: "Stopped with an error")
         }
     }
@@ -87,6 +87,19 @@ extension AgentState {
 }
 
 extension AgentSession {
+    var statusTitle: String {
+        if isDisconnected { return String(localized: "Session ended") }
+        if statusUncertain == true { return String(localized: "Status cannot be confirmed") }
+        if wasCancelled == true { return String(localized: "Stopped") }
+        return state.title
+    }
+    var statusSymbol: String {
+        isDisconnected ? "bolt.slash" : statusUncertain == true ? "questionmark.circle" : wasCancelled == true ? "stop.circle" : state.symbolName
+    }
+    var statusTint: Color {
+        isDisconnected || statusUncertain == true || wasCancelled == true ? .inkTertiary : state.tint
+    }
+
     /// The project folder, or the agent's name when it did not report one.
     var displayTitle: String {
         title ?? projectName ?? source?.displayName ?? sourceID

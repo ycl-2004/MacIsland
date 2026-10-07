@@ -20,11 +20,12 @@ struct OpenCodeAgentSource: PluginAgentSource {
         "tool.completed": .thinking,
         "permission.asked": .needsAttention,
         "question.asked": .needsAttention,
-        "permission.replied": .thinking,
-        "question.replied": .thinking,
-        "question.rejected": .thinking,
+        "permission.replied": .attentionResolved,
+        "question.replied": .attentionResolved,
+        "question.rejected": .attentionResolved,
         "session.idle": .turnFinished,
         "session.error": .turnFailed,
+        "session.cancelled": .turnCancelled,
         "session.deleted": .sessionEnded,
         "dispose": .sessionEnded,
     ]
@@ -104,23 +105,23 @@ struct OpenCodeAgentSource: PluginAgentSource {
                   if (status === tools.get(part.callID)) break;
                   tools.set(part.callID, status);
                   if (status === "running") {
-                    report("tool.running", sessionID, { tool_name: part.tool, tool_input: part.state.input });
+                    report("tool.running", sessionID, { tool_name: part.tool, tool_use_id: part.callID, tool_input: part.state.input });
                   } else if (status === "completed" || status === "error") {
-                    report("tool.completed", sessionID, { tool_name: part.tool });
+                    report("tool.completed", sessionID, { tool_name: part.tool, tool_use_id: part.callID });
                   }
                 }
                 break;
               }
               case "permission.asked":
-                report(type, sessionID, { tool_name: props.permission });
+                report(type, sessionID, { tool_name: props.permission, request_id: props.id });
                 break;
               case "question.asked":
-                report(type, sessionID, { message: props.questions?.[0]?.question });
+                report(type, sessionID, { message: props.questions?.[0]?.question, request_id: props.id });
                 break;
               case "permission.replied":
               case "question.replied":
               case "question.rejected":
-                report(type, sessionID);
+                report(type, sessionID, { request_id: props.requestID });
                 break;
               case "session.idle":
                 report(type, sessionID, { last_assistant_message: replies.get(sessionID) });
@@ -128,7 +129,9 @@ struct OpenCodeAgentSource: PluginAgentSource {
                 break;
               case "session.error":
                 // Stopping a turn with Esc is not a failure; `session.idle` follows.
-                if (props.error?.name !== "MessageAbortedError") {
+                if (props.error?.name === "MessageAbortedError") {
+                  report("session.cancelled", sessionID);
+                } else {
                   report(type, sessionID, { error: props.error?.data?.message ?? props.error?.name ?? "Error" });
                 }
                 break;

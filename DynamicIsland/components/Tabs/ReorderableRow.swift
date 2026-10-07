@@ -24,6 +24,7 @@ import SwiftUI
 /// While dragging, the order lives here so the row never waits on storage; the
 /// final order is handed to `onReorder` when the drag ends.
 struct ReorderableRow<Item: Hashable, Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let items: [Item]
     let spacing: CGFloat
     let onReorder: ([Item]) -> Void
@@ -51,13 +52,13 @@ struct ReorderableRow<Item: Hashable, Content: View>: View {
                         }
                     }
                     .offset(x: isDragged ? offset : 0)
-                    .scaleEffect(isDragged ? 1.12 : 1)
+                    .scaleEffect(isDragged && !reduceMotion ? 1.12 : 1)
                     .zIndex(isDragged ? 1 : 0)
                     .transaction { if isDragged { $0.animation = nil } }
                     .highPriorityGesture(dragGesture(for: item))
             }
         }
-        .animation(.smooth(duration: 0.2), value: liveOrder)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: liveOrder)
         .onPreferenceChange(ItemWidthsKey<Item>.self) { widths = $0 }
     }
 
@@ -99,7 +100,7 @@ struct ReorderableRow<Item: Hashable, Content: View>: View {
                 if let liveOrder, liveOrder != items {
                     onReorder(liveOrder)
                 }
-                withAnimation(.smooth(duration: 0.2)) {
+                withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) {
                     offset = 0
                     dragged = nil
                 }

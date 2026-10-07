@@ -17,7 +17,7 @@ struct PiAgentSource: PluginAgentSource {
         "tool_execution_start": .toolStarted,
         "tool_execution_end": .thinking,
         "ui_prompt_start": .needsAttention,
-        "ui_prompt_end": .thinking,
+        "ui_prompt_end": .attentionResolved,
         "agent_settled": .turnFinished,
         "session_shutdown": .sessionEnded,
     ]
@@ -31,6 +31,7 @@ struct PiAgentSource: PluginAgentSource {
     }
 
     func phase(forEvent event: String, payload: [String: Any]) -> AgentEventPhase? {
+        if event == "agent_settled", payload["cancelled"] as? Bool == true { return .turnCancelled }
         if event == "agent_settled", (payload["error"] as? String)?.nonBlank != nil { return .turnFailed }
         return hookEvents[event]
     }
@@ -43,6 +44,9 @@ struct PiAgentSource: PluginAgentSource {
     export default function (pi) {
       let lastReply;
       let failure;
+      let cancelled;
+      let promptSequence = 0;
+      const activePrompts = [];
 
       const on = (name, handler) => pi.on(name, (event, ctx) => {
         try { return handler(event, ctx); } catch {}
@@ -63,20 +67,34 @@ struct PiAgentSource: PluginAgentSource {
         if (event.message?.role === "user") report("message_start", ctx, { prompt: text(event.message.content) });
       });
       on("tool_execution_start", (event, ctx) => {
-        report("tool_execution_start", ctx, { tool_name: event.toolName, tool_input: event.args });
+        report("tool_execution_start", ctx, { tool_name: event.toolName, tool_use_id: event.toolCallId, tool_input: event.args });
       });
-      on("tool_execution_end", (event, ctx) => { report("tool_execution_end", ctx, { tool_name: event.toolName }); });
+      on("tool_execution_end", (event, ctx) => { report("tool_execution_end", ctx, { tool_name: event.toolName, tool_use_id: event.toolCallId }); });
       // A dialog an extension opens mid-run (an approval); one opened while idle is the user's own.
-      on("ui_prompt_start", (event, ctx) => { if (!ctx.isIdle()) report("ui_prompt_start", ctx, { message: event.title }); });
-      on("ui_prompt_end", (_event, ctx) => { if (!ctx.isIdle()) report("ui_prompt_end", ctx); });
+      on("ui_prompt_start", (event, ctx) => {
+        if (ctx.isIdle()) return;
+        // Pi has no prompt ID: correlate paired extension events locally.
+        const prompt = { id: `pi-ui-${++promptSequence}`, kind: event.kind, title: event.title };
+        if (activePrompts.length >= 64) { report("atoll.transport.uncertain", ctx); return; }
+        activePrompts.push(prompt);
+        report("ui_prompt_start", ctx, { message: event.title, request_id: prompt.id });
+      });
+      on("ui_prompt_end", (event, ctx) => {
+        const index = activePrompts.findLastIndex((p) => p.kind === event.kind && p.title === event.title);
+        if (index < 0) return;
+        const [prompt] = activePrompts.splice(index, 1);
+        report("ui_prompt_end", ctx, { request_id: prompt.id });
+      });
       on("agent_end", (event) => {
         const last = (event.messages ?? []).filter((message) => message?.role === "assistant").pop();
         lastReply = text(last?.content) || undefined;
+        cancelled = last?.stopReason === "aborted";
         failure = last?.stopReason === "error" ? (last.errorMessage || "Error") : undefined;
       });
       on("agent_settled", (_event, ctx) => {
-        report("agent_settled", ctx, { last_assistant_message: lastReply, error: failure });
-        lastReply = failure = undefined;
+        report("agent_settled", ctx, { last_assistant_message: lastReply, error: failure, cancelled });
+        lastReply = failure = cancelled = undefined;
+        activePrompts.length = 0;
       });
       // A reload keeps the session; quitting or switching sessions ends this one.
       on("session_shutdown", (event, ctx) => {

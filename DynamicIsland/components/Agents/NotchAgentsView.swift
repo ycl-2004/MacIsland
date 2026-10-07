@@ -18,7 +18,7 @@ struct NotchAgentsView: View {
                 Text("\(orderedSessions.count)").monospacedDigit().foregroundStyle(.inkTertiary)
                 Spacer()
                 if let message = conversations.connectionMessage {
-                    Image(systemName: "exclamationmark.circle").foregroundStyle(.statusAttention).help(message)
+                    Image(systemName: "bolt.slash.circle").foregroundStyle(.inkTertiary).help(message).accessibilityLabel("Codex connection status: \(message)")
                 }
                 Button { store.remove(endedSessions) } label: {
                     Image(systemName: "trash")
@@ -48,7 +48,8 @@ struct NotchAgentsView: View {
                         ForEach(orderedSessions) { session in
                             AgentSessionCard(session: session,
                                              liveText: conversations.streaming[session.id],
-                                             isReachable: conversations.canSend(session)) {
+                                             isReachable: conversations.canSend(session),
+                                             isBeingViewed: selectedID == session.id) {
                                 selectedID = session.id
                                 conversations.select(session.id)
                             }
@@ -65,6 +66,8 @@ struct NotchAgentsView: View {
                 AgentConversationView(sessionID: selectedID, dismiss: { self.selectedID = nil })
             }
         }
+        .onAppear { openRequestedConversation() }
+        .onChange(of: conversations.requestedSessionID) { _, _ in openRequestedConversation() }
         .onChange(of: selectedID) { _, id in
             vm.setAutoCloseSuppression(id != nil, token: autoCloseToken)
             if id == nil { conversations.selectedID = nil }
@@ -74,6 +77,14 @@ struct NotchAgentsView: View {
             conversations.selectedID = nil
             vm.setAutoCloseSuppression(false, token: autoCloseToken)
         }
+    }
+
+    private func openRequestedConversation() {
+        guard let id = conversations.requestedSessionID else { return }
+        conversations.requestedSessionID = nil
+        guard store.session(id: id) != nil else { return }
+        selectedID = id
+        conversations.select(id)
     }
 
     /// Sessions waiting on the user first, the rest newest first. The screen
@@ -138,11 +149,13 @@ struct NotchAgentsView: View {
 }
 
 private struct AgentSessionCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let session: AgentSession
     /// What the agent is writing right now, straight from a live session.
     let liveText: String?
     /// A message typed in Atoll reaches this session.
     let isReachable: Bool
+    var isBeingViewed = false
     let open: () -> Void
     @State private var isHovering = false
 
@@ -171,14 +184,21 @@ private struct AgentSessionCard: View {
                     .foregroundStyle(.inkTertiary)
                     .lineLimit(1)
                 HStack(spacing: 5) {
-                    Image(systemName: session.isDisconnected ? "bolt.slash" : session.state.symbolName)
-                        .symbolEffect(.pulse, isActive: session.state.isWorking && !session.isDisconnected)
-                    Text(session.isDisconnected ? String(localized: "Session ended") : session.state.title)
+                    Image(systemName: session.statusSymbol)
+                        .symbolEffect(.pulse, isActive: !reduceMotion && session.state.isWorking && !session.isDisconnected && session.statusUncertain != true)
+                    Text(session.statusTitle)
                         .lineLimit(1)
                 }
                 .font(.notch(.footnote, weight: .semibold))
-                .foregroundStyle(session.isDisconnected ? .inkTertiary : session.state.tint)
+                .foregroundStyle(session.statusTint)
 
+                if session.hasPendingRequests && session.statusUncertain != true {
+                    Text("\(session.pendingRequestSummary) · \(session.isWorking ? String(localized: "work continues") : String(localized: "waiting"))")
+                        .font(.notch(.micro)).foregroundStyle(.inkSecondary).lineLimit(1)
+                }
+                if session.statusUncertain == true, let seen = session.lastSeenAt {
+                    Text("Last observed \(seen, style: .relative) ago").font(.notch(.micro)).foregroundStyle(.inkTertiary)
+                }
                 if let detail = session.state.detail {
                     // The command or file, in a well so it reads as code.
                     Text(detail)
@@ -217,7 +237,7 @@ private struct AgentSessionCard: View {
                 }
             }
             .overlay {
-                AttentionOutline(isActive: session.isWaitingOnUser, cornerRadius: NotchRadius.card)
+                AttentionOutline(isActive: session.isWaitingOnUser && !isBeingViewed, cornerRadius: NotchRadius.card)
             }
             .contentShape(RoundedRectangle(cornerRadius: NotchRadius.card))
             .onHover { isHovering = $0 }
@@ -263,6 +283,7 @@ private struct AgentSessionCard: View {
 /// then stays lit. It stops on purpose: a question can go unanswered for
 /// hours, and a pulse that kept going would run for all of them.
 private struct AttentionOutline: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isActive: Bool
     let cornerRadius: CGFloat
     @State private var isDimmed = false
@@ -272,8 +293,10 @@ private struct AttentionOutline: View {
             .strokeBorder(Color.statusAttention.opacity(isDimmed ? 0.25 : 0.75), lineWidth: 1)
             .opacity(isActive ? 1 : 0)
             .allowsHitTesting(false)
+            .onChange(of: reduceMotion) { _, _ in isDimmed = false }
+            .transaction { if reduceMotion { $0.disablesAnimations = true; $0.animation = nil } }
             .onChange(of: isActive, initial: true) { _, active in
-                guard active else { return }
+                guard active, !reduceMotion else { isDimmed = false; return }
                 // Dim first, then animate back up: an odd repeat count with
                 // autoreverse ends on the animated-to value, so the outline
                 // finishes lit instead of snapping there afterwards.

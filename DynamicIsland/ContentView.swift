@@ -58,6 +58,8 @@ struct ContentView: View {
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
     @ObservedObject private var agentStore = AgentSessionStore.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Default(.showCalendar) private var showCalendar
     @Default(.enableAgentsFeature) private var enableAgentsFeature
     @Default(.showAgentActivityInClosedNotch) private var showAgentActivityInClosedNotch
     
@@ -229,6 +231,7 @@ struct ContentView: View {
     // MARK: - Tab switch direction for smooth transitions
     
     private var tabSwitchTransition: AnyTransition {
+        if reduceMotion { return .identity }
         if coordinator.tabSwitchForward {
             return .asymmetric(
                 insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -580,6 +583,8 @@ struct ContentView: View {
 
     var body: some View {
         installRootLifecycleHandlers(on: rootBodyView)
+            .symbolEffectsRemoved(reduceMotion)
+            .transaction { if reduceMotion { $0.animation = nil; $0.disablesAnimations = true } }
     }
 
     private var notchShadowColor: Color {
@@ -671,7 +676,8 @@ struct ContentView: View {
 
     /// The spring the notch opens and closes with. Critically damped, so the
     /// notch never overshoots past the top edge of the screen.
-    private var notchStateAnimation: Animation {
+    private var notchStateAnimation: Animation? {
+        guard !reduceMotion else { return nil }
         let openAnimation = Animation.spring(response: 0.42, dampingFraction: 1.0, blendDuration: 0)
         guard useModernCloseAnimation, vm.notchState != .open else { return openAnimation }
         return Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
@@ -757,14 +763,7 @@ struct ContentView: View {
                 }
             })
             .onChange(of: vm.notchState) { _, newState in
-                // Update smart monitoring based on notch state
-                if enableStatsFeature {
-                    let currentViewString = coordinator.currentView == .stats ? "stats" : "other"
-                    statsManager.updateMonitoringState(
-                        notchIsOpen: newState == .open,
-                        currentView: currentViewString
-                    )
-                }
+                updateStatsRuntimeSurface()
 
                 // Reset hover state when notch state changes
                 if newState == .closed && isHovering {
@@ -815,14 +814,9 @@ struct ContentView: View {
                     }
                 }
             }
-            .onChange(of: coordinator.currentView) { _, newValue in
-                if enableStatsFeature {
-                    let currentViewString = newValue == .stats ? "stats" : "other"
-                    statsManager.updateMonitoringState(
-                        notchIsOpen: vm.notchState == .open,
-                        currentView: currentViewString
-                    )
-                }
+            .onChange(of: showCalendar) { _, _ in updateStatsRuntimeSurface() }
+            .onChange(of: coordinator.currentView) { _, _ in
+                updateStatsRuntimeSurface()
             }
             .sensoryFeedback(.alignment, trigger: haptics)
             .contextMenu {
@@ -889,6 +883,7 @@ struct ContentView: View {
     private func installPrimaryRootLifecycleHandlers<Content: View>(on view: Content) -> some View {
         view
             .onAppear {
+                updateStatsRuntimeSurface()
                 isMusicControlWindowSuppressed = vm.notchState != .closed
                     || lockScreenManager.isLocked
                     || isMusicHUDDeferredAfterUnlock
@@ -1236,6 +1231,12 @@ struct ContentView: View {
     @ViewBuilder private var openNotchTabContent: some View {
         if vm.notchState == .open {
             Group {
+                if !NotchTabAvailability.current.contains(coordinator.currentView) {
+                    VStack(spacing: 10) {
+                        Text("Choose the tools you want to use").font(.notch(.body))
+                        Button("Open Feature Management") { SettingsWindowController.shared.showWindow(tab: "features") }
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
                 switch coordinator.currentView {
                 case .home:
                     NotchHomeView(albumArtNamespace: albumArtNamespace)
@@ -1251,6 +1252,7 @@ struct ContentView: View {
                     NotchExtraSpaceView()
                 case .colorPicker:
                     NotchColorPickerView()
+                }
                 }
             }
             .id(coordinator.currentView)
@@ -1813,9 +1815,16 @@ struct ContentView: View {
         return activationRect.contains(location)
     }
 
+    private func updateStatsRuntimeSurface() {
+        RuntimePolicyMonitor.shared.setStatsSurface("notch-\(ObjectIdentifier(vm))", visible: vm.notchState == .open && coordinator.currentView == .stats)
+        RuntimePolicyMonitor.shared.setCalendarSurface("notch-\(ObjectIdentifier(vm))", visible: showCalendar && vm.notchState == .open && coordinator.currentView == .home)
+    }
+
     /// Cancels every long-lived task / event monitor this view owns. Called from
     /// `.onDisappear` and from `vm.onViewTeardown` on window close. Idempotent.
     private func performViewTeardown() {
+        RuntimePolicyMonitor.shared.setStatsSurface("notch-\(ObjectIdentifier(vm))", visible: false)
+        RuntimePolicyMonitor.shared.setCalendarSurface("notch-\(ObjectIdentifier(vm))", visible: false)
         hoverTask?.cancel()
         stopHoverClickMonitor()
         stopHiddenEdgeHoverPolling()

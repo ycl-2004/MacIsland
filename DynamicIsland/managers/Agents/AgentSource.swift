@@ -84,7 +84,7 @@ extension AgentSource {
     // keeps each source free of payload parsing.
 
     func makeEvent(eventName: String, payload: [String: Any], hostBundleID: String?, now: Date = Date()) -> AgentHookEvent? {
-        guard let phase = phase(forEvent: eventName, payload: payload) else { return nil }
+        guard let phase = eventName == "atoll.transport.uncertain" ? AgentEventPhase.statusUncertain : phase(forEvent: eventName, payload: payload) else { return nil }
         let cwd = payload["cwd"] as? String ?? (payload["workspacePaths"] as? [String])?.first
         let sessionKey = ["session_id", "conversationId", "sessionId", "thread_id"]
             .lazy.compactMap { payload[$0] as? String }.first { !$0.isEmpty }
@@ -112,6 +112,9 @@ extension AgentSource {
             hostBundleID: hostBundleID,
             transcriptPath: ((payload["transcript_path"] ?? payload["transcriptPath"]) as? String)?.nonBlank,
             eventName: eventName,
+            turnID: ((payload["turn_id"] ?? payload["turnId"]) as? String)?.nonBlank,
+            toolUseID: ((payload["tool_use_id"] ?? payload["toolCallId"] ?? toolCall?["id"]) as? String)?.nonBlank,
+            requestID: ((payload["request_id"] ?? payload["requestID"]) as? String)?.nonBlank,
             receivedAt: now
         )
     }

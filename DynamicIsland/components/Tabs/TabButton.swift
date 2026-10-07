@@ -23,6 +23,7 @@
 import SwiftUI
 
 struct TabButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let label: String
     let icon: String
     let selected: Bool
@@ -48,15 +49,15 @@ struct TabButton: View {
                             .fill(badge)
                             .frame(width: 5, height: 5)
                             .offset(x: -3, y: 4)
-                            .transition(.scale.combined(with: .opacity))
+                            .transition(reduceMotion ? .identity : .scale.combined(with: .opacity))
                     }
                 }
         }
         .buttonStyle(PlainButtonStyle())
         .foregroundStyle(selected ? Color.inkPrimary : isHovering ? .inkSecondary : .inkTertiary)
         .onHover { isHovering = $0 }
-        .animation(.notchQuick, value: isHovering)
-        .animation(.notchStandard, value: badge)
+        .animation(reduceMotion ? nil : .notchQuick, value: isHovering)
+        .animation(reduceMotion ? nil : .notchStandard, value: badge)
         .help(label)
         .accessibilityLabel(label)
         .accessibilityAddTraits(selected ? .isSelected : [])

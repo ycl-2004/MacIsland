@@ -34,7 +34,7 @@ final class ShelfStateViewModel: ObservableObject {
             if isLoaded { scheduleSave() }
             ShelfSelectionModel.shared.reconcileSelection(with: items)
             removeUnusedTemporaryFiles()
-            if items.isEmpty { Task { await ThumbnailService.shared.clear() } }
+            if items.isEmpty { Task { await thumbnails.clear() } }
         }
     }
 
@@ -48,6 +48,7 @@ final class ShelfStateViewModel: ObservableObject {
     private var feedbackTask: Task<Void, Never>?
     private var importTask: Task<Void, Never>?
     private var importGeneration = UUID()
+    private var contentGeneration = UUID()
     private var importWasLimited = false
     private var importQueue: [[NSItemProvider]] = []
     var generation: UUID { importGeneration }
@@ -55,11 +56,11 @@ final class ShelfStateViewModel: ObservableObject {
     func report(_ message: String, persistent: Bool = false) {
         feedbackTask?.cancel()
         // A successful drop notice must not hide a failed save or recovery warning.
-        if let issue = ShelfPersistenceService.shared.lastError ?? ShelfPersistenceService.shared.recoveryWarning {
+        if let issue = persistence.lastError ?? persistence.recoveryWarning {
             feedback = issue
             return
         }
-        if ShelfFileLifetime.shared.needsRecovery {
+        if fileLifetime.needsRecovery {
             feedback = String(localized: "Temporary file records could not be read. Files have been kept for recovery.")
             return
         }
@@ -77,24 +78,37 @@ final class ShelfStateViewModel: ObservableObject {
     private var updateTask: Task<Void, Never>?
     private var shelfSwitch: AnyCancellable?
 
-    private init() {
-        let generation = importGeneration
+    private let persistence: ShelfPersistenceService
+    private let fileLifetime: ShelfFileLifetime
+    private let enabledKey: Defaults.Key<Bool>
+    private let thumbnails: ThumbnailService
+
+    init(persistence: ShelfPersistenceService = .shared, lifetime: ShelfFileLifetime = .shared,
+         enabledKey: Defaults.Key<Bool> = .dynamicShelf, thumbnails: ThumbnailService = .shared) {
+        self.persistence = persistence
+        self.fileLifetime = lifetime
+        self.enabledKey = enabledKey
+        self.thumbnails = thumbnails
+        let generation = contentGeneration
         persistenceQueue.async { [weak self] in
-            let loaded = ShelfPersistenceService.shared.load()
+            let loaded = persistence.load()
             DispatchQueue.main.async {
                 guard let self else { return }
-                if generation == self.importGeneration { self.items = loaded }
+                if self.contentGeneration == generation { self.items = loaded }
                 self.isLoaded = true
-                self.feedback = ShelfPersistenceService.shared.lastError ?? ShelfPersistenceService.shared.recoveryWarning
+                self.feedback = self.persistence.lastError ?? self.persistence.recoveryWarning
                 self.backfillCachedPaths()
             }
         }
-        // Disable clears the list; the lifetime service keeps only files that
-        // are still in use or inside their handoff grace. Corrupt stores remain
-        // recoverable instead of being mistaken for an intentionally empty list.
-        shelfSwitch = Defaults.publisher(.dynamicShelf).sink { change in
-            guard !change.newValue else { return }
-            Task { @MainActor in ShelfStateViewModel.shared.removeAll() }
+        // Hiding the shelf preserves its persisted references. Only explicit
+        // Clear removes entries; active handoffs retain their existing leases.
+        shelfSwitch = Defaults.publisher(enabledKey).sink { [weak self] change in
+            Task { @MainActor in
+                guard let self else { return }
+                let enabled = Defaults[self.enabledKey]
+                if !enabled { self.pauseImports() }
+                await self.thumbnails.setEnabled(enabled)
+            }
         }
     }
 
@@ -103,17 +117,18 @@ final class ShelfStateViewModel: ObservableObject {
     /// their grace period.
     private func removeUnusedTemporaryFiles() {
         let unresolved = items.contains { $0.isTemporary && $0.cachedPath == nil }
-        ShelfFileLifetime.shared.setReferences(items.compactMap { $0.cachedPath.map { URL(fileURLWithPath: $0) } },
-            allowCleanup: !unresolved && ShelfPersistenceService.shared.permitsCleanup)
+        fileLifetime.setReferences(items.compactMap { $0.cachedPath.map { URL(fileURLWithPath: $0) } },
+            allowCleanup: !unresolved && persistence.permitsCleanup)
     }
 
     private func scheduleSave() {
         pendingSave?.cancel()
         let snapshot = items
+        let persistence = self.persistence
         let work = DispatchWorkItem { [weak self] in
-            let success = ShelfPersistenceService.shared.save(snapshot)
+            let success = persistence.save(snapshot)
             if !success {
-                DispatchQueue.main.async { self?.report(ShelfPersistenceService.shared.lastError ?? "Shelf changes could not be saved.", persistent: true) }
+                DispatchQueue.main.async { self?.report(persistence.lastError ?? "Shelf changes could not be saved.", persistent: true) }
             }
         }
         pendingSave = work
@@ -124,8 +139,8 @@ final class ShelfStateViewModel: ObservableObject {
         guard isLoaded else { return }
         pendingSave?.cancel(); pendingSave = nil
         let snapshot = items
-        if !persistenceQueue.sync(execute: { ShelfPersistenceService.shared.save(snapshot) }) {
-            report(ShelfPersistenceService.shared.lastError ?? "Shelf changes could not be saved.", persistent: true)
+        if !persistenceQueue.sync(execute: { persistence.save(snapshot) }) {
+            report(persistence.lastError ?? "Shelf changes could not be saved.", persistent: true)
         }
     }
 
@@ -200,8 +215,8 @@ final class ShelfStateViewModel: ObservableObject {
     func add(_ newItems: [ShelfItem], ifUnchanged generation: UUID? = nil) {
         importWasLimited = false
         guard !newItems.isEmpty else { return }
-        guard (generation == nil || generation == importGeneration), Defaults[.dynamicShelf] else {
-            ShelfFileLifetime.shared.requestCleanup()
+        guard (generation == nil || generation == importGeneration), Defaults[enabledKey] else {
+            fileLifetime.requestCleanup()
             return
         }
         var merged = items
@@ -213,7 +228,7 @@ final class ShelfStateViewModel: ObservableObject {
                   merged.reduce(0, { $0 + $1.storageTextBytes }) + it.storageTextBytes <= 4 * 1024 * 1024 else {
                 importWasLimited = true
                 report("Shelf holds up to 200 items and 4 MB of text (1 MB per item). Remove some items before adding more.")
-                ShelfFileLifetime.shared.requestCleanup()
+                fileLifetime.requestCleanup()
                 break
             }
             merged.append(it)
@@ -237,17 +252,23 @@ final class ShelfStateViewModel: ObservableObject {
         items.removeAll { ids.contains($0.id) }
     }
 
-    /// Active drags, shares and clipboard ownership retain their own file leases.
-    func removeAll() {
+    func pauseImports() {
         importGeneration = UUID()
         importTask?.cancel()
         importTask = nil
         importQueue.removeAll()
+        Task { await thumbnails.clear() }
+    }
+
+    /// Active drags, shares and clipboard ownership retain their own file leases.
+    func removeAll() {
+        contentGeneration = UUID()
+        pauseImports()
         updateTask?.cancel()
         pendingBookmarkUpdates.removeAll()
         if !items.isEmpty { items.removeAll() }
         else { removeUnusedTemporaryFiles() }
-        Task { await ThumbnailService.shared.clear() }
+        Task { await thumbnails.clear() }
     }
 
     /// Pass `path` whenever the caller already resolved the new bookmark —
@@ -319,7 +340,7 @@ final class ShelfStateViewModel: ObservableObject {
     }
 
     func load(_ providers: [NSItemProvider]) {
-        guard !providers.isEmpty, Defaults[.dynamicShelf] else { return }
+        guard !providers.isEmpty, Defaults[enabledKey] else { return }
         guard providers.count <= 50, importQueue.reduce(0, { $0 + $1.count }) + providers.count <= 100 else {
             report("Drop up to 50 items at a time. Wait for the current import to finish before adding more.")
             return
@@ -335,8 +356,8 @@ final class ShelfStateViewModel: ObservableObject {
                 if !self.isLoaded { try? await Task.sleep(for: .milliseconds(20)); continue }
                 let providers = self.importQueue.removeFirst()
                 let dropped = await ShelfDropService.items(from: providers)
-                guard !Task.isCancelled, self.importGeneration == generation, Defaults[.dynamicShelf] else {
-                    ShelfFileLifetime.shared.requestCleanup()
+                guard !Task.isCancelled, self.importGeneration == generation, Defaults[enabledKey] else {
+                    self.fileLifetime.requestCleanup()
                     return
                 }
                 let before = self.items.count

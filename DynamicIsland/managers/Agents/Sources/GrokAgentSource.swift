@@ -26,7 +26,7 @@ struct GrokAgentSource: HookConfigAgentSource {
         "Stop": .turnFinished,
         "StopFailure": .turnFailed,
         // Runs instead of `Stop` after Ctrl+C or a declined permission.
-        "StopCancelled": .turnFinished,
+        "StopCancelled": .turnCancelled,
         "SessionEnd": .sessionEnded,
     ]
 
@@ -51,7 +51,7 @@ struct GrokAgentSource: HookConfigAgentSource {
         case "Notification":
             // `idle_prompt` and `task_complete` report a turn that already ended.
             let type = (payload["notificationType"] ?? payload["notification_type"]) as? String
-            if type == "idle_prompt" || type == "task_complete" { return nil }
+            guard let type, ["permission_prompt", "permission_request", "agent_needs_input", "elicitation_dialog"].contains(type) else { return nil }
         case "Stop":
             // Grok also fires `Stop` as the session closes; `SessionEnd` follows.
             if let reason = payload["reason"] as? String, reason != "end_turn" { return nil }

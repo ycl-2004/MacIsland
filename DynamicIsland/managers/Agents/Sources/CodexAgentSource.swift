@@ -11,14 +11,25 @@ struct CodexAgentSource: HookConfigAgentSource {
 
     // Codex has no `Notification` event; an approval it is waiting on arrives
     // as `PermissionRequest`, which Atoll only reports and never answers.
-    let hookEvents: [String: AgentEventPhase] = [
+    var extendedLifecycle = false
+    var hookEvents: [String: AgentEventPhase] {
+        var events: [String: AgentEventPhase] = [
         "SessionStart": .sessionStarted,
         "UserPromptSubmit": .promptSubmitted,
         "PreToolUse": .toolStarted,
         "PermissionRequest": .needsAttention,
         "Stop": .turnFinished,
         "SessionEnd": .sessionEnded,
-    ]
+        ]
+        if extendedLifecycle { events.merge(["PostToolUse": .thinking, "Interrupt": .turnCancelled]) { _, new in new } }
+        return events
+    }
+
+    func phase(forEvent event: String, payload: [String: Any]) -> AgentEventPhase? {
+        if event == "PostToolUse" { return .thinking }
+        if event == "Interrupt" { return .turnCancelled }
+        return hookEvents[event]
+    }
 
     let toolKinds: [String: AgentToolKind] = [
         "view_image": .read,

@@ -1,8 +1,11 @@
 import Foundation
 import CryptoKit
 
-// Build: swiftc DynamicIsland/managers/Agents/*.swift DynamicIsland/managers/Agents/Sources/*.swift DynamicIsland/managers/Agents/Terminals/*.swift DynamicIsland/utils/AtollTemporaryFiles.swift
-//   tests/AgentConversationRegression.swift -o agent-regress && ./agent-regress tests/agent-rpc-fixture
+// Build: xcrun swiftc -swift-version 5 DynamicIsland/managers/Agents/*.swift
+//   DynamicIsland/managers/Agents/Sources/*.swift DynamicIsland/managers/Agents/Terminals/*.swift
+//   DynamicIsland/utils/{AtollTemporaryFiles,PipeReadWaiter,PrivateContentFile}.swift
+//   DynamicIsland/helpers/AppRuntimeEnvironment.swift tests/AgentConversationRegression.swift
+//   -o /tmp/agent-regress; then run /tmp/agent-regress tests/agent-rpc-fixture.
 // Tests inject their own Codex client and never run or read installed agents.
 
 // App-wide pieces the agent files use, stood in for outside the app.
@@ -26,12 +29,14 @@ final class FakeCodexClient: CodexConversationClient {
     var unmaterialized = Set<String>()
     var turns: [[String: Any]] = []
     var methods: [String] = []
+    var onResume: (() -> Void)?
     var resumed: [String] = []
     var unsubscribed: [String] = []
     var starts: [[String: Any]] = []
     var replies: [[String: Any]] = []
     var rejectStart = false
     var loseTurnAck = false
+    var nextTurnID = "turn-one"
 
     func start(executable: String) async throws { isReady = true }
     func close() { isReady = false; onDisconnect?() }
@@ -48,6 +53,7 @@ final class FakeCodexClient: CodexConversationClient {
             precondition(isSharedDaemon && loaded.contains(threadID), "only a thread the shared service holds may be followed")
             if unmaterialized.contains(threadID) { throw AgentConnectionError.rejected("no rollout found for thread id") }
             resumed.append(threadID)
+            onResume?()
             return ["thread": threads[threadID]!]
         case "thread/unsubscribe": unsubscribed.append(threadID); return [:]
         case "thread/turns/list": return ["data": turns]
@@ -55,7 +61,7 @@ final class FakeCodexClient: CodexConversationClient {
             if rejectStart { throw AgentConnectionError.rejected("Terminal no longer accepts input") }
             starts.append(params)
             if loseTurnAck { throw AgentConnectionError.unavailable("socket closed") }
-            return ["turn": ["id": "turn-one", "status": "inProgress"]]
+            return ["turn": ["id": nextTurnID, "status": "inProgress"]]
         default: return [:]
         }
     }
@@ -120,12 +126,14 @@ struct AgentConversationRegression {
 
     @MainActor
     static func main() async throws {
+        setbuf(stdout, nil)
         defer { discardDefaults() }
         verifyModel()
         verifyProjection()
-        try verifyStore()
+        try await verifyStore()
         try await verifyLiveTerminal()
         try await verifySending()
+        try await verifyRequestIdentityAndCounts()
         try await verifyReadOnlyTerminal()
         try verifyTranscripts()
         try verifyHookInstall()
@@ -149,7 +157,7 @@ struct AgentConversationRegression {
         precondition(ended.isDisconnected && ended.messages.count == 3)
         let quiet = done.applying(hook(.promptSubmitted, prompt: "Next"), recordingMessages: false)
         precondition(quiet.messages.count == 3 && quiet.state == .thinking && quiet.lastReply == nil,
-                     "a session with a live feed takes lifecycle, not messages, from hooks")
+                     "recordingMessages controls content separately from lifecycle authority")
 
         var bounded = started
         for index in 0..<(AgentSession.messageLimit + 5) { bounded.upsertMessage(.activity(id: "\(index)", kind: .read, detail: "f")) }
@@ -181,7 +189,7 @@ struct AgentConversationRegression {
         CodexSessionProjection.applyStatus(["type": "active", "activeFlags": ["waitingOnApproval"]], to: &session)
         precondition(session.state.needsAttention)
         CodexSessionProjection.applyStatus(["type": "idle"], to: &session)
-        precondition(session.state == .finished && session.finishedAt != nil)
+        precondition(session.state == .idle && session.finishedAt == nil, "idle is not evidence of successful completion")
         CodexSessionProjection.applyStatus(["type": "notLoaded"], to: &session)
         precondition(session.isDisconnected && session.canAcceptDirectInput == false)
 
@@ -207,20 +215,23 @@ struct AgentConversationRegression {
     }
 
     @MainActor
-    static func verifyStore() throws {
+    static func verifyStore() async throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent("atoll-agents-\(UUID())")
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temp) }
         let cache = temp.appendingPathComponent("sessions.json")
         let saved = AgentSessionStore(persistenceURL: cache)
+        try await waitUntil { saved.isLoaded }
         saved.apply(hook(.promptSubmitted, prompt: "Recent"))
         saved.apply(hook(.promptSubmitted, key: otherThreadID, prompt: "Old", at: Date(timeIntervalSinceNow: -2 * AgentSessionStore.staleSessionInterval)))
-        saved.save()
+        saved.flushPendingSave()
         let restored = AgentSessionStore(persistenceURL: cache)
+        try await waitUntil { restored.isLoaded }
         precondition(restored.sessions.map(\.sessionKey) == [threadID], "only sessions active recently come back")
         precondition(restored.sessions[0].isDisconnected && restored.closedNotchHighlight() == nil)
-        restored.remove(restored.sessions[0]); restored.save()
+        restored.remove(restored.sessions[0]); restored.flushPendingSave()
         let hidden = AgentSessionStore(persistenceURL: cache)
+        try await waitUntil { hidden.isLoaded }
         hidden.upsert(CodexSessionProjection.session(terminalThread(), existing: nil, live: true)!)
         precondition(hidden.sessions.isEmpty && hidden.isHidden(sessionID))
 
@@ -228,7 +239,7 @@ struct AgentConversationRegression {
         store.apply(hook(.promptSubmitted, prompt: "Hi"))
         store.setLiveFeed(sessionID, true)
         store.apply(hook(.turnFinished, reply: "Hook reply"))
-        precondition(store.session(id: sessionID)!.messages.count == 1 && store.session(id: sessionID)!.state == .finished)
+        precondition(store.session(id: sessionID)!.messages.count == 1 && store.session(id: sessionID)!.state == .thinking)
         store.pruneStaleSessions(now: Date(timeIntervalSinceNow: AgentSessionStore.staleSessionInterval + 1))
         precondition(store.sessions.isEmpty && !store.hasLiveFeed(sessionID), "quiet sessions leave the notch")
 
@@ -254,7 +265,9 @@ struct AgentConversationRegression {
 
         // A cache written before removal times were kept still loads.
         try Data(#"{"sessions":[],"hiddenIDs":["\#(sessionID)"]}"#.utf8).write(to: cache)
-        precondition(AgentSessionStore(persistenceURL: cache).isHidden(sessionID))
+        let legacy = AgentSessionStore(persistenceURL: cache)
+        try await waitUntil { legacy.isLoaded }
+        precondition(legacy.isHidden(sessionID))
         print("PASS: persistence, recent-only restore, hidden cards, live-feed hooks, quiet sessions leave, remove ended in one change, removed ids expire, old cache format")
     }
 
@@ -284,6 +297,45 @@ struct AgentConversationRegression {
     }
 
     @MainActor
+    static func verifyRequestIdentityAndCounts() async throws {
+        let client = FakeCodexClient()
+        client.threads = [threadID: terminalThread()]; client.loaded = [threadID]
+        let store = AgentSessionStore(persistenceURL: nil)
+        let (service, _) = makeService(client, store: store)
+        service.start()
+        defer { service.stop() }
+        try await waitUntil { store.hasLiveFeed(sessionID) && service.isLive }
+        service.setDraft("Request fixture", for: sessionID); service.send(id: sessionID)
+        try await waitUntil { !service.sending.contains(sessionID) && !client.starts.isEmpty }
+        let params: [String: Any] = ["threadId": threadID, "turnId": "turn-one", "command": "fixture"]
+        func status(_ flags: [String]) {
+            client.onEvent?("thread/status/changed", ["threadId": threadID, "status": ["type": "active", "activeFlags": flags]])
+        }
+        status(["waitingOnApproval"])
+        precondition(store.session(id: sessionID)!.identifiedPendingRequestCount == 0)
+        client.onRequest?(1, "item/commandExecution/requestApproval", params)
+        precondition(store.session(id: sessionID)!.identifiedPendingRequestCount == 1 && service.approvals.count == 1)
+        status(["waitingOnApproval"])
+        precondition(store.session(id: sessionID)!.identifiedPendingRequestCount == 1)
+        service.answerApproval(service.approvals[0], allow: false)
+        precondition(!service.canSend(store.session(id: sessionID)!), "Aggregate wait remains protective without inventing a count")
+        status([])
+        let prefix = String(repeating: "x", count: 240)
+        for key in [prefix + "A", prefix + "B"] { client.onRequest?(key, "item/commandExecution/requestApproval", params) }
+        client.onRequest?(prefix + "A", "item/commandExecution/requestApproval", params)
+        precondition(service.approvals.count == 2 && store.session(id: sessionID)!.identifiedPendingRequestCount == 2)
+        precondition(store.session(id: sessionID)!.pendingRequests!.keys.allSatisfy { $0.count <= 70 })
+        service.answerApproval(service.approvals[0], allow: false)
+        precondition(service.approvals.count == 1 && !service.canSend(store.session(id: sessionID)!))
+        service.answerApproval(service.approvals[0], allow: false)
+        precondition(service.canSend(store.session(id: sessionID)!))
+        client.onRequest?(1, "item/commandExecution/requestApproval", params)
+        client.onRequest?("1", "item/commandExecution/requestApproval", params)
+        precondition(service.approvals.count == 2, "Numeric and string namespaces stay distinct")
+        print("PASS: aggregate wait counts, long distinct IDs, deduplication and input protection")
+    }
+
+    @MainActor
     static func verifyLiveTerminal() async throws {
         let client = FakeCodexClient()
         client.threads = [threadID: terminalThread(), otherThreadID: terminalThread(otherThreadID)]
@@ -297,7 +349,7 @@ struct AgentConversationRegression {
         let (service, _) = makeService(client, store: store)
         service.start()
         defer { service.stop() }
-        try await waitUntil { store.hasLiveFeed(sessionID) }
+        try await waitUntil { store.hasLiveFeed(sessionID) && service.isLive }
         precondition(client.resumed == [threadID], "only a saved terminal thread the service holds is followed")
         precondition(store.sessions.count == 1 && service.isLive && service.canSend(store.session(id: sessionID)!))
 
@@ -360,7 +412,9 @@ struct AgentConversationRegression {
                 store.apply(hook(.sessionEnded))
                 precondition(!service.canSend(store.session(id: sessionID)!))
                 store.apply(hook(.sessionStarted))
-                precondition(service.canSend(store.session(id: sessionID)!), "resuming the terminal restores sending")
+                precondition(!service.canSend(store.session(id: sessionID)!), "hooks cannot clear owner uncertainty")
+                client.onEvent?("thread/status/changed", ["threadId": threadID, "status": ["type": "active", "activeFlags": []]])
+                precondition(service.canSend(store.session(id: sessionID)!), "owner confirmation restores sending")
                 service.stop()
                 continue
             }
@@ -590,7 +644,7 @@ struct AgentConversationRegression {
                 Set(body.components(separatedBy: marker).dropFirst().compactMap { $0.split(separator: "\"").first.map(String.init) })
             }
             // OpenCode passes a matched `case` label on as `report(type, ...)`.
-            let reported = quoted(after: "report(\"")
+            let reported = quoted(after: "report(\"").subtracting(["atoll.transport.uncertain"])
             let named = reported.union(quoted(after: "case \"").filter { source.hookEvents[$0] != nil })
             precondition(reported.isSubset(of: source.hookEvents.keys) && Set(source.hookEvents.keys) == named, "\(source.id) plugin and hookEvents disagree")
             // Never a hook that can change or stop what the agent does.
@@ -608,8 +662,8 @@ struct AgentConversationRegression {
         service.start()
         defer { service.stop() }
         let claudeID = AgentSession.key(sourceID: "claude", sessionKey: threadID)
-        let stopped = hook(.turnFinished, source: "claude", reply: "Done")
         _ = service.receive(hook(.promptSubmitted, source: "claude", prompt: "Build it"))
+        let stopped = hook(.turnFinished, source: "claude", reply: "Done")
         _ = service.receive(stopped)
         precondition(!service.canSend(store.session(id: claudeID)!), "no parked hook yet")
         var replies: [Data?] = []
@@ -619,8 +673,9 @@ struct AgentConversationRegression {
         // The user answers in the terminal: the parked hook stands down.
         _ = service.receive(hook(.promptSubmitted, source: "claude", prompt: "Typed in terminal"))
         precondition(replies.count == 1 && replies[0] == nil && !service.canSend(store.session(id: claudeID)!))
-        _ = service.receive(stopped)
-        service.park(stopped, reply: { replies.append($0) }, onClose: { _ in })
+        let nextStop = hook(.turnFinished, source: "claude", reply: "Done again")
+        _ = service.receive(nextStop)
+        service.park(nextStop, reply: { replies.append($0) }, onClose: { _ in })
 
         service.drafts[claudeID] = "From Atoll"
         service.send(id: claudeID); service.send(id: claudeID)
@@ -645,8 +700,10 @@ struct AgentConversationRegression {
         var toolDone = hook(.thinking, source: "agy")
         toolDone.eventName = "PostToolUse"
         precondition(service.receive(toolDone) == nil, "PostToolUse cannot carry a message")
-        let output = service.receive(step)!
-        precondition(String(decoding: output, as: UTF8.self).contains("Also lint") && service.receive(step) == nil)
+        var nextStep = hook(.thinking, source: "agy")
+        nextStep.eventName = "PreInvocation"
+        let output = service.receive(nextStep)!
+        precondition(String(decoding: output, as: UTF8.self).contains("Also lint") && service.receive(nextStep) == nil)
         precondition(!service.sending.contains(agyID) && store.session(id: agyID)!.messages.last?.text == "Also lint")
         var done = hook(.turnFinished, source: "agy")
         done.eventName = "Stop"

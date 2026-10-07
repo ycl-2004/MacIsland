@@ -44,23 +44,32 @@ enum CodexSessionProjection {
         switch status["type"] as? String {
         case "active":
             let flags = status["activeFlags"] as? [String] ?? []
-            if flags.contains("waitingOnApproval") { session.state = .needsAttention(message: String(localized: "Approval required")) }
-            else if flags.contains("waitingOnUserInput") { session.state = .needsAttention(message: String(localized: "Waiting for your answer")) }
-            else if !session.state.isWorking { session.state = .thinking }
-            // Only an attached terminal makes a loaded thread active.
+            var requests = session.pendingRequests ?? [:]
+            requests["status:approval"] = flags.contains("waitingOnApproval") ? String(localized: "Approval required") : nil
+            requests["status:input"] = flags.contains("waitingOnUserInput") ? String(localized: "Waiting for your answer") : nil
+            session.pendingRequests = requests
+            if !session.state.isWorking { session.state = session.activityState ?? .thinking }
+            session.restorePendingAttention()
             session.isDisconnected = false
+            session.statusUncertain = false
             session.finishedAt = nil
         case "idle":
-            if session.state.isWorking || session.state.needsAttention {
-                session.state = .finished
-                session.finishedAt = now
-            }
+            // Idle does not identify a successful turn. A completed notification
+            // owns the short success flash; unresolved RPCs keep input guarded.
+            session.pendingRequests = session.pendingRequests?.filter { !$0.key.hasPrefix("status:") }
+            session.activityState = nil
+            if session.state.isWorking || session.state.needsAttention { session.state = .idle; session.finishedAt = nil }
+            session.restorePendingAttention()
+            session.statusUncertain = false
         case "systemError":
             session.state = .failed(message: String(localized: "Codex reported an error. Check the terminal."))
+            session.activityState = nil
+            session.finishedAt = nil
         case "notLoaded":
-            // The service let go of the thread: no terminal is attached any more.
             session.isDisconnected = true
             session.canAcceptDirectInput = false
+            session.pendingRequests = nil
+            session.activityState = nil
             if session.state.isWorking || session.state.needsAttention { session.state = .idle }
             session.finishedAt = nil
         default: break

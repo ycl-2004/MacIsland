@@ -1,0 +1,110 @@
+{
+  "baseline_commit": "ce417b73631d1b59126496ca4d180ca756652c6d",
+  "review_date": "2026-10-06",
+  "scope": "Read-only production-source review, official event semantics, isolated fake-client replay; production code not changed.",
+  "requirements_reviewed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "state_replay": {
+    "scenarios": 28,
+    "policy_met": 11,
+    "policy_gaps": 17,
+    "exit_code": 0,
+    "exit_code_means": "Replay completed; policy gaps are explicit in met fields and must not be described as passing tests."
+  },
+  "regression": {
+    "groups_total": 15,
+    "groups_passed": 14,
+    "groups_failed": 1,
+    "initial_exit_code": 133,
+    "remaining_exit_code": 0,
+    "failure": "Batch removal publishes two objectWillChange events, expected one; verifyStore assertion failed.",
+    "remaining_run": "Temporary copy changes only main to skip the already-failed group and enable unbuffered stdout; all remaining group implementations unchanged."
+  },
+  "plugin_queue": {
+    "fixture": "critical-terminal-event-at-capacity",
+    "queued_ordinary": 32,
+    "attempted_critical": "session.deleted",
+    "forwarded": 32,
+    "critical_forwarded": false,
+    "real_children_spawned": 0
+  },
+  "swift_compile": {
+    "original": 0,
+    "remaining": 0,
+    "state_audit": 0,
+    "language_mode": "Swift 5",
+    "module_cache": "/tmp/atoll-agent-review/module-cache",
+    "warnings": [
+      "Existing AgentEventServer Sendable capture warning",
+      "Existing ProcessRunner implicit strong capture warnings",
+      "Sandbox macro plugin unavailable during compile; compiler exited 0"
+    ]
+  },
+  "source_hashes": {
+    "DynamicIsland/managers/Agents/AgentBridge.swift": "816071c5262c23a41b22524c8d7731348432debbcc1e47f0fcebc406cd3f1481",
+    "DynamicIsland/managers/Agents/AgentConversationService.swift": "13092312002f98eaedc6499f26fbba6ab7e0afe901c8a93eab15c244d8bc15f6",
+    "DynamicIsland/managers/Agents/AgentEventServer.swift": "1faf7ba38361abc0d1268eda37ec397d8dbb2f5140c4b1483eb369b8f6828490",
+    "DynamicIsland/managers/Agents/AgentPluginFile.swift": "9254ab0066030f96b56defd0759e1477ad0ceafa569c644f776eb0c9cda0e72a",
+    "DynamicIsland/managers/Agents/AgentSession.swift": "9f255db540a158f7181b3721fce44bf2a279149a59b03c6500d1b1b40aa38e8b",
+    "DynamicIsland/managers/Agents/AgentSessionStore.swift": "dc50086f0736ec4963016692c89f4ee148b0f22ebc46f5178bf870996bf23f11",
+    "DynamicIsland/managers/Agents/AgentSource.swift": "f1372b4f63a3ff58bdb1a861ba510e148d3bf980f5ac372ac029fc76a1b74dd8",
+    "DynamicIsland/managers/Agents/AgentSourceRegistry.swift": "591eb1c7190298d822802c1e917b76eabfa21548a2fb3498c37caea9630ec3d6",
+    "DynamicIsland/managers/Agents/AgentTranscriptFile.swift": "b8b00b183e40a3797984cb08599e06ac389fdb41205ba0bc22dbb8f5d2d2d9cc",
+    "DynamicIsland/managers/Agents/CodexRPCClient.swift": "9e348ca515482b00765797ac29e6a2a7c2ccdb33caa318d40f914ba7e6196604",
+    "DynamicIsland/managers/Agents/CodexSessionProjection.swift": "f46cabd77aaff85bd962ac8747ca11aa1e9bd65e079b98e97defe142bba1119b",
+    "DynamicIsland/managers/Agents/CodexWebSocketFraming.swift": "79e5db765a7c4eb2a6faac635cc8dbfaf1d799560a77c77fe1173dfb9bce02b9",
+    "DynamicIsland/managers/Agents/ProcessRunner.swift": "97c266c87fced132c19d4af788a1437c3b5aadeafe94164a4fc29253bc662b50",
+    "DynamicIsland/managers/Agents/Sources/AntigravityAgentSource.swift": "7478e6300133dafad92f9f6fa7e002743622f758e778f4cd5939ace8530d34a2",
+    "DynamicIsland/managers/Agents/Sources/ClaudeCodeAgentSource.swift": "f09f55eba0800c5d855ad24f324d96d428a0d3357ef305d5d9da8e8f5dba7c59",
+    "DynamicIsland/managers/Agents/Sources/CodexAgentSource.swift": "0ff047045ada1b06e3da74da45d6baa5883149d5530ef84a7d14b370e8f6827f",
+    "DynamicIsland/managers/Agents/Sources/GrokAgentSource.swift": "6ef4d3080ffdc2cd68e56a9609ceb2ddc6bd26c4a97eddf93284d93b67c4912c",
+    "DynamicIsland/managers/Agents/Sources/OpenCodeAgentSource.swift": "ad69d3da918e86d2a8b425e093b68300960d0d99fbba58f6dc8be4c1daf29354",
+    "DynamicIsland/managers/Agents/Sources/PiAgentSource.swift": "f621282b2e9cae0ffc4f384eb57a8f3d590bb37d0f8883f1d96a582a94bac60f",
+    "DynamicIsland/managers/Agents/Terminals/AgentTerminals.swift": "635682e93a54dab76b5e0d75a2501e2969b6b3221b7558654b927bd956158523",
+    "DynamicIsland/managers/Agents/Terminals/AppleTerminalHost.swift": "5abbc1f5a192261f5051da65bef97b40ad026211f3d3317766848b1b112cf0ec",
+    "DynamicIsland/managers/Agents/Terminals/CmuxTerminalHost.swift": "6a068b4063d9e0cd4e9c97acc4dd75c9f4daedcf5f9e8959caff520872922d3a",
+    "DynamicIsland/managers/Agents/Terminals/ControllingTerminal.swift": "bcb6a2585095b3a4d14411ea5c802af2db26b53c9df82f7b06cb42e53a1e963c",
+    "DynamicIsland/managers/Agents/Terminals/GhosttyTerminalHost.swift": "b8fcf4bf54338842c5f696956d8cf20e880a5beafa1c703c99de4f91d800ec94",
+    "DynamicIsland/managers/Agents/Terminals/TerminalHost.swift": "f794edc6c0b66b120fde93ea6958d9548b0229b0ea7a89b0b0fb3ca0952ce952",
+    "DynamicIsland/managers/Agents/Terminals/TerminalHostRegistry.swift": "88060c93dd81e0ac287d3ae57eea60c183854bf654c516925aaf40065261fdf9",
+    "DynamicIsland/utils/AtollTemporaryFiles.swift": "1a16799bc19c732acb5719e6ee549f9265916493a0a97a46592eb2952620524f",
+    "DynamicIsland/utils/PipeReadWaiter.swift": "64d6048de4770d66267c5f028ea39dad0c1cba978b580ed30d19a06251b1b02e",
+    "DynamicIsland/utils/PrivateContentFile.swift": "ac183872e8242ac69b44c4622019d763cf58d755cb9db523c8a70f60aef28836",
+    "DynamicIsland/helpers/AppRuntimeEnvironment.swift": "c89cfea544e8bd97a83985726802097392c798f7e275e323bd6f7e2de50213c0",
+    "tests/AgentConversationRegression.swift": "656aea162e0aa357005cc09c14066efdd1fc12b38f02b2e1450b750d884fa3dc",
+    "tests/AgentStateAudit.swift": "bc5712a8401bb2edc81d5a13270dc120b09acadbb4ef7bfd88800b967143e92c",
+    "tests/AgentPluginQueueAudit.mjs": "a8b9e929e3e8d61c78d4bb1e5e7af3d3305e9a3f0564b3ff5b5331122ed0a6d5"
+  },
+  "compiled_temporary_source_hashes": {
+    "RegressionRemaining.swift": "704a5fa0d951e24f7449f8adab663044d7890d69582ea692803703ae3624c287",
+    "RegressionSupport.swift": "da34a46b96e77ec35e027b9e4097c85f5f5592860945861c0eead0697d3db238"
+  },
+  "official_sources": [
+    "https://code.claude.com/docs/en/hooks#notification",
+    "https://developers.openai.com/codex/hooks",
+    "https://opencode.ai/docs/plugins#events",
+    "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/extensions/types.ts",
+    "https://www.antigravity.google/docs/hooks"
+  ],
+  "information_gaps": [
+    "Specific agent/session associated with the user-reported exclamation was not identified.",
+    "Installed provider versions and full Grok Build official hook schema were not verified.",
+    "Synthetic out-of-order and queue-capacity inputs do not establish their production frequency."
+  ],
+  "not_executed": [
+    "Real agent CLI execution or credentials/config/session inspection",
+    "Real hook configuration update",
+    "Production app replacement or relaunch",
+    "Interactive UI, focus and trackpad acceptance",
+    "Frontmost notification behaviour implementation",
+    "24–72 hour soak",
+    "Commit or push for this review"
+  ],
+  "report_sha256": "698fc6b0b766e450b89c6658810ffa5f0edb9a640307838b6a94d5d7b1f6404d"
+}

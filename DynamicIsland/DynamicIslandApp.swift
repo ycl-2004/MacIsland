@@ -622,6 +622,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !Self.isHostingUnitTests else { return }
+        _ = FeaturePresetController.shared
         removeTemporaryFiles()
         // Network responses stay in memory only. Replacing the cache before
         // anything touches the default one keeps its database off disk too.
@@ -636,6 +637,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 if change.newValue {
                     AgentBridge.shared.start()
+                    AgentConversationService.shared.refreshIntervalProvider = {
+                        RuntimePolicyMonitor.shared.state.agentRefreshInterval(conversationOpen: AgentConversationService.shared.selectedID != nil)
+                    }
                     AgentConversationService.shared.start()
                 } else {
                     AgentBridge.shared.stop()
@@ -1224,6 +1228,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !optionalShortcutHandlersRegistered else { return }
         optionalShortcutHandlersRegistered = true
 
+        KeyboardShortcuts.onKeyDown(for: .openExtraSpace) { [weak self] in
+            guard let self, Defaults[.enableShortcuts] else { return }
+            guard Defaults[.enableExtraSpaceFeature] else {
+                SettingsWindowController.shared.showWindow(tab: "extraSpace")
+                return
+            }
+            self.closeNotchWorkItem?.cancel()
+            self.closeNotchWorkItem = nil
+            self.coordinator.currentView = .extraSpace
+            self.viewModelUnderPointer().open()
+        }
+
         KeyboardShortcuts.onKeyDown(for: .askAboutScreen) { [weak self] in
             guard let self, Defaults[.enableShortcuts], Defaults[.enableAgentsFeature] else { return }
             ScreenQuestionManager.shared.captureAndPresent(in: self.viewModelUnderPointer())
@@ -1242,6 +1258,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func updateFeatureShortcutAvailability() {
+        updateShortcut(.openExtraSpace, isEnabled: Defaults[.enableShortcuts])
         updateShortcut(.startDemoTimer, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableTimerFeature])
         updateShortcut(.colorPickerPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableColorPickerFeature])
         updateShortcut(.askAboutScreen, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableAgentsFeature])

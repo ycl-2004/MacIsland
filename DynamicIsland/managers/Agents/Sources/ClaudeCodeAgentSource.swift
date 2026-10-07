@@ -11,7 +11,9 @@ struct ClaudeCodeAgentSource: HookConfigAgentSource {
 
     // Only long-standing events: Claude Code rejects a settings file that
     // names an event it does not know.
-    let hookEvents: [String: AgentEventPhase] = [
+    var extendedLifecycle = false
+    var hookEvents: [String: AgentEventPhase] {
+        var events: [String: AgentEventPhase] = [
         "SessionStart": .sessionStarted,
         "UserPromptSubmit": .promptSubmitted,
         "PreToolUse": .toolStarted,
@@ -19,7 +21,10 @@ struct ClaudeCodeAgentSource: HookConfigAgentSource {
         "Notification": .needsAttention,
         "Stop": .turnFinished,
         "SessionEnd": .sessionEnded,
-    ]
+        ]
+        if extendedLifecycle { events.merge(["PostToolUseFailure": .thinking, "StopFailure": .turnFailed]) { _, new in new } }
+        return events
+    }
 
     let toolKinds: [String: AgentToolKind] = [
         "Task": .delegate,
@@ -41,11 +46,15 @@ struct ClaudeCodeAgentSource: HookConfigAgentSource {
     }
 
     func phase(forEvent event: String, payload: [String: Any]) -> AgentEventPhase? {
-        // `Notification` also fires when a finished turn has sat unanswered for
-        // a minute; that is not something to flag in the notch.
-        if event == "Notification", (payload["notification_type"] as? String) == "idle_prompt" {
-            return nil
+        // Source: https://code.claude.com/docs/en/hooks#notification
+        // Authentication, idle, completion and future types are not requests.
+        if event == "Notification" {
+            let actionable: Set<String> = ["permission_prompt", "elicitation_dialog", "elicitation_url_dialog", "agent_needs_input"]
+            guard let type = payload["notification_type"] as? String, actionable.contains(type) else { return nil }
+            return .needsAttention
         }
+        if event == "PostToolUseFailure" { return payload["is_interrupt"] as? Bool == true ? .turnCancelled : .thinking }
+        if event == "StopFailure" { return .turnFailed }
         return hookEvents[event]
     }
 

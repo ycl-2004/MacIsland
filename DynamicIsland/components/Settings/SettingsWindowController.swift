@@ -75,6 +75,11 @@ class SettingsWindowController: NSWindowController {
         ScreenCaptureVisibilityManager.shared.register(window, scope: .panelsOnly)
     }
     
+    func showWindow(tab: String) {
+        showWindow()
+        DispatchQueue.main.async { NotificationCenter.default.post(name: .atollSettingsDestination, object: tab) }
+    }
+
     func showWindow() {
         // Ensure window exists
         _ = window
@@ -141,4 +146,8 @@ extension SettingsWindowController: NSWindowDelegate {
     func windowDidResignKey(_ notification: Notification) {
     }
     
+}
+
+extension Notification.Name {
+    static let atollSettingsDestination = Notification.Name("app.atoll.settings.destination")
 }

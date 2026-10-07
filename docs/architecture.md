@@ -161,7 +161,8 @@ agent process (hook configured once, or Atoll's plugin file for Pi / OpenCode)
 - `AgentSessionStore` (MainActor) reduces hook events into `AgentSession`
   values, newest first. Finished sessions keep the closed notch lit for
   `finishedHighlightDuration` (6 s); silent sessions are pruned after
-  `staleSessionInterval` (30 min). A 60 s prune timer owns both.
+  `staleSessionInterval` (30 min). A 60 s timer prunes stale cards; cancellable
+  one-shot tasks schedule completion expiry and the 250 ms attention window.
 - Snapshots persist to `sessions.json` on a serial utility queue with a debounced
   save. Reads check size before allocation; encoding enforces the same 8 MiB
   limit. Cards and preview text are bounded. Normal termination flushes writes.
@@ -177,6 +178,16 @@ agent process (hook configured once, or Atoll's plugin file for Pi / OpenCode)
 
 ### Bridge gotchas
 
+- Healthy owner feeds are authoritative for state and content. Identified
+  pending requests survive unrelated tool completion. Disconnect and plugin
+  overflow expose uncertainty and block ordinary input instead of guessing an
+  end. Atoll-owned approvals are scoped to the exact turn and connection epoch.
+- Plugin queues and payloads are bounded, with a single deadline-limited owned
+  child. Critical overflow is reported as uncertainty. This remains finite,
+  best-effort delivery, not a durable event journal. Compatibility profiles and
+  old-event limitations are documented in
+  [lightweight setup and Agent status](lightweight-setup-and-agent-status.md).
+
 - The bearer token must never appear in process arguments; it travels via the
   `auth-header` file (`-H @file`). Keep it that way.
 - Anything that restarts the server must rewrite `port` before hooks fire
@@ -185,6 +196,20 @@ agent process (hook configured once, or Atoll's plugin file for Pi / OpenCode)
   `XCTestConfigurationFilePath` set; `AppDelegate` skips all launch
   integrations in that case so a test host cannot take over the real bridge
   directory and delete its port file on exit.
+
+## Shared runtime policy
+
+`AtollRuntimePolicy` holds pure locked/low-power/visibility decisions.
+`RuntimePolicyMonitor` receives power and lock notifications and tracks Stats
+and Home Calendar surfaces by window identity. Stats sampling stops when disabled or locked and
+slows when hidden or in low-power mode. Codex connection refresh uses the same
+signals; its event receiver and Timer deadlines are not paused. This is gradual
+integration of Stats, Codex refresh and Calendar queries, not a claim that every manager shares the policy.
+
+`FeaturePresetController` previews optional switch changes and stores a small
+settings-only undo snapshot. Candidate preference observers invalidate undo
+for subsequent manual edits, including value round trips. Shelf and Extra Space
+are excluded from the preset; no content removal is part of this transaction.
 
 ## Verification
 
@@ -198,3 +223,19 @@ Focused suites that guard these areas:
 `MenuBarClearanceTests`, `TimerHUDTests`, `ClosedHUDSizingTests` (sizing
 math); the agents pipeline is
 exercised through the regression scripts under `tests/`.
+
+## Tab and Calendar demand routing
+
+`NotchTabAvailability` is shared by the header, content, coordinator and minimum-width calculation.
+Invalid current/remembered/shortcut targets resolve to the first enabled tab in saved order. Color Picker remains a separate utility.
+With no enabled tabs, Home is a sentinel that renders Feature Management access rather than hidden feature content.
+
+`CalendarManager` observes the emitted runtime policy and existing settings. No consumer or read access means no periodic query task.
+Home consumes the selected date while visible; lock-screen queries require lock plus the calendar widget setting. Reminder activity
+consumes a separate current-day snapshot, so browsing another date or hiding Home across midnight cannot change its day.
+The existing deadline scheduler stays independent of these display gates. Active refresh is 60 seconds, 120 in low power;
+EventKit changes remain throttled and hidden changes are reconciled on next demand. Explicit calendar UI actions can fetch once.
+Permission refresh reads existing authorization; the management page and lock-screen widget do not request new access.
+
+Agent pending quantities exclude aggregate status flags; RPC string keys hash the complete identity in a separate namespace.
+System Reduce Motion suppresses notch/tab movement, Agent symbol effects and layer pulses, keeping static status information.

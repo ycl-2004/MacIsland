@@ -449,6 +449,8 @@ extension Defaults.Keys {
 #else
     static let logLevel = Key<LogLevel>("logLevel", default: .none)
 #endif
+    static let agentClaudeExtendedLifecycle = Key<Bool>("agentClaudeExtendedLifecycle", default: false)
+    static let agentCodexExtendedLifecycle = Key<Bool>("agentCodexExtendedLifecycle", default: false)
     static let menubarIcon = Key<Bool>("menubarIcon", default: true)
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)

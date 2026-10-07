@@ -1,0 +1,27 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "target": "/Applications/Atoll.app",
+  "stage": "/Applications/.Atoll-next-132723496b274da1b3b851aa95f753ff.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-211317/Atoll.app",
+  "previous_sha256": "3d8fd3cd80364d9c3e141800c3860bdabf1de8494d28c317c6731f47fcc9c323",
+  "release_sha256": "da526aa52368dc446b992f3e920132c4a8011fa3bacb76191dfb1b6a2cf2242d",
+  "signing_team_matches": true,
+  "prepared_at": "2026-10-06T21:13:17.780533-07:00",
+  "installed": "/Applications/Atoll.app",
+  "installed_sha256": "da526aa52368dc446b992f3e920132c4a8011fa3bacb76191dfb1b6a2cf2242d",
+  "installed_at": "2026-10-06T21:14:17.692085-07:00",
+  "normal_termination_confirmed": true,
+  "signature_verified": true,
+  "relaunched": true,
+  "running_instance": {
+    "bundle_path": "/Applications/Atoll.app",
+    "executable_path": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "finished_launching": true,
+    "pid": 60077,
+    "terminated": false
+  },
+  "stable_launch_confirmed_at": "2026-10-06T21:14:44.741311-07:00",
+  "previous_pid": 29092,
+  "forced_termination": false,
+  "commit_or_push": false
+}

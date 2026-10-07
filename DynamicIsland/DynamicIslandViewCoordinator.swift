@@ -61,6 +61,7 @@ class DynamicIslandViewCoordinator: ObservableObject {
     static let shared = DynamicIslandViewCoordinator()
     private var cancellables = Set<AnyCancellable>()
     private var hoverOpenSuppressedUntil: Date = .distantPast
+    private let availabilityProvider: () -> NotchTabAvailability
     
     private static let tabOrder: [NotchViews] = [.home, .shelf, .timer, .stats, .agents, .extraSpace, .colorPicker]
     
@@ -69,6 +70,10 @@ class DynamicIslandViewCoordinator: ObservableObject {
     
     @Published var currentView: NotchViews = .home {
         didSet {
+            let resolved = availabilityProvider().resolve(currentView)
+            // A wrapped property's setter re-enters didSet. Write only when
+            // routing actually changes the target, so a valid tab terminates.
+            if currentView != resolved { currentView = resolved }
             // Track direction before SwiftUI re-renders
             let oldIdx = Self.tabOrder.firstIndex(of: oldValue) ?? 0
             let newIdx = Self.tabOrder.firstIndex(of: currentView) ?? 0
@@ -127,8 +132,10 @@ class DynamicIslandViewCoordinator: ObservableObject {
 
     @Published var optionKeyPressed: Bool = true
     
-    private init() {
+    init(availability: @escaping () -> NotchTabAvailability = { .current }, observeDefaults: Bool = true) {
+        availabilityProvider = availability
         selectedScreen = preferredScreen
+        guard observeDefaults else { return }
         Defaults.publisher(.timerDisplayMode)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] change in
@@ -147,8 +154,7 @@ class DynamicIslandViewCoordinator: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] change in
                 guard let self, !change.newValue else { return }
-                if self.currentView == .extraSpace { self.currentView = .home }
-                if self.lastActiveView == .extraSpace { self.lastActiveView = .home }
+                self.ensureValidSelection()
                 if Defaults[.shortcutDefaultTab] == .extraSpace { Defaults[.shortcutDefaultTab] = .lastActive }
             }
             .store(in: &cancellables)
@@ -163,16 +169,26 @@ class DynamicIslandViewCoordinator: ObservableObject {
             Defaults.publisher(.timerDisplayMode).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.enableStatsFeature).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.enableAgentsFeature).map { _ in () }.eraseToAnyPublisher(),
-            Defaults.publisher(.enableExtraSpaceFeature).map { _ in () }.eraseToAnyPublisher()
+            Defaults.publisher(.enableExtraSpaceFeature).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.enableColorPickerFeature).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.notchTabOrder).map { _ in () }.eraseToAnyPublisher()
         )
-        .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
-        .sink { _ in
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] _ in
+            self?.ensureValidSelection()
             enforceMinimumNotchWidth()
         }
         .store(in: &cancellables)
 
         // Enforce minimum width on launch for existing configurations
         enforceMinimumNotchWidth()
+    }
+
+    func ensureValidSelection() {
+        let availability = availabilityProvider()
+        let resolved = availability.resolve(currentView)
+        if currentView != resolved { currentView = resolved }
+        lastActiveView = availability.resolve(lastActiveView)
     }
 
     var isHoverOpenSuppressed: Bool {

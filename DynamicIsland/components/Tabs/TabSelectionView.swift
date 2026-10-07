@@ -36,6 +36,7 @@ struct TabModel: Identifiable, Hashable {
 
 struct TabSelectionView: View {
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
+    @Default(.dynamicShelf) private var dynamicShelf
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableAgentsFeature) private var enableAgentsFeature
@@ -51,32 +52,13 @@ struct TabSelectionView: View {
     @State private var shelfHasItems = false
     
     private var tabs: [TabModel] {
-        var tabsArray: [TabModel] = []
-
-        if homeTabVisible {
-            tabsArray.append(TabModel(label: "Home", icon: "house.fill", view: .home))
+        let labels: [NotchViews: (String, String)] = [
+            .home: ("Home", "house.fill"), .shelf: ("Shelf", "tray.fill"),
+            .timer: ("Timer", "timer"), .stats: ("Stats", "chart.xyaxis.line"),
+            .agents: ("Agents", "sparkles"), .extraSpace: ("Extra Space", "text.alignleft")]
+        return NotchTabAvailability.current.tabs.compactMap { view in
+            labels[view].map { TabModel(label: $0.0, icon: $0.1, view: view) }
         }
-
-        if Defaults[.dynamicShelf] {
-            tabsArray.append(TabModel(label: "Shelf", icon: "tray.fill", view: .shelf))
-        }
-        
-        if enableTimerFeature && timerDisplayMode == .tab {
-            tabsArray.append(TabModel(label: "Timer", icon: "timer", view: .timer))
-        }
-
-        // Stats tab only shown when stats feature is enabled
-        if Defaults[.enableStatsFeature] {
-            tabsArray.append(TabModel(label: "Stats", icon: "chart.xyaxis.line", view: .stats))
-        }
-
-        if enableAgentsFeature {
-            tabsArray.append(TabModel(label: "Agents", icon: "sparkles", view: .agents))
-        }
-        if enableExtraSpaceFeature {
-            tabsArray.append(TabModel(label: "Extra Space", icon: "text.alignleft", view: .extraSpace))
-        }
-        return SavedRowOrder.apply(tabOrder, to: tabsArray, key: \.orderKey)
     }
     var body: some View {
         ReorderableRow(items: tabs, spacing: 24 - 2 * TabButton.horizontalPadding, onReorder: { reordered in
@@ -102,8 +84,9 @@ struct TabSelectionView: View {
         }
         .clipShape(Capsule())
         .onAppear {
-            ensureValidSelection(with: tabs)
+            coordinator.ensureValidSelection()
         }
+        .onChange(of: tabs) { _, _ in coordinator.ensureValidSelection() }
         // Reduced to one Bool each before reaching state, so the row redraws
         // when a dot comes or goes rather than on every session update.
         .onReceive(
@@ -128,22 +111,10 @@ struct TabSelectionView: View {
         }
     }
 
-    private var homeTabVisible: Bool {
-        showStandardMediaControls || showCalendar || showMirror
-    }
-
     private func isSelected(_ tab: TabModel) -> Bool {
         coordinator.currentView == tab.view
     }
 
-    private func ensureValidSelection(with tabs: [TabModel]) {
-        guard !tabs.isEmpty else { return }
-        if tabs.contains(where: { isSelected($0) }) {
-            return
-        }
-        guard let first = tabs.first else { return }
-        coordinator.currentView = first.view
-    }
 }
 
 #Preview {

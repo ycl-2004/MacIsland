@@ -513,8 +513,8 @@ struct LockScreenWeatherWidget: View {
 			calendarRowVisible = shouldShowCalendarRow
 
 			Task {
-				await calendarManager.checkCalendarAuthorization()
-				await calendarManager.checkReminderAuthorization()
+				calendarManager.refreshAuthorizationSnapshot()
+				calendarManager.applyRuntimePolicy(RuntimePolicyMonitor.shared.state)
 				await calendarManager.updateLockScreenEvents(force: true)
 			}
 

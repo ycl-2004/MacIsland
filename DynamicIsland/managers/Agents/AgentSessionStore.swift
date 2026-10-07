@@ -16,6 +16,9 @@ final class AgentSessionStore: ObservableObject {
 
     private var pruneTimer: Timer?
     private var highlightExpiry: Task<Void, Never>?
+    private var attentionExpiry: Task<Void, Never>?
+    var viewedSessionID: String?
+    static let attentionPresentationDelay: TimeInterval = 0.25
     /// Cards the user removed, and when. A removed session only comes back by
     /// starting a new turn, so each entry is kept as long as anything else
     /// could still bring the card back: `staleSessionInterval`.
@@ -94,6 +97,7 @@ final class AgentSessionStore: ObservableObject {
     deinit {
         pruneTimer?.invalidate()
         highlightExpiry?.cancel()
+        attentionExpiry?.cancel()
         saveTask?.cancel()
     }
 
@@ -103,10 +107,15 @@ final class AgentSessionStore: ObservableObject {
         if event.phase == .sessionStarted || event.phase == .promptSubmitted { hiddenIDs[id] = nil }
         guard hiddenIDs[id] == nil else { return }
         let recording = !liveFeedIDs.contains(id)
-        let next = sessions.first { $0.id == id }.map { $0.applying(event, recordingMessages: recording) }
+        var next = sessions.first { $0.id == id }.map { $0.applying(event, recordingMessages: recording, applyingLifecycle: recording) }
             ?? AgentSession.starting(with: event)
-        sessions = [Self.bounded(next)] + sessions.filter { $0.id != id }
-        enforceMemoryBudget()
+        if !recording, event.phase == .sessionEnded {
+            // A hook and its healthy owner disagree about attachment. Guard
+            // input until the owner confirms, rather than manufacturing an end.
+            next.statusUncertain = true
+            next.finishedAt = nil
+        }
+        commitSessions([Self.bounded(next)] + sessions.filter { $0.id != id })
         scheduleSave()
 
         if event.phase == .turnFinished || event.phase == .turnFailed {
@@ -124,25 +133,32 @@ final class AgentSessionStore: ObservableObject {
         guard !ids.isEmpty else { return }
         for id in ids { hiddenIDs[id] = now }
         liveFeedIDs.subtract(ids)
-        sessions.removeAll { ids.contains($0.id) }
-        enforceMemoryBudget()
+        commitSessions(sessions.filter { !ids.contains($0.id) })
         scheduleSave()
     }
 
     func upsert(_ incoming: AgentSession) {
-        let session = Self.bounded(incoming)
+        var session = Self.bounded(incoming)
+        if session.isWaitingOnUser { session.attentionSince = self.session(id: session.id)?.attentionSince ?? session.attentionSince ?? Date() }
+        else { session.attentionSince = nil }
         guard session.id.utf8.count <= 4225, session.sourceID.utf8.count <= 128 else { return }
         guard hiddenIDs[session.id] == nil else { return }
         let oldFinishedAt = self.session(id: session.id)?.finishedAt
-        if let index = sessions.firstIndex(where: { $0.id == session.id }) {
-            if sessions[index] != session { sessions[index] = session }
-        } else {
-            sessions.append(session)
-        }
-        sessions.sort { $0.updatedAt > $1.updatedAt }
-        enforceMemoryBudget()
+        var next = sessions.filter { $0.id != session.id }
+        next.append(session)
+        next.sort { $0.updatedAt > $1.updatedAt }
+        commitSessions(next)
         scheduleSave()
         if session.finishedAt != nil, oldFinishedAt != session.finishedAt { scheduleHighlightExpiry() }
+    }
+
+    /// Failed subscriptions to a brand-new, empty thread do not make a card.
+    /// Owner events received during the attempt are retained for inspection.
+    func discardUnconfirmed(_ provisional: AgentSession) {
+        guard let current = session(id: provisional.id), current.updatedAt == provisional.updatedAt,
+              !current.hasPendingRequests else { return }
+        commitSessions(sessions.filter { $0.id != provisional.id })
+        scheduleSave()
     }
 
     func session(id: String) -> AgentSession? { sessions.first { $0.id == id } }
@@ -169,16 +185,18 @@ final class AgentSessionStore: ObservableObject {
     /// waiting on the user first, then a turn that just finished, then work
     /// in progress.
     func closedNotchHighlight(now: Date = Date()) -> AgentSession? {
-        if let waiting = sessions.first(where: { $0.isTerminalSession && $0.state.needsAttention && !$0.isDisconnected }) {
+        if let waiting = sessions.first(where: {
+            $0.isTerminalSession && $0.isWaitingOnUser && now.timeIntervalSince($0.attentionSince ?? $0.updatedAt) >= Self.attentionPresentationDelay
+        }) {
             return waiting
         }
         if let finished = sessions.first(where: { session in
-            guard session.isTerminalSession, !session.isDisconnected, let finishedAt = session.finishedAt else { return false }
+            guard session.id != viewedSessionID, session.state == .finished, session.statusUncertain != true, session.isTerminalSession, !session.isDisconnected, let finishedAt = session.finishedAt else { return false }
             return now.timeIntervalSince(finishedAt) < Self.finishedHighlightDuration
         }) {
             return finished
         }
-        return sessions.first { $0.isTerminalSession && $0.state.isWorking && !$0.isDisconnected }
+        return sessions.first { $0.isTerminalSession && $0.isWorking && !$0.isDisconnected && $0.statusUncertain != true }
     }
 
     var activeSessionCount: Int {
@@ -188,10 +206,34 @@ final class AgentSessionStore: ObservableObject {
     /// Re-publishes once the "finished" flash is over, so the closed notch drops it.
     private func scheduleHighlightExpiry() {
         highlightExpiry?.cancel()
+        let now = Date()
+        let remaining = sessions.compactMap { session -> TimeInterval? in
+            guard session.state == .finished, let ended = session.finishedAt else { return nil }
+            let delay = Self.finishedHighlightDuration - now.timeIntervalSince(ended)
+            return delay > 0 ? delay : nil
+        }.min()
+        guard let remaining else { highlightExpiry = nil; return }
         highlightExpiry = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.finishedHighlightDuration))
-            guard !Task.isCancelled else { return }
-            self?.objectWillChange.send()
+            try? await Task.sleep(for: .seconds(remaining))
+            guard !Task.isCancelled, let self else { return }
+            self.objectWillChange.send()
+            self.scheduleHighlightExpiry()
+        }
+    }
+
+    private func scheduleAttentionPresentation() {
+        attentionExpiry?.cancel()
+        let now = Date()
+        let delay = sessions.filter(\.isWaitingOnUser).compactMap { session -> TimeInterval? in
+            let remaining = Self.attentionPresentationDelay - now.timeIntervalSince(session.attentionSince ?? session.updatedAt)
+            return remaining > 0 ? remaining : nil
+        }.min()
+        guard let delay else { attentionExpiry = nil; return }
+        attentionExpiry = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self else { return }
+            self.objectWillChange.send()
+            self.scheduleAttentionPresentation()
         }
     }
 
@@ -212,10 +254,15 @@ final class AgentSessionStore: ObservableObject {
     /// The connection carrying live feeds closed. Terminals may still be open,
     /// so sessions stay; they only stop accepting messages until it returns.
     func dropLiveFeeds() {
-        for index in sessions.indices where liveFeedIDs.contains(sessions[index].id) {
-            sessions[index].canAcceptDirectInput = false
+        var next = sessions
+        for index in next.indices where liveFeedIDs.contains(next[index].id) {
+            next[index].canAcceptDirectInput = false
+            next[index].statusUncertain = true
+            next[index].finishedAt = nil
         }
+        commitSessions(next)
         liveFeedIDs.removeAll()
+        scheduleSave()
     }
 
     private func scheduleSave() {
@@ -246,8 +293,18 @@ final class AgentSessionStore: ObservableObject {
         persistenceError = persistenceQueue.sync { Self.persist(snapshot, to: persistenceURL) }
     }
 
+    private func commitSessions(_ incoming: [AgentSession]) {
+        let next = Array(incoming.filter { $0.id.utf8.count <= 4225 && $0.sourceID.utf8.count <= 128 }.prefix(Self.maximumSessions))
+        if sessions != next {
+            sessions = next
+            scheduleAttentionPresentation()
+        }
+        enforceMemoryBudget()
+    }
+
     private func enforceMemoryBudget() {
-        sessions = Array(sessions.filter { $0.id.utf8.count <= 4225 && $0.sourceID.utf8.count <= 128 }.prefix(Self.maximumSessions))
+        let next = Array(sessions.filter { $0.id.utf8.count <= 4225 && $0.sourceID.utf8.count <= 128 }.prefix(Self.maximumSessions))
+        if sessions != next { sessions = next }
         hiddenIDs = hiddenIDs.filter { $0.key.utf8.count <= 4225 }
         liveFeedIDs.formIntersection(sessions.map(\.id))
         if hiddenIDs.count > 256 {
@@ -258,6 +315,12 @@ final class AgentSessionStore: ObservableObject {
     nonisolated private static func bounded(_ original: AgentSession) -> AgentSession {
         var session = original
         func bounded(_ value: String?, _ bytes: Int = 16_384) -> String? { value.map { Self.prefix($0, bytes: bytes) } }
+        session.currentTurnID = bounded(session.currentTurnID, 256)
+        session.retiredTurnIDs = session.retiredTurnIDs.map { Array($0.suffix(16)).map { Self.prefix($0, bytes: 256) } }
+        session.pendingRequests = session.pendingRequests.map { Dictionary(uniqueKeysWithValues: $0.sorted { $0.key < $1.key }.prefix(64).filter { $0.key.utf8.count <= 256 }.map { ($0.key, Self.prefix($0.value, bytes: 1024)) }) }
+        if case .tool(let kind, let name, let detail) = session.activityState {
+            session.activityState = .tool(kind, name: Self.prefix(name, bytes: 256), detail: bounded(detail))
+        }
         session.lastPrompt = bounded(session.lastPrompt)
         session.lastReply = bounded(session.lastReply)
         session.title = bounded(session.title, 1024)

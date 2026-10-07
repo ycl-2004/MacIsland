@@ -3,6 +3,8 @@ import Defaults
 
 struct AgentsSettingsView: View {
     @Default(.enableAgentsFeature) private var enableAgentsFeature
+    @Default(.agentClaudeExtendedLifecycle) private var claudeExtendedLifecycle
+    @Default(.agentCodexExtendedLifecycle) private var codexExtendedLifecycle
     @Default(.screenQuestionBackend) private var screenQuestionBackend
     @Default(.assistantModelOverrides) private var modelOverrides
 
@@ -30,8 +32,17 @@ struct AgentsSettingsView: View {
             }
 
             Section {
+                Defaults.Toggle("Claude Code: tool failures and API failures", key: .agentClaudeExtendedLifecycle)
+                Defaults.Toggle("Codex: tool returns and interruptions", key: .agentCodexExtendedLifecycle)
+            } header: {
+                Text("Extended lifecycle hooks")
+            } footer: {
+                Text("Enable only when your installed agent supports these hooks, then use Update below. Older versions can reject unknown hook names. Turning this off lets Update restore the compatible profile. This choice does not change agent files until you install or update hooks.")
+            }
+
+            Section {
                 ForEach(AgentSourceRegistry.all, id: \.id) { source in
-                    AgentSourceRow(source: source)
+                    AgentSourceRow(source: source).id(source.id + "-\(claudeExtendedLifecycle)-\(codexExtendedLifecycle)")
                 }
             } header: {
                 Text("Connected agents")
@@ -99,7 +110,7 @@ private struct AgentSourceRow: View {
 
     private var status: String {
         if isInstalled { return String(localized: "Hooks installed") }
-        if isOutdated { return String(localized: "Update to reply from Atoll") }
+        if isOutdated { return String(localized: "Hook update available") }
         if !source.isCLIAvailable { return String(localized: "Not found on this Mac") }
         return String(localized: "Not connected")
     }

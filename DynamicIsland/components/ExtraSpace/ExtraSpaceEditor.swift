@@ -11,6 +11,10 @@ struct ExtraSpaceEditor: NSViewRepresentable {
     var pasteRequest = 0
     var isEditing = true
     var focusRequest = 0
+    var findRequest = 0
+    var exportRequest = 0
+    var onFindVisibilityChange: (Bool) -> Void = { _ in }
+    var onExportFinished: (String?) -> Void = { _ in }
     var onBeginEditing: () -> Void = {}
     var onFinishEditing: () -> Void = {}
     var onFocusChange: (Bool) -> Void
@@ -34,6 +38,10 @@ struct ExtraSpaceEditor: NSViewRepresentable {
         context.coordinator.shouldBeEditable = textView.isEditable
         textView.isSelectable = true
         textView.allowsUndo = true
+        // Native find bar supports read-only text and background incremental matching.
+        // https://developer.apple.com/documentation/appkit/nstextview/usesfindbar
+        textView.usesFindBar = true
+        textView.isIncrementalSearchingEnabled = true
         textView.drawsBackground = false
         textView.font = .systemFont(ofSize: NotchTextSize.body.rawValue)
         textView.textColor = .white
@@ -62,8 +70,12 @@ struct ExtraSpaceEditor: NSViewRepresentable {
         context.coordinator.textView = textView
         context.coordinator.observeUndoManager(textView.undoManager)
         context.coordinator.observeScrollView(scrollView)
+        context.coordinator.onFindVisibilityChange = onFindVisibilityChange
+        context.coordinator.observeFindBar(scrollView)
         context.coordinator.lastPasteRequest = pasteRequest
         context.coordinator.lastFocusRequest = focusRequest
+        context.coordinator.lastFindRequest = findRequest
+        context.coordinator.lastExportRequest = exportRequest
 
         if let position = Coordinator.positions[screenID] {
             textView.setSelectedRange(position.selection.clamped(to: (store.text as NSString).length))
@@ -83,6 +95,7 @@ struct ExtraSpaceEditor: NSViewRepresentable {
         textView.onBeginEditing = { if store.isLoaded { onBeginEditing() } }
         textView.onFinishEditing = onFinishEditing
         if let scrollView = scrollView as? ExtraSpaceScrollView { configureScrollView(scrollView) }
+        context.coordinator.onFindVisibilityChange = onFindVisibilityChange
         let finishesEditing = textView.isEditable && !isEditing
         context.coordinator.shouldBeEditable = store.isLoaded && !store.isRelaunching && isEditing
         if finishesEditing {
@@ -92,7 +105,7 @@ struct ExtraSpaceEditor: NSViewRepresentable {
                 // native change; finish it after SwiftUI's update pass.
                 textView.unmarkText()
                 textView.isEditable = false
-                if textView.window?.firstResponder === textView { textView.window?.makeFirstResponder(nil) }
+                if textView.window?.firstResponder === textView, textView.enclosingScrollView?.isFindBarVisible != true { textView.window?.makeFirstResponder(nil) }
                 textView.onFocusChange?(false)
                 coordinator.store.updateText(textView.string)
                 coordinator.store.saveNow()
@@ -127,6 +140,19 @@ struct ExtraSpaceEditor: NSViewRepresentable {
                 window.makeFirstResponder(textView)
             }
         }
+        if context.coordinator.lastFindRequest != findRequest {
+            context.coordinator.lastFindRequest = findRequest
+            DispatchQueue.main.async { [weak textView] in textView?.showFindInterface() }
+        }
+        if context.coordinator.lastExportRequest != exportRequest {
+            context.coordinator.lastExportRequest = exportRequest
+            let text = store.text
+            DispatchQueue.main.async { [weak textView] in
+                guard let window = textView?.window else { onExportFinished(String(localized: "The text window is no longer available.")); return }
+                ExtraSpaceExport.present(text: text, in: window, completion: onExportFinished)
+            }
+        }
+
     }
 
     private func configureScrollView(_ scrollView: ExtraSpaceScrollView) {
@@ -146,6 +172,8 @@ struct ExtraSpaceEditor: NSViewRepresentable {
             selection: textView.selectedRange(), scrollOrigin: scrollView.contentView.bounds.origin
         )
         coordinator.stopObservingScrollView()
+        coordinator.findBarObserver = nil
+        coordinator.onFindVisibilityChange(false)
         coordinator.stopObservingUndoManager()
         textView.onFocusChange?(false)
         textView.onFocusChange = nil
@@ -171,6 +199,10 @@ struct ExtraSpaceEditor: NSViewRepresentable {
         private var undoObservers: [NSObjectProtocol] = []
         var lastPasteRequest = 0
         var lastFocusRequest = 0
+        var lastFindRequest = 0
+        var lastExportRequest = 0
+        var onFindVisibilityChange: (Bool) -> Void = { _ in }
+        var findBarObserver: NSKeyValueObservation?
         var shouldBeEditable = true
 
         init(store: ExtraSpaceStore, screenID: String) {
@@ -242,6 +274,12 @@ struct ExtraSpaceEditor: NSViewRepresentable {
                 forName: NSView.boundsDidChangeNotification, object: view.contentView, queue: .main
             ) { [weak self] _ in
                 MainActor.assumeIsolated { self?.rememberPosition() }
+            }
+        }
+
+        func observeFindBar(_ view: NSScrollView) {
+            findBarObserver = view.observe(\.isFindBarVisible, options: [.new]) { [weak self] view, _ in
+                DispatchQueue.main.async { self?.onFindVisibilityChange(view.isFindBarVisible) }
             }
         }
 

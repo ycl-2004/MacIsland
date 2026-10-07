@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Combine
 
 /// The way a message typed in Atoll reaches a session right now.
@@ -54,13 +55,15 @@ final class AgentConversationService: ObservableObject {
     @Published private(set) var approvals: [AgentApproval] = []
     @Published private(set) var uncertainIDs: Set<String>
     @Published var drafts: [String: String] = [:]
-    @Published var selectedID: String?
+    @Published var requestedSessionID: String?
+    @Published var selectedID: String? { didSet { store.viewedSessionID = selectedID } }
 
     private let client: CodexConversationClient
     private let executablePath: () -> String?
     private let store: AgentSessionStore
     private let terminals: AgentTerminals
     private let defaults: UserDefaults
+    var refreshIntervalProvider: (() -> Duration)?
     private var polling: Task<Void, Never>?
     private var refreshing = false
     private var enabled = false
@@ -71,8 +74,9 @@ final class AgentConversationService: ObservableObject {
     /// Loaded threads that are not a terminal's own session (helpers, subagents).
     private var ignoredThreads = Set<String>()
     private var activeTurns: [String: String] = [:]
+    private var ownerEmissionTimes: [String: Double] = [:]
     /// Threads whose current turn Atoll started; only those approvals are Atoll's to answer.
-    private var ownedThreads = Set<String>()
+    private var ownedTurns: [String: String] = [:]
     /// Messages sent from Atoll that Codex has not yet echoed back as items.
     private var awaitingEcho = Set<String>()
     /// Modification date of each session's conversation file when last read.
@@ -128,7 +132,7 @@ final class AgentConversationService: ObservableObject {
         polling = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                try? await Task.sleep(for: self?.selectedID == nil ? Self.pollInterval : Self.openPollInterval)
+                try? await Task.sleep(for: self?.refreshIntervalProvider?() ?? (self?.selectedID == nil ? Self.pollInterval : Self.openPollInterval))
             }
         }
     }
@@ -172,7 +176,8 @@ final class AgentConversationService: ObservableObject {
         subscribed.removeAll()
         ignoredThreads.removeAll()
         activeTurns.removeAll()
-        ownedThreads.removeAll()
+        ownerEmissionTimes.removeAll()
+        ownedTurns.removeAll()
         approvals.removeAll()
         streaming.removeAll()
     }
@@ -212,18 +217,30 @@ final class AgentConversationService: ObservableObject {
             guard !store.isHidden(id),
                   let thread = try? await client.request("thread/read", ["threadId": threadID, "includeTurns": false])["thread"] as? [String: Any],
                   enabled, epoch == connectionEpoch,
-                  var session = CodexSessionProjection.session(thread, existing: store.session(id: id), live: true) else { continue }
+                  var session = CodexSessionProjection.session(thread, existing: reconciledSnapshotBase(store.session(id: id)), live: true) else { continue }
             guard CodexSessionProjection.isFollowable(thread), session.isTerminalSession else { ignoredThreads.insert(threadID); continue }
             guard (session.lastSeenAt ?? session.updatedAt) > cutoff else { continue }
-            // A brand-new thread has nothing saved to subscribe to until its
-            // first message; the next pass tries again.
-            guard (try? await client.request("thread/resume", ["threadId": threadID, "excludeTurns": true])) != nil,
-                  enabled, epoch == connectionEpoch else { continue }
+            // Register before awaiting resume: the service can emit an approval
+            // before its response. Keep input guarded until following succeeds.
+            let wasExisting = store.session(id: id) != nil
+            let acceptsInput = session.canAcceptDirectInput
+            session.canAcceptDirectInput = false
+            session.statusUncertain = true
             subscribed.insert(threadID)
-            store.setLiveFeed(id, true)
-            // The service holds the thread for a terminal, whatever Atoll saw before.
-            session.isDisconnected = false
             store.upsert(session)
+            guard (try? await client.request("thread/resume", ["threadId": threadID, "excludeTurns": true])) != nil,
+                  enabled, epoch == connectionEpoch, subscribed.contains(threadID) else {
+                if epoch == connectionEpoch { endLiveFeed(threadID) }
+                if !wasExisting { store.discardUnconfirmed(session) }
+                continue
+            }
+            store.setLiveFeed(id, true)
+            if var current = store.session(id: id) {
+                current.canAcceptDirectInput = acceptsInput
+                current.isDisconnected = false
+                current.statusUncertain = false
+                store.upsert(current)
+            }
             if selectedID == id { await loadHistory(id: id, force: true) }
         }
         // A quiet session leaves the notch; stop holding its thread open.
@@ -235,14 +252,26 @@ final class AgentConversationService: ObservableObject {
         }
     }
 
+    private func reconciledSnapshotBase(_ existing: AgentSession?) -> AgentSession? {
+        guard var existing else { return nil }
+        if existing.statusUncertain == true {
+            existing.pendingRequests = nil
+            existing.attentionSince = nil
+        }
+        return existing
+    }
+
     private func endLiveFeed(_ threadID: String) {
         guard subscribed.remove(threadID) != nil else { return }
         let id = Self.sessionID(threadID)
         store.setLiveFeed(id, false)
         activeTurns[threadID] = nil
+        ownedTurns[threadID] = nil
+        ownerEmissionTimes[threadID] = nil
         streaming[id] = nil
         if var session = store.session(id: id) {
             session.canAcceptDirectInput = false
+            if !session.isDisconnected { session.statusUncertain = true; session.finishedAt = nil }
             store.upsert(session)
         }
         Task { _ = try? await client.request("thread/unsubscribe", ["threadId": threadID]) }
@@ -331,7 +360,7 @@ final class AgentConversationService: ObservableObject {
     /// its keyboard does; then the agent's own hook route.
     func route(for session: AgentSession) -> AgentSendRoute? {
         // An agent asking for approval would take typed text as its answer.
-        guard enabled, !session.isDisconnected, !session.state.needsAttention else { return nil }
+        guard enabled, !session.isDisconnected, !session.blocksInput else { return nil }
         let delivery = session.source?.replyDelivery
         if case .sharedService = delivery, client.isSharedDaemon, store.hasLiveFeed(session.id),
            session.canAcceptDirectInput == true {
@@ -424,16 +453,27 @@ final class AgentConversationService: ObservableObject {
                 guard let turnID = (result["turn"] as? [String: Any])?["id"] as? String else { throw AgentConnectionError.uncertain }
                 uncertainIDs.remove(id)
                 persistReceipts()
-                ownedThreads.insert(threadID)
-                if activeTurns[threadID] == nil { activeTurns[threadID] = turnID }
+                let canOwnTurn = !(store.session(id: id)?.retiredTurnIDs ?? []).contains(turnID)
+                    && (activeTurns[threadID] == nil || activeTurns[threadID] == turnID)
+                if canOwnTurn {
+                    ownedTurns[threadID] = turnID
+                    if activeTurns[threadID] == nil { activeTurns[threadID] = turnID }
+                }
                 // Only acknowledgement clears the draft; keep edits made while it was in flight.
                 if drafts[id]?.trimmingCharacters(in: .whitespacesAndNewlines) == prompt { drafts[id] = "" }
                 // Show the message until Codex echoes it as an item, which replaces it.
+                if canOwnTurn, var current = store.session(id: id), current.currentTurnID != turnID {
+                    current.beginTurn(turnID)
+                    current.state = .thinking
+                    store.upsert(current)
+                }
                 if awaitingEcho.contains(commandID), var current = store.session(id: id) {
                     current.upsertMessage(AgentMessage(id: commandID, role: .user, text: prompt))
                     current.lastPrompt = prompt
-                    if !current.state.isWorking { current.state = .thinking }
-                    current.finishedAt = nil
+                    if canOwnTurn {
+                        if !current.state.isWorking { current.state = .thinking }
+                        current.finishedAt = nil
+                    }
                     store.upsert(current)
                 }
             } catch {
@@ -478,7 +518,12 @@ final class AgentConversationService: ObservableObject {
         do {
             try client.reply(id: approval.requestID, result: ["decision": allow ? "accept" : "decline"])
             approvals.removeAll { $0.id == approval.id }
-            if var session = store.session(id: approval.sessionID) { session.state = .thinking; store.upsert(session) }
+            if var session = store.session(id: approval.sessionID) {
+                session.pendingRequests?[Self.requestKey(approval.requestID)] = nil
+                session.state = session.activityState ?? .thinking
+                session.restorePendingAttention()
+                store.upsert(session)
+            }
         } catch { errors[approval.sessionID] = error.localizedDescription }
     }
 
@@ -592,7 +637,16 @@ final class AgentConversationService: ObservableObject {
                !ignoredThreads.contains(threadID) { Task { await refresh() } }
             return
         }
+        if let emitted = params["_atollEmittedAtMs"] as? Double, emitted.isFinite {
+            if let previous = ownerEmissionTimes[threadID], emitted < previous { return }
+            ownerEmissionTimes[threadID] = emitted
+        }
         let now = Date()
+        let turnID = (params["turn"] as? [String: Any])?["id"] as? String ?? params["turnId"] as? String
+        if let turnID {
+            guard !(session.retiredTurnIDs ?? []).contains(turnID) else { return }
+            if method != "turn/started", let current = session.currentTurnID, current != turnID { return }
+        }
         switch method {
         case "thread/status/changed":
             guard let status = params["status"] as? [String: Any] else { return }
@@ -606,9 +660,22 @@ final class AgentConversationService: ObservableObject {
         case "thread/name/updated":
             session.title = (params["threadName"] as? String)?.nonBlank ?? session.title
         case "turn/started":
-            activeTurns[threadID] = (params["turn"] as? [String: Any])?["id"] as? String
+            if ownedTurns[threadID] != turnID { ownedTurns[threadID] = nil }
+            activeTurns[threadID] = turnID
+            if session.currentTurnID != turnID {
+                session.beginTurn(turnID)
+                approvals.removeAll { $0.sessionID == id }
+            }
             session.state = .thinking
+            session.statusUncertain = false
             session.finishedAt = nil
+        case "serverRequest/resolved":
+            guard let requestID = params["requestId"] else { return }
+            let key = Self.requestKey(requestID)
+            session.pendingRequests?[key] = nil
+            approvals.removeAll { $0.sessionID == id && Self.requestKey($0.requestID) == key }
+            session.state = session.activityState ?? .thinking
+            session.restorePendingAttention()
         case "item/started", "item/completed":
             guard let item = params["item"] as? [String: Any] else { return }
             apply(item: item, completed: method == "item/completed", to: &session, id: id)
@@ -617,15 +684,33 @@ final class AgentConversationService: ObservableObject {
             streaming[id] = String(((streaming[id] ?? "") + delta).suffix(AgentSession.messageCharacterLimit))
         case "turn/completed":
             let turn = params["turn"] as? [String: Any] ?? [:]
+            // An unidentified completion cannot safely settle an identified turn.
+            if session.currentTurnID != nil && turnID == nil { session.statusUncertain = true; store.upsert(session); return }
+            if activeTurns[threadID] == nil, session.state == .finished || session.wasCancelled == true { return }
             switch turn["status"] as? String {
-            case "failed": session.state = .failed(message: (turn["error"] as? [String: Any])?["message"] as? String)
-            case "interrupted": session.state = .idle
-            default: session.state = .finished
+            case "failed":
+                session.state = .failed(message: (turn["error"] as? [String: Any])?["message"] as? String)
+                session.finishedAt = nil
+            case "interrupted":
+                session.state = .idle
+                session.wasCancelled = true
+                session.finishedAt = nil
+            case "completed":
+                if session.state != .finished { session.finishedAt = now }
+                session.state = .finished
+            default:
+                session.statusUncertain = true
+                session.finishedAt = nil
+                store.upsert(session)
+                return
             }
-            session.finishedAt = now
+            if let turnID { session.retiredTurnIDs = Array(((session.retiredTurnIDs ?? []).filter { $0 != turnID } + [turnID]).suffix(16)) }
+            session.pendingRequests = nil
+            session.activityState = nil
+            session.statusUncertain = false
             streaming[id] = nil
             activeTurns[threadID] = nil
-            ownedThreads.remove(threadID)
+            ownedTurns[threadID] = nil
             approvals.removeAll { $0.sessionID == id }
         default:
             return
@@ -654,8 +739,18 @@ final class AgentConversationService: ObservableObject {
         case .assistant:
             session.lastReply = message.text
         case .activity:
-            session.state = completed ? .thinking : .tool(message.toolKind ?? .other, name: "", detail: message.text)
+            session.activityState = completed ? .thinking : .tool(message.toolKind ?? .other, name: "", detail: message.text)
+            if !session.state.needsAttention { session.state = session.activityState! }
+            session.restorePendingAttention()
         }
+    }
+
+    private static func requestKey(_ id: Any) -> String {
+        // Preserve JSON-RPC's distinct integer and string namespaces.
+        if let string = id as? String {
+            return "rpc:s:" + SHA256.hash(data: Data(string.utf8)).map { String(format: "%02x", $0) }.joined()
+        }
+        return "rpc:n:" + String(String(describing: id).prefix(240))
     }
 
     private func handleRequest(_ requestID: Any, _ method: String, _ params: [String: Any]) {
@@ -663,26 +758,44 @@ final class AgentConversationService: ObservableObject {
             try? client.reply(id: requestID, result: ["currentTimeAt": Int(Date().timeIntervalSince1970)])
             return
         }
-        // Every client following a thread may receive its requests. The terminal
-        // stays in charge unless Atoll started the turn; an observer never
-        // answers, or rejects, another client's approval.
-        guard let threadID = params["threadId"] as? String, ownedThreads.contains(threadID) else { return }
-        let id = Self.sessionID(threadID)
-        if method == "item/commandExecution/requestApproval" || method == "item/fileChange/requestApproval" {
-            let isCommand = method == "item/commandExecution/requestApproval"
-            let details = [params["reason"] as? String, params["command"] as? String, params["grantRoot"] as? String].compactMap { $0 }.joined(separator: "\n\n")
-            approvals.append(AgentApproval(id: UUID().uuidString, requestID: requestID, sessionID: id,
-                                           title: isCommand ? String(localized: "Allow this command?") : String(localized: "Allow these file changes?"),
-                                           detail: String(details.prefix(8_000))))
-            if var session = store.session(id: id) { session.state = .needsAttention(message: String(localized: "Approval required")); store.upsert(session) }
+        // Observe foreign requests without answering them. Only Atoll-owned
+        // command/file approvals are actionable in this UI.
+        guard enabled, let threadID = params["threadId"] as? String, subscribed.contains(threadID),
+              var session = store.session(id: Self.sessionID(threadID)) else { return }
+        if let turn = params["turnId"] as? String {
+            guard !(session.retiredTurnIDs ?? []).contains(turn) else { return }
+            if let current = session.currentTurnID, turn != current { return }
         }
-        // Other interactive requests stay unanswered here, so the terminal answers them.
+        let interactive = ["item/commandExecution/requestApproval", "item/fileChange/requestApproval", "item/tool/requestUserInput", "mcpServer/elicitation/request", "item/permissions/requestApproval"]
+        guard interactive.contains(method) else { return }
+        let id = session.id
+        let key = Self.requestKey(requestID)
+        var requests = session.pendingRequests ?? [:]
+        guard requests.count < 64 || requests[key] != nil else {
+            session.statusUncertain = true
+            store.upsert(session)
+            return
+        }
+        let isApproval = method.hasSuffix("requestApproval")
+        requests[key] = String(localized: isApproval ? "Approval required" : "Waiting for your answer")
+        session.pendingRequests = requests
+        if session.state.isWorking { session.activityState = session.state }
+        session.restorePendingAttention()
+        store.upsert(session)
+        guard let ownedTurn = ownedTurns[threadID], ownedTurn == session.currentTurnID, method == "item/commandExecution/requestApproval" || method == "item/fileChange/requestApproval",
+              !approvals.contains(where: { $0.sessionID == id && Self.requestKey($0.requestID) == key }) else { return }
+        let isCommand = method == "item/commandExecution/requestApproval"
+        let details = [params["reason"] as? String, params["command"] as? String, params["grantRoot"] as? String].compactMap { $0 }.joined(separator: "\n\n")
+        approvals.append(AgentApproval(id: connectionEpoch.uuidString + ":" + key, requestID: requestID, sessionID: id,
+                                       title: isCommand ? String(localized: "Allow this command?") : String(localized: "Allow these file changes?"),
+                                       detail: String(details.prefix(8_000))))
     }
 }
 
 extension AgentConversationService: AgentHookReceiver {
     func receive(_ event: AgentHookEvent) -> Data? {
         let id = AgentSession.key(sourceID: event.sourceID, sessionKey: event.sessionKey)
+        if let current = store.session(id: id), !current.accepts(event) { return nil }
         switch event.phase {
         case .promptSubmitted:
             notices[id] = nil  // The agent took what was typed; the conversation shows it now.
@@ -714,6 +827,10 @@ extension AgentConversationService: AgentHookReceiver {
     func park(_ event: AgentHookEvent, reply: @escaping (Data?) -> Void, onClose: (@escaping @Sendable () -> Void) -> Void) {
         let id = AgentSession.key(sourceID: event.sourceID, sessionKey: event.sessionKey)
         guard enabled else { return reply(nil) }
+        if let current = store.session(id: id) {
+            guard event.receivedAt >= current.updatedAt,
+                  event.turnID == nil || event.turnID == current.currentTurnID else { return reply(nil) }
+        }
         // A newer turn's hook takes over from an older one still waiting.
         releaseParkedHook(id)
         let token = UUID()

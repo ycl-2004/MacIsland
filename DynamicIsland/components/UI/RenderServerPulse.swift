@@ -51,11 +51,14 @@ enum RenderServerPulse {
 /// It gets no environment from the surrounding view, so it sets its own font
 /// and colors.
 struct LayerPulse<Content: View>: NSViewRepresentable {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var isActive: Bool
+    private let reduceMotionOverride: Bool?
     let content: Content
 
-    init(isActive: Bool, @ViewBuilder content: () -> Content) {
+    init(isActive: Bool, reduceMotionOverride: Bool? = nil, @ViewBuilder content: () -> Content) {
         self.isActive = isActive
+        self.reduceMotionOverride = reduceMotionOverride
         self.content = content()
     }
 
@@ -68,7 +71,7 @@ struct LayerPulse<Content: View>: NSViewRepresentable {
     func updateNSView(_ view: NSHostingView<Content>, context: Context) {
         view.rootView = content
         if let layer = view.layer {
-            RenderServerPulse.apply(isActive, to: layer, minimumOpacity: 0.35, duration: 0.9)
+            RenderServerPulse.apply(isActive && !(reduceMotionOverride ?? reduceMotion), to: layer, minimumOpacity: 0.35, duration: 0.9)
         }
     }
 
@@ -79,13 +82,14 @@ struct LayerPulse<Content: View>: NSViewRepresentable {
 
 /// A dot that breathes: the recording indicator.
 struct PulsingDot: NSViewRepresentable {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let color: NSColor
     let diameter: CGFloat
 
     func makeNSView(context: Context) -> DotView { DotView() }
 
     func updateNSView(_ view: DotView, context: Context) {
-        view.configure(color: color, diameter: diameter)
+        view.configure(color: color, diameter: diameter, reduceMotion: reduceMotion)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: DotView, context: Context) -> CGSize? {
@@ -95,6 +99,7 @@ struct PulsingDot: NSViewRepresentable {
     final class DotView: NSView {
         /// A sublayer, so it grows about its centre; the view's own layer scales from a corner.
         private let dot = CAShapeLayer()
+        private var reduceMotion = false
 
         override init(frame: NSRect) {
             super.init(frame: frame)
@@ -104,7 +109,9 @@ struct PulsingDot: NSViewRepresentable {
 
         required init?(coder: NSCoder) { nil }
 
-        func configure(color: NSColor, diameter: CGFloat) {
+        func configure(color: NSColor, diameter: CGFloat, reduceMotion: Bool) {
+            self.reduceMotion = reduceMotion
+            RenderServerPulse.apply(window != nil && !reduceMotion, to: dot, minimumOpacity: 0.7, peakScale: 1.2, duration: 0.8)
             dot.fillColor = color.cgColor
             dot.bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
             dot.path = CGPath(ellipseIn: dot.bounds, transform: nil)
@@ -121,7 +128,7 @@ struct PulsingDot: NSViewRepresentable {
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            RenderServerPulse.apply(window != nil, to: dot, minimumOpacity: 0.7, peakScale: 1.2, duration: 0.8)
+            RenderServerPulse.apply(window != nil && !reduceMotion, to: dot, minimumOpacity: 0.7, peakScale: 1.2, duration: 0.8)
         }
     }
 }

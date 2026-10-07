@@ -7,6 +7,11 @@ struct NotchExtraSpaceView: View {
     @State private var focusToken = UUID()
     @State private var isEditing = false
     @State private var focusRequest = 0
+    @State private var findRequest = 0
+    @State private var exportRequest = 0
+    @State private var findToken = UUID()
+    @State private var exportToken = UUID()
+    @State private var exportError: String?
 
     init(store: ExtraSpaceStore = .shared) {
         self.store = store
@@ -39,12 +44,24 @@ struct NotchExtraSpaceView: View {
                 .foregroundStyle(.statusAttention)
             }
 
+            if let exportError {
+                Text("Couldn’t export text: \(exportError)")
+                    .font(.notch(.caption)).foregroundStyle(.statusAttention).textSelection(.enabled)
+            }
+
             ExtraSpaceEditor(
                 store: store,
                 screenID: vm.screen ?? DynamicIslandViewCoordinator.shared.selectedScreen,
                 pasteRequest: pasteRequest,
                 isEditing: isEditing,
                 focusRequest: focusRequest,
+                findRequest: findRequest,
+                exportRequest: exportRequest,
+                onFindVisibilityChange: { vm.setAutoCloseSuppression($0, token: findToken) },
+                onExportFinished: { error in
+                    exportError = error
+                    vm.setAutoCloseSuppression(false, token: exportToken)
+                },
                 onBeginEditing: beginEditing,
                 onFinishEditing: finishEditing,
                 onFocusChange: { vm.setAutoCloseSuppression($0 && isEditing, token: focusToken) },
@@ -74,6 +91,8 @@ struct NotchExtraSpaceView: View {
         .padding(.bottom, 12)
         .onDisappear {
             vm.setAutoCloseSuppression(false, token: focusToken)
+            vm.setAutoCloseSuppression(false, token: findToken)
+            vm.setAutoCloseSuppression(false, token: exportToken)
             store.saveNow()
         }
     }
@@ -114,6 +133,16 @@ struct NotchExtraSpaceView: View {
             .accessibilityLabel("Copy all")
             .help("Copy all")
             .disabled(!store.isLoaded || store.text.isEmpty)
+            Button { findRequest += 1 } label: { Image(systemName: "magnifyingglass") }
+                .accessibilityLabel("Find in Extra Space").help("Find text (⌘F)")
+                .disabled(!store.isLoaded)
+            Button {
+                exportError = nil
+                vm.setAutoCloseSuppression(true, token: exportToken)
+                exportRequest += 1
+            } label: { Image(systemName: "square.and.arrow.up") }
+                .accessibilityLabel("Export Extra Space as text").help("Export text…")
+                .disabled(!store.isLoaded)
             Button {
                 if isEditing {
                     finishEditing()

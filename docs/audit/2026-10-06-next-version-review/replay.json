@@ -1,0 +1,25 @@
+{
+  "kind" : "isolated_defect_reproduction",
+  "longStringIDs" : {
+    "actionableApprovalsBeforeReply" : 1,
+    "idLength" : 241,
+    "ordinaryInputAllowedAfterFirstReply" : true,
+    "pendingAfterFirstReply" : 0,
+    "pendingBeforeReply" : 1,
+    "repliesSent" : 1,
+    "requestCountSent" : 2,
+    "samePrefixLength" : 240,
+    "scope" : "protocol edge case; installed client occurrence not measured"
+  },
+  "ordinaryApproval" : {
+    "actionableApprovals" : 1,
+    "cardPendingCount" : 2,
+    "keys" : [
+      "rpc:n:1",
+      "status:approval"
+    ],
+    "ordinaryInputBlocked" : true,
+    "requestCountSent" : 1
+  },
+  "realAgentAccess" : false
+}

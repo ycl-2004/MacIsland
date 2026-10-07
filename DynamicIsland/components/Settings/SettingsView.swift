@@ -46,6 +46,7 @@ private enum SettingsTabGroup: String, CaseIterable, Identifiable {
 
 private enum SettingsTab: String, CaseIterable, Identifiable {
     case general
+    case features
     case liveActivities
     case appearance
     case lockScreen
@@ -69,7 +70,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     /// Which sidebar group this tab belongs to.
     var group: SettingsTabGroup {
         switch self {
-        case .general, .appearance:                                          return .core
+        case .general, .features, .appearance:                                          return .core
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
         case .timer, .calendar:                                              return .productivity
@@ -83,6 +84,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .features: return String(localized: "Feature Management")
         case .general: return String(localized: "General")
         case .liveActivities: return String(localized: "Live Activities")
         case .appearance: return String(localized: "Appearance")
@@ -106,6 +108,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .features: return "checklist"
         case .general: return "gear"
         case .liveActivities: return "waveform.path.ecg"
         case .appearance: return "paintpalette"
@@ -129,6 +132,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
 
     var tint: Color {
         switch self {
+        case .features: return .teal
         case .general: return .blue
         case .liveActivities: return .pink
         case .appearance: return .purple
@@ -210,6 +214,9 @@ private enum SettingsSearchIndex {
     static let entries: [SettingsSearchEntry] = [
         SettingsSearchEntry(tab: .extraSpace, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: SettingsTab.extraSpace.highlightID(for: "Enable Extra Space")),
         // General
+        SettingsSearchEntry(tab: .features, title: "Feature Management", keywords: ["features", "lightweight", "performance", "功能管理", "轻量"], highlightID: nil),
+        SettingsSearchEntry(tab: .features, title: "Lightweight suggestions", keywords: ["preset", "undo", "cache", "storage", "轻量", "缓存", "储存"], highlightID: "features-Lightweight suggestions"),
+        SettingsSearchEntry(tab: .shortcuts, title: "Open Extra Space", keywords: ["scratchpad", "shortcut", "extra space", "快捷键"], highlightID: "shortcuts-Open Extra Space"),
         SettingsSearchEntry(tab: .general, title: "Menubar icon", keywords: ["menu bar", "status bar", "icon"], highlightID: SettingsTab.general.highlightID(for: "Menubar icon")),
         SettingsSearchEntry(tab: .general, title: "Launch at login", keywords: ["autostart", "startup"], highlightID: SettingsTab.general.highlightID(for: "Launch at login")),
         SettingsSearchEntry(tab: .general, title: "Show on all displays", keywords: ["multi-display", "external monitor"], highlightID: SettingsTab.general.highlightID(for: "Show on all displays")),
@@ -592,6 +599,11 @@ struct SettingsView: View {
         .environmentObject(highlightCoordinator)
         .formStyle(.grouped)
         .frame(width: 700)
+        .onReceive(NotificationCenter.default.publisher(for: .atollSettingsDestination)) { notification in
+            guard let raw = notification.object as? String, let tab = SettingsTab(rawValue: raw) else { return }
+            searchText = ""
+            selectedTab = tab
+        }
         .onChange(of: searchText) { _, newValue in
             let matches = tabsMatchingSearch(newValue)
             guard let firstMatch = matches.first else { return }
@@ -715,6 +727,7 @@ struct SettingsView: View {
         let ordered: [SettingsTab] = [
             // Core
             .general,
+            .features,
             .appearance,
             // Media & Display
             .media,
@@ -928,6 +941,14 @@ struct SettingsView: View {
     @ViewBuilder
     private func detailView(for tab: SettingsTab) -> some View {
         switch tab {
+        case .features:
+            SettingsForm(tab: .features) {
+                FeatureManagementSettings { target in
+                    guard let tab = SettingsTab(rawValue: target) else { return }
+                    searchText = ""
+                    selectedTab = tab
+                }
+            }
         case .general:
             SettingsForm(tab: .general) {
                 GeneralSettings()
@@ -3118,10 +3139,7 @@ struct Shelf: View {
             }
 
             Section {
-                Toggle("Enable shelf", isOn: Binding(get: { shelfEnabled }, set: { enabled in
-                    if !enabled && !shelfState.isEmpty { confirmingClear = true }
-                    else { shelfEnabled = enabled }
-                }))
+                Toggle("Enable shelf", isOn: $shelfEnabled)
                 .disabled(!canEnableShelf && !shelfEnabled)
                 .settingsHighlight(id: highlightID("Enable shelf"))
 
@@ -3148,6 +3166,10 @@ struct Shelf: View {
                 LabeledContent("Items", value: "\(shelfState.items.count) / 200")
                 Text("Text: 1 MB per item, 4 MB total. Copied files: 100 MB per import, 250 MB total. Finder file references do not copy their contents.")
                     .foregroundStyle(.secondary)
+                Button("Clear Shelf items…", role: .destructive) { confirmingClear = true }
+                    .disabled(shelfState.isEmpty)
+                Text("Turning Shelf off hides it and keeps its contents. Clear removes tray entries; original files stay in place.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Button("Show Saved Shelf Data") {
                     NSWorkspace.shared.open(ShelfPersistenceService.shared.directory)
                 }
@@ -3156,9 +3178,9 @@ struct Shelf: View {
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Shelf")
-        .alert("Turn off Shelf and clear its items?", isPresented: $confirmingClear) {
+        .alert("Clear Shelf items?", isPresented: $confirmingClear) {
             Button("Cancel", role: .cancel) {}
-            Button("Turn Off and Clear", role: .destructive) { shelfEnabled = false }
+            Button("Clear", role: .destructive) { shelfState.removeAll() }
         } message: {
             Text("This removes \(shelfState.items.count) items from Shelf. Your original files stay in place. Temporary copies still in use are cleaned up after the handoff.")
         }
@@ -5732,6 +5754,10 @@ struct Shortcuts: View {
                 }
 
                 Section {
+                    KeyboardShortcuts.Recorder("Open Extra Space:", name: .openExtraSpace)
+                        .settingsHighlight(id: highlightID("Open Extra Space"))
+                    Text("Opens Extra Space for reading. If disabled, opens its settings. No shortcut is assigned by default.")
+                        .font(.caption).foregroundStyle(.secondary)
                     KeyboardShortcuts.Recorder("Toggle Notch Open:", name: .toggleNotchOpen)
                         .disabled(!enableShortcuts)
 
@@ -6749,6 +6775,8 @@ struct StatsSettings: View {
             }
         }
         .navigationTitle("Stats")
+        .onAppear { RuntimePolicyMonitor.shared.setStatsSurface("stats-settings", visible: true) }
+        .onDisappear { RuntimePolicyMonitor.shared.setStatsSurface("stats-settings", visible: false) }
     }
 }
 

@@ -3,6 +3,7 @@ import SwiftUI
 /// The closed-notch activity for agents: the agent on the left, what it is
 /// doing on the right. Laid out like `DownloadLiveActivity`.
 struct AgentLiveActivity: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject private var store = AgentSessionStore.shared
     @State private var isExpanded = false
@@ -48,9 +49,18 @@ struct AgentLiveActivity: View {
                 .frame(width: isExpanded ? max(44, vm.effectiveClosedNotchHeight) : 0, height: sideWidth)
         }
         .frame(height: vm.effectiveClosedNotchHeight)
-        .animation(.smooth(duration: 0.25), value: session?.state)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: session?.state)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard let session else { return }
+            AgentConversationService.shared.requestedSessionID = session.id
+            DynamicIslandViewCoordinator.shared.currentView = .agents
+            vm.open()
+        }
+        .accessibilityLabel("Open agent conversation")
+        .accessibilityAddTraits(.isButton)
         .onAppear {
-            withAnimation(.smooth(duration: 0.35)) { isExpanded = true }
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.35)) { isExpanded = true }
         }
     }
 
@@ -60,11 +70,12 @@ struct AgentLiveActivity: View {
     /// runs for as long as the agent works, often hours, so it is a Core
     /// Animation one (`LayerPulse`) rather than `symbolEffect(.pulse)`.
     private func statusIndicator(for state: AgentState) -> some View {
-        LayerPulse(isActive: state.isWorking) {
+        LayerPulse(isActive: state.isWorking && !reduceMotion) {
             Image(systemName: state.symbolName)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(state.tint)
                 .symbolEffect(.bounce, value: state.isWorking ? nil : state)
+                .symbolEffectsRemoved(reduceMotion)
         }
     }
 }

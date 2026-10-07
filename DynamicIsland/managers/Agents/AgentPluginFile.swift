@@ -81,26 +81,115 @@ struct AgentPluginFile: AgentHookInstallation {
         const ATOLL_HOOK = \#(literal(scriptPath));
         const ATOLL_SOURCE = \#(literal(sourceID));
         let atollQueue = Promise.resolve();
-        let atollPending = 0;
+        let atollDraining = false;
+        const atollEvents = [];
+        const atollUncertain = new Map();
+        const atollCritical = /(?:permission|question|ui_prompt|settled|Stop|error|cancelled|idle|deleted|shutdown|dispose|session_start|session.created|chat.message|message_start)/;
 
-        // Hands one event to the hook script, one at a time so that events arrive
-        // in order. Never throws, and nothing the agent does waits for it.
-        function atollReport(event, payload) {
-          if (atollPending >= 32) return atollQueue;
-          atollPending += 1;
-          atollQueue = atollQueue.then(() => new Promise((resolve) => {
-            const done = () => { clearTimeout(timer); resolve(); };
-            const timer = setTimeout(done, 2000);
-            try {
-              const child = spawn("/bin/sh", [ATOLL_HOOK, ATOLL_SOURCE, event], { stdio: ["pipe", "ignore", "ignore"] });
-              child.on("error", done);
-              child.on("close", done);
-              child.stdin.on("error", () => {});
-              child.stdin.end(JSON.stringify(payload));
-            } catch {
-              done();
+        function atollMarkUncertain(payload) {
+          const session = payload.session_id;
+          if (!session) return;
+          atollUncertain.set(session, { session_id: session, cwd: payload.cwd });
+          // Match the application's bounded session store; overflow cannot grow memory.
+          if (atollUncertain.size > 64) atollUncertain.delete(atollUncertain.keys().next().value);
+        }
+
+        function atollBoundPayload(payload) {
+          const bounded = {};
+          for (const [key, value] of Object.entries(payload).slice(0, 32)) {
+            if (key.length > 128) continue;
+            if (typeof value === "string") {
+              const limit = key === "prompt" || key === "last_assistant_message" ? 16384 : (key === "cwd" || key === "session_id" || key === "transcript_path" ? 4096 : 256);
+              bounded[key] = value.slice(0, limit);
+            } else if (typeof value === "number" || typeof value === "boolean" || value == null) {
+              bounded[key] = value;
             }
-          })).finally(() => { atollPending -= 1; });
+          }
+          if (payload.tool_input && typeof payload.tool_input === "object") {
+            bounded.tool_input = {};
+            for (const [key, value] of Object.entries(payload.tool_input).slice(0, 16)) {
+              if (key.length > 128) continue;
+              if (typeof value === "string") bounded.tool_input[key] = value.slice(0, 1024);
+              else if (Array.isArray(value)) bounded.tool_input[key] = value.slice(0, 8).filter(x => typeof x === "string").map(x => x.slice(0, 128));
+            }
+          }
+          // Detached JSON copy avoids retaining a giant provider string through
+          // a sliced string or a mutable tool-input object in the queue.
+          return JSON.parse(JSON.stringify(bounded));
+        }
+
+        function atollSend(event, payload) {
+          return new Promise((resolve) => {
+            let child;
+            let completed = false;
+            let timedOut = false;
+            const done = (failed = false) => {
+              if (completed) return;
+              completed = true;
+              clearTimeout(timer);
+              if (failed && event !== "atoll.transport.uncertain") atollMarkUncertain(payload);
+              resolve();
+            };
+            const timer = setTimeout(() => {
+              timedOut = true;
+              try { if (!child?.kill("SIGKILL")) done(true); } catch { done(true); }
+            }, 2000);
+            try {
+              child = spawn("/bin/sh", [ATOLL_HOOK, ATOLL_SOURCE, event], { stdio: ["pipe", "ignore", "ignore"] });
+              child.on("error", () => done(true));
+              child.on("close", (code, signal) => done(timedOut || signal != null || (code !== 0 && code != null)));
+              child.stdin.on("error", () => {
+                // A broken pipe does not prove the child exited. Terminate it
+                // and wait for close before starting the next owned child.
+                timedOut = true;
+                try { if (!child.kill("SIGKILL")) done(true); } catch { done(true); }
+              });
+              child.stdin.end(JSON.stringify(payload));
+            } catch { done(true); }
+          });
+        }
+
+        // One owned child at a time. Ordinary activity is coalesced at capacity;
+        // critical requests/final states have a reserved lane. If even that fills,
+        // explicitly invalidate the affected session instead of silently lying.
+        function atollReport(event, payload) {
+          try { payload = atollBoundPayload(payload); } catch { return atollQueue; }
+          const critical = atollCritical.test(event);
+          if (!critical && atollEvents.length >= 32) {
+            const previous = atollEvents.findIndex((x) => !x.critical && x.payload.session_id === payload.session_id && x.event === event);
+            if (previous >= 0) atollEvents[previous] = { event, payload, critical };
+            else atollMarkUncertain(payload);
+          } else {
+            if (atollEvents.length >= 64) {
+              const ordinary = atollEvents.findIndex((x) => !x.critical);
+              const [lost] = atollEvents.splice(ordinary >= 0 ? ordinary : 0, 1);
+              atollMarkUncertain(lost.payload);
+            }
+            atollEvents.push({ event, payload, critical });
+          }
+          return atollDrain();
+        }
+
+        function atollDrain() {
+          if (atollDraining) return atollQueue;
+          atollDraining = true;
+          atollQueue = Promise.resolve().then(async () => {
+            while (atollEvents.length || atollUncertain.size) {
+              if (!atollEvents.length && atollUncertain.size) {
+                const [session, uncertain] = atollUncertain.entries().next().value;
+                atollUncertain.delete(session);
+                await atollSend("atoll.transport.uncertain", uncertain);
+              } else {
+                const next = atollEvents.shift();
+                await atollSend(next.event, next.payload);
+              }
+            }
+          }).finally(() => {
+            atollDraining = false;
+            // A report can arrive in a microtask after the loop empties but
+            // before finally runs. Adopt its drain so flush still waits for it.
+            if (atollEvents.length || atollUncertain.size) return atollDrain();
+          });
           return atollQueue;
         }
 

@@ -1,0 +1,308 @@
+[
+  {
+    "id" : "claude-plain-tool",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.toolStarted)",
+    "policy" : "A normal tool call is work, not a request for user action"
+  },
+  {
+    "id" : "codex-plain-tool",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.toolStarted)",
+    "policy" : "A normal tool call is work, not a request for user action"
+  },
+  {
+    "id" : "grok-plain-tool",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.toolStarted)",
+    "policy" : "A normal tool call is work, not a request for user action"
+  },
+  {
+    "id" : "claude-notification-idle_prompt",
+    "met" : true,
+    "observed" : "nil",
+    "policy" : "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id" : "claude-notification-auth_success",
+    "met" : true,
+    "observed" : "nil",
+    "policy" : "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id" : "claude-notification-agent_completed",
+    "met" : true,
+    "observed" : "nil",
+    "policy" : "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id" : "claude-notification-elicitation_complete",
+    "met" : true,
+    "observed" : "nil",
+    "policy" : "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id" : "claude-notification-unknown_future_type",
+    "met" : true,
+    "observed" : "nil",
+    "policy" : "Informational or unrecognised notifications must not become urgent user requests"
+  },
+  {
+    "id" : "claude-permission",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.needsAttention)",
+    "policy" : "An explicit permission prompt needs user action"
+  },
+  {
+    "id" : "claude-tool-failure",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.thinking)",
+    "policy" : "A finished failing tool must stop being presented as currently running"
+  },
+  {
+    "id" : "claude-turn-failure",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.turnFailed)",
+    "policy" : "An explicit API failure must settle the working state"
+  },
+  {
+    "id" : "codex-tool-return",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.thinking)",
+    "policy" : "Hook-only sessions need a state update when a tool finishes"
+  },
+  {
+    "id" : "grok-unknown-notification",
+    "met" : true,
+    "observed" : "nil",
+    "policy" : "Unknown notification types should not manufacture a user request"
+  },
+  {
+    "id" : "grok-cancel",
+    "met" : true,
+    "observed" : "Optional(main.AgentEventPhase.turnCancelled)",
+    "policy" : "Cancellation must not produce a successful completion flash"
+  },
+  {
+    "id" : "resume-clears-wait",
+    "met" : true,
+    "observed" : "thinking",
+    "policy" : "An explicit resumption clears an old wait"
+  },
+  {
+    "id" : "end-clears-wait",
+    "met" : true,
+    "observed" : "idle, disconnected=true",
+    "policy" : "Ending a session removes urgent attention"
+  },
+  {
+    "id" : "late-hook",
+    "met" : true,
+    "observed" : "thinking",
+    "policy" : "An older event must not replace a newer lifecycle state"
+  },
+  {
+    "id" : "duplicate-finish",
+    "met" : true,
+    "observed" : "finishedAt moved=false",
+    "policy" : "A duplicate completion must not restart the completion flash"
+  },
+  {
+    "id" : "lost-live-feed",
+    "met" : true,
+    "observed" : "waiting=false",
+    "policy" : "A lost authoritative feed must expose uncertainty rather than a confirmed live wait"
+  },
+  {
+    "id" : "finish-expiry",
+    "met" : true,
+    "observed" : "highlight expired=true",
+    "policy" : "Completion highlights expire after six seconds"
+  },
+  {
+    "id" : "wait-priority",
+    "met" : true,
+    "observed" : "codex:12345678-1234-4123-8123-123456789abc",
+    "policy" : "A confirmed wait is shown ahead of ordinary work"
+  },
+  {
+    "id" : "single-removal-publication",
+    "met" : true,
+    "observed" : "updates=1",
+    "policy" : "Removing cards should publish one collection update"
+  },
+  {
+    "id" : "parallel-tool-vs-wait",
+    "met" : true,
+    "observed" : "needsAttention(message: Optional(\"Approval required\"))",
+    "policy" : "Finishing another tool must not erase an explicit pending approval"
+  },
+  {
+    "id" : "old-turn-completion",
+    "met" : true,
+    "observed" : "thinking",
+    "policy" : "A previous turn's completion must not finish the newer turn"
+  },
+  {
+    "id" : "cancel-highlight",
+    "met" : true,
+    "observed" : "highlight=false",
+    "policy" : "An interrupted turn must not interrupt music with a completion highlight"
+  },
+  {
+    "id" : "live-turn-failure",
+    "met" : true,
+    "observed" : "failed(message: Optional(\"fixture error\"))",
+    "policy" : "Explicit failure has an error state"
+  },
+  {
+    "id" : "owned-approval-visible",
+    "met" : true,
+    "observed" : "requests=2",
+    "policy" : "Requests for an Atoll-owned turn are visible"
+  },
+  {
+    "id" : "multiple-approvals",
+    "met" : true,
+    "observed" : "requests=1, state=needsAttention(message: Optional(\"Approval required\"))",
+    "policy" : "Answering one request must retain the wait for another"
+  },
+  {
+    "id" : "approval-send-guard",
+    "met" : true,
+    "observed" : "canSend=false",
+    "policy" : "Outstanding approvals keep ordinary input blocked"
+  },
+  {
+    "id" : "approval-resolution",
+    "met" : true,
+    "observed" : "requests=0",
+    "policy" : "The matching server request resolves without clearing other IDs"
+  },
+  {
+    "id" : "live-finish-dedup",
+    "met" : true,
+    "observed" : "deadline unchanged",
+    "policy" : "A repeated completion retains the original flash deadline"
+  },
+  {
+    "id" : "settled-turn-late-item",
+    "met" : true,
+    "observed" : "finished",
+    "policy" : "Late items cannot reopen a settled turn"
+  },
+  {
+    "id" : "settled-turn-late-request",
+    "met" : true,
+    "observed" : "settled turn remains finished",
+    "policy" : "Late approval requests cannot reopen a settled turn"
+  },
+  {
+    "id" : "foreign-approval-observation",
+    "met" : true,
+    "observed" : "answerable=0",
+    "policy" : "Foreign requests are tracked once without becoming answerable"
+  },
+  {
+    "id" : "owner-feed-precedence",
+    "met" : true,
+    "observed" : "pending wait retained",
+    "policy" : "A hook cannot erase an owner feed's pending approval"
+  },
+  {
+    "id" : "uncertain-input-guard",
+    "met" : true,
+    "observed" : "input blocked, terminal not declared ended",
+    "policy" : "Lost feed blocks terminal fallback without claiming the session ended"
+  },
+  {
+    "id" : "hook-parallel-requests",
+    "met" : true,
+    "observed" : "requests=2",
+    "policy" : "An unrelated tool does not resolve identified hook requests"
+  },
+  {
+    "id" : "hook-matching-resolution",
+    "met" : true,
+    "observed" : "one question remains",
+    "policy" : "A reply resolves only its own permission ID"
+  },
+  {
+    "id" : "hook-all-resolved",
+    "met" : true,
+    "observed" : "thinking",
+    "policy" : "After the last identified reply normal work resumes"
+  },
+  {
+    "id" : "hook-old-turn-id",
+    "met" : true,
+    "observed" : "current turn=b",
+    "policy" : "IDs reject an older turn even if it arrives later"
+  },
+  {
+    "id" : "hook-cancel-then-idle",
+    "met" : true,
+    "observed" : "cancelled without success flash",
+    "policy" : "Idle after cancellation is not a success"
+  },
+  {
+    "id" : "hook-overflow-uncertainty",
+    "met" : true,
+    "observed" : "uncertain=true",
+    "policy" : "Transport overflow exposes uncertainty and keeps input guarded"
+  },
+  {
+    "id" : "legacy-hook-profile",
+    "met" : true,
+    "observed" : "profiles are separate",
+    "policy" : "Legacy settings omit new hooks; extended profile adds them explicitly"
+  },
+  {
+    "id" : "attention-settling-window",
+    "met" : true,
+    "observed" : "immediate guard, delayed reminder",
+    "policy" : "Input remains guarded while a transient reminder waits 250 ms"
+  },
+  {
+    "id" : "owner-emission-order",
+    "met" : true,
+    "observed" : "older status rejected",
+    "policy" : "An identifiable old status cannot overwrite newer flags"
+  },
+  {
+    "id" : "subscribe-approval-race",
+    "met" : true,
+    "observed" : "foreign approval retained during subscription",
+    "policy" : "A request emitted before resume response is not lost"
+  },
+  {
+    "id" : "ownership-is-turn-specific",
+    "met" : true,
+    "observed" : "foreign next turn remains read-only",
+    "policy" : "A new terminal turn does not inherit Atoll's previous approval authority"
+  },
+  {
+    "id" : "approval-generation-guard",
+    "met" : true,
+    "observed" : "current requests=1, stale replies=0",
+    "policy" : "An old approval UI cannot answer a reused RPC ID on a new connection"
+  },
+  {
+    "id" : "stale-hook-delivery-guard",
+    "met" : true,
+    "observed" : "current route retained",
+    "policy" : "An old prompt cannot release the current parked reply route"
+  },
+  {
+    "id" : "stale-park-guard",
+    "met" : true,
+    "observed" : "old hook released, current route retained",
+    "policy" : "An old parked hook cannot replace a newer route"
+  },
+  {
+    "id" : "legacy-session-decode",
+    "met" : true,
+    "observed" : "legacy snapshot retained",
+    "policy" : "Existing snapshots load without new optional state fields"
+  }
+]
