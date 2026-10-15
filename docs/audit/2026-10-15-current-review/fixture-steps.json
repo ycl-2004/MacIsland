@@ -1,0 +1,32 @@
+[
+  {
+    "name": "python",
+    "exit": 0,
+    "seconds": 10.47
+  },
+  {
+    "name": "agent-build",
+    "exit": 0,
+    "seconds": 28.43
+  },
+  {
+    "name": "agent",
+    "exit": 0,
+    "seconds": 2.33
+  },
+  {
+    "name": "plugin",
+    "exit": 0,
+    "seconds": 0.39
+  },
+  {
+    "name": "guardian",
+    "exit": 0,
+    "seconds": 1.59
+  },
+  {
+    "name": "supervisor",
+    "exit": 0,
+    "seconds": 1.04
+  }
+]

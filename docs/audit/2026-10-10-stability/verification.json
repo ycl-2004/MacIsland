@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-10",
+  "scope": "Stability review only; no product edits, production installation/relaunch or real Agent CLI use",
+  "head": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+  "worktree_had_existing_stats_changes": true,
+  "source_manifest_sha256": "c74e6c4d87d04a8c3c14e9e21506b7c1f8d034290ae36e518cb7c879ceed6642",
+  "environment": {
+    "macOS": "27.0.1",
+    "Xcode": "27.0 / 27A266a",
+    "architecture": "arm64"
+  },
+  "builds": {
+    "Debug": {
+      "success": true,
+      "command": "xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration Debug -destination 'platform=macOS' -derivedDataPath Build -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO build-for-testing",
+      "full_log": "/tmp/atoll-stability-audit-20261010/build-debug-authorized.log",
+      "log_sha256": "ad9b8cabe948a353a61e3640246e32efba01adf1d47b58eebaa1428694307e1a",
+      "distinct_warning_lines_in_this_incremental_build": 2
+    },
+    "Release": {
+      "success": true,
+      "command": "xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration Release -destination 'platform=macOS' -derivedDataPath Build -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO build",
+      "full_log": "/tmp/atoll-stability-audit-20261010/build-release.log",
+      "log_sha256": "01a2427db87d629b50c42cd2bb7e350d8cdde24dd4dcff5fd941da384c931b23",
+      "distinct_warning_lines_in_this_incremental_build": 74
+    }
+  },
+  "native_tests": {
+    "totalTestCount": 311,
+    "passedTests": 311,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "runtimeWarnings": []
+  },
+  "native_host": {
+    "bundle_identifier": "app.atoll.stability-audit.f137967d2183499b801ee98c88f202ba",
+    "signing": "ad hoc, copied host only",
+    "manifest": "/tmp/atoll-stability-audit-20261010/native/DynamicIsland.xctestrun"
+  },
+  "python_tests": {
+    "passed": 7,
+    "source": "python3 -m unittest tests.test_privacy_configuration tests.test_timer_lifecycle; observed tool stdout Ran 7 tests / OK"
+  },
+  "guardian_fixtures": {
+    "passed": 4,
+    "targets": "owned temporary sleep processes only"
+  },
+  "agent_regression": {
+    "passed_groups": 16,
+    "uses_real_agent_CLI": false
+  },
+  "agent_plugin": {
+    "results": [
+      {
+        "fixture": "event-during-drain-settlement",
+        "passed": true,
+        "forwarded": 2
+      },
+      {
+        "fixture": "critical-terminal-event-at-capacity",
+        "passed": true,
+        "forwarded": 33
+      },
+      {
+        "fixture": "bounded-coalescing-and-critical-order",
+        "passed": true,
+        "queued": 36
+      },
+      {
+        "fixture": "critical-overflow-exposes-uncertainty",
+        "passed": true,
+        "queued": 64
+      },
+      {
+        "fixture": "stalled-owned-child-is-killed",
+        "passed": true,
+        "kills": 2
+      },
+      {
+        "fixture": "broken-pipe-retains-child-ownership-until-close",
+        "passed": true,
+        "kills": 3
+      },
+      {
+        "fixture": "bounded-detached-payload",
+        "passed": true
+      }
+    ],
+    "real_children_spawned": 0
+  },
+  "resource_probes": "See resource-probes.json; pipe-order and Combine controls demonstrate failure modes, not repaired product tests",
+  "current_release_binary_sha256": "eb6e7d06aa564b6b128f2bd1188ea3742fbab32cecbcff374fc92aa860a4b77a",
+  "installed_bundle_comparison": "bundle-and-dependencies.json records the PRE-BUILD Release and installed hashes; current Release was rebuilt later",
+  "infrastructure_adjustments": [
+    "Initial build could not write external SwiftPM/Clang caches in sandbox; authorized xcodebuild succeeded",
+    "xcresulttool needed external temporary cache permission; authorized summary succeeded",
+    "First one-line log predicate probe had a quoting syntax error; corrected probe produced false/true/false"
+  ],
+  "not_executed": [
+    "XCUITest target",
+    "24-72h soak",
+    "real sleep/wake/display/audio/OSD acceptance",
+    "Instruments profiling",
+    "TSAN/ASAN",
+    "real Agent integrations",
+    "signed/notarized distribution acceptance",
+    "dependency CVE scan"
+  ]
+}

@@ -18,70 +18,18 @@
 
 import CoreGraphics
 
-enum RecordingHUDPresentation: String, CaseIterable {
-    case compact
-    case inline
-    case expanded
-
-    var extraWidth: CGFloat {
-        switch self {
-        case .compact:
-            return 132
-        case .inline:
-            return 176
-        case .expanded:
-            return 140
-        }
-    }
-
-    var extraHeight: CGFloat {
-        self == .expanded ? 70 : 0
-    }
-}
-
+/// Recording is a side indicator; it never owns the main HUD or grows on hover.
 struct RecordingHUDLayout {
+    static let dotDiameter: CGFloat = 6
+    static let indicatorInset: CGFloat = 12
+    static let maximumExtraWidth = indicatorInset * 2
+
     let isVisible: Bool
-    let stopControlsEnabled: Bool
-    let hoverStyle: RecordingHoverStyle
-    let expanded: Bool
-    let suppressHoverExpansion: Bool
 
-    var presentation: RecordingHUDPresentation {
-        guard isVisible else { return .compact }
-        guard !suppressHoverExpansion else { return .compact }
-        guard stopControlsEnabled && expanded else { return .compact }
+    var sideInset: CGFloat { isVisible ? Self.indicatorInset : 0 }
 
-        switch hoverStyle {
-        case .default:
-            return .expanded
-        case .inline:
-            return .inline
-        }
-    }
-
-    var showsDefaultExpansion: Bool {
-        isVisible && presentation == .expanded
-    }
-
-    var showsInlineExpansion: Bool {
-        isVisible && presentation == .inline
-    }
-
-    var extraWidth: CGFloat {
-        isVisible ? presentation.extraWidth : 0
-    }
-
-    var extraHeight: CGFloat {
-        isVisible ? presentation.extraHeight : 0
-    }
-
-    func size(closedNotchSize: CGSize, effectiveClosedNotchHeight: CGFloat) -> CGSize? {
-        guard isVisible else { return nil }
-
-        return CGSize(
-            width: closedNotchSize.width + extraWidth,
-            height: effectiveClosedNotchHeight + extraHeight
-        )
+    func addingIndicator(to size: CGSize) -> CGSize {
+        CGSize(width: size.width + sideInset * 2, height: size.height)
     }
 }
 
@@ -90,29 +38,11 @@ func makeRecordingHUDLayout(
     screenRecordingDetectionEnabled: Bool,
     showRecordingIndicator: Bool,
     hideOnClosed: Bool,
-    isRecording: Bool,
-    closedMusicPairingEligible: Bool,
-    recordingControlMode: RecordingControlMode,
-    canStopFromHUD: Bool,
-    recordingHoverStyle: RecordingHoverStyle,
-    suppressHoverExpansion: Bool = false,
-    expanded: Bool
+    isRecording: Bool
 ) -> RecordingHUDLayout {
-    let isVisible = notchState == .closed
+    RecordingHUDLayout(isVisible: notchState == .closed
         && screenRecordingDetectionEnabled
         && showRecordingIndicator
         && !hideOnClosed
-        && isRecording
-        && !closedMusicPairingEligible
-
-    let stopControlsEnabled = recordingControlMode == .withStopButton
-        && canStopFromHUD
-
-    return RecordingHUDLayout(
-        isVisible: isVisible,
-        stopControlsEnabled: stopControlsEnabled,
-        hoverStyle: recordingHoverStyle,
-        expanded: expanded,
-        suppressHoverExpansion: suppressHoverExpansion
-    )
+        && isRecording)
 }

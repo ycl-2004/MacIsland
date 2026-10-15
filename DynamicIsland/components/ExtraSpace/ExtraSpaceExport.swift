@@ -7,6 +7,7 @@ enum ExtraSpaceExport {
     static func write(_ text: String, to url: URL) async throws {
         try await Task.detached(priority: .utility) {
             try Data(text.utf8).write(to: url, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
         }.value
     }
 

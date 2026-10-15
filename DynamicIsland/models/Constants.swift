@@ -35,13 +35,6 @@ let appVersion = "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as
 
 let spacing: CGFloat = 16
 
-struct CustomVisualizer: Codable, Hashable, Equatable, Defaults.Serializable {
-    let UUID: UUID
-    var name: String
-    var url: URL
-    var speed: CGFloat = 1.0
-}
-
 struct CustomAppIcon: Codable, Hashable, Equatable, Defaults.Serializable, Identifiable {
     let id: UUID
     var name: String
@@ -174,17 +167,6 @@ enum LyricHighlightStyle: String, CaseIterable, Identifiable, Defaults.Serializa
         case .sweep: return String(localized: "Sweep")
         case .gradient: return String(localized: "Gradient")
         case .solid: return String(localized: "Solid")
-        }
-    }
-
-    var explanation: String {
-        switch self {
-        case .sweep:
-            return String(localized: "The highlight travels across the line word by word, in reading order.")
-        case .gradient:
-            return String(localized: "The current line is lit by one fixed gradient that does not move, the way lyrics were marked before the sweep.")
-        case .solid:
-            return String(localized: "The current line is lit in one flat colour, with nothing crossing it.")
         }
     }
 }
@@ -324,15 +306,6 @@ enum MusicSkipBehavior: String, CaseIterable, Identifiable, Defaults.Serializabl
             return String(localized: "±10 Seconds")
         }
     }
-
-    var description: String {
-        switch self {
-        case .track:
-            return String(localized: "Standard previous/next track controls")
-        case .tenSecond:
-            return String(localized: "Skip forward or backward by ten seconds")
-        }
-    }
 }
 
 enum TimerIconColorMode: String, CaseIterable, Identifiable, Defaults.Serializable {
@@ -442,8 +415,8 @@ enum LockScreenLiveActivityIconStyle: String, Defaults.Serializable {
 extension Defaults.Keys {
         // MARK: General
     /// Debug builds start at `.debug` so `debugLog` traces reach the Xcode
-    /// console as `print` used to; shipping builds stay silent until the
-    /// user picks a level from the menu.
+    /// console as `print` used to. Shipping builds retain rate-limited error
+    /// sites; detailed, private messages remain opt-in.
 #if DEBUG
     static let logLevel = Key<LogLevel>("logLevel", default: .debug)
 #else
@@ -504,12 +477,9 @@ extension Defaults.Keys {
         default: SliderColorEnum.white
     )
     static let playerColorTinting = Key<Bool>("playerColorTinting", default: true)
-    static let useMusicVisualizer = Key<Bool>("useMusicVisualizer", default: true)
     static let visualizerBarCount = Key<Int>("visualizerBarCount", default: 4)
     static let enableWaveformScrubber = Key<Bool>("enableWaveformScrubber", default: true)
     static let colorExtractionMode = Key<ColorExtractionMode>("colorExtractionMode", default: .vibrant)
-    static let customVisualizers = Key<[CustomVisualizer]>("customVisualizers", default: [])
-    static let selectedVisualizer = Key<CustomVisualizer?>("selectedVisualizer", default: nil)
     static let customAppIcons = Key<[CustomAppIcon]>("customAppIcons", default: [])
     static let selectedAppIconID = Key<String?>("selectedAppIconID", default: nil)
     

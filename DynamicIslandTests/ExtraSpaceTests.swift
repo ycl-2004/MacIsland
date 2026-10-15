@@ -164,7 +164,8 @@ final class ExtraSpaceTests: XCTestCase {
             window.alphaValue = 0
             window.orderFrontRegardless()
             defer { window.orderOut(nil); window.contentView = nil; window.close() }
-            try await Task.sleep(for: .milliseconds(50))
+            // Wait for the hosted editor, rather than assuming a 50 ms layout deadline.
+            try await waitUntil { self.findScrollView(in: hosting) is ExtraSpaceScrollView }
             let scroll = try XCTUnwrap(findScrollView(in: hosting) as? ExtraSpaceScrollView)
             let editor = try XCTUnwrap(scroll.documentView as? ExtraSpaceTextView)
             XCTAssertFalse(editor.isEditable)
@@ -349,11 +350,9 @@ final class ExtraSpaceTests: XCTestCase {
         XCTAssertEqual(reopened.contentView.bounds.origin.y, savedOrigin.y, accuracy: 1)
         XCTAssertEqual(reopenedText.string, content)
 
-        let preview = URL(fileURLWithPath: "/tmp/atoll-extra-space-editor.png")
-        if let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) {
-            hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
-            try bitmap.representation(using: .png, properties: [:])?.write(to: preview)
-        }
+        let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+        attachPreview(try XCTUnwrap(bitmap.representation(using: .png, properties: [:])), named: "Extra Space editor")
     }
 
     func testNativeTypingCompositionAndUndoUpdateTheSameDocument() async throws {
@@ -443,17 +442,17 @@ final class ExtraSpaceTests: XCTestCase {
             .environment(\.colorScheme, .dark)
             .frame(width: 640, height: 160)
             .background(.black)
-        try await savePreview(tab, to: "/tmp/atoll-extra-space-tab.png", size: NSSize(width: 640, height: 160))
+        try await savePreview(tab, named: "Extra Space tab", size: NSSize(width: 640, height: 160))
         let settings = ExtraSpaceSettings()
             .formStyle(.grouped)
             .environmentObject(SettingsHighlightCoordinator())
             .environment(\.colorScheme, .dark)
             .frame(width: 640, height: 360)
-        try await savePreview(settings, to: "/tmp/atoll-extra-space-settings.png", size: NSSize(width: 640, height: 360))
+        try await savePreview(settings, named: "Extra Space settings", size: NSSize(width: 640, height: 360))
         store.flushPendingSave()
     }
 
-    private func savePreview<Content: View>(_ content: Content, to path: String, size: NSSize) async throws {
+    private func savePreview<Content: View>(_ content: Content, named name: String, size: NSSize) async throws {
         let hosting = NSHostingView(rootView: content)
         hosting.sizingOptions = []
         let window = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -466,8 +465,7 @@ final class ExtraSpaceTests: XCTestCase {
         hosting.layoutSubtreeIfNeeded()
         let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
         hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
-        let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
-        try data.write(to: URL(fileURLWithPath: path))
+        attachPreview(try XCTUnwrap(bitmap.representation(using: .png, properties: [:])), named: name)
     }
 
     private func temporaryDocument() throws -> URL {

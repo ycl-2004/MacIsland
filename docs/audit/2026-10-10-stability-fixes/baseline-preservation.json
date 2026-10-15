@@ -1,0 +1,233 @@
+[
+  {
+    "path": "DynamicIsland.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+    "baselineSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "currentSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/ContentView.swift",
+    "baselineSHA256": "998dd70d6f6cc2034fd29ed126b245b2633ba02841a3f0967d87ca77527e54fd",
+    "currentSHA256": "998dd70d6f6cc2034fd29ed126b245b2633ba02841a3f0967d87ca77527e54fd",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/CPUStatsDetailView.swift",
+    "baselineSHA256": "3c201834f510cc46b1ae453039fb1c7406c35141f262f27b8d9366760280eea5",
+    "currentSHA256": "3c201834f510cc46b1ae453039fb1c7406c35141f262f27b8d9366760280eea5",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/CPUStatsSharedViews.swift",
+    "baselineSHA256": "be0caf135dc0f34134a0532567a0c06b7c316b5d7e04bcf55255fda4bf273515",
+    "currentSHA256": "be0caf135dc0f34134a0532567a0c06b7c316b5d7e04bcf55255fda4bf273515",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/CircularGaugeView.swift",
+    "baselineSHA256": "515e94e2177f54715e57c1596219f573e512b5c9d8f349e3f24be8ef404cd3d3",
+    "currentSHA256": "515e94e2177f54715e57c1596219f573e512b5c9d8f349e3f24be8ef404cd3d3",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/DetailedTimelineGraph.swift",
+    "baselineSHA256": "f673e38e8df48c3b5a4276366b592ecc5aa012478ee33b300de96d6b17f66f4a",
+    "currentSHA256": "f673e38e8df48c3b5a4276366b592ecc5aa012478ee33b300de96d6b17f66f4a",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/DiskStatsDetailView.swift",
+    "baselineSHA256": "7344ad0d4d4d4d804ab37b1e507b693c9d8ea9b8bcb609a47ec5d10cc19dbdff",
+    "currentSHA256": "7344ad0d4d4d4d804ab37b1e507b693c9d8ea9b8bcb609a47ec5d10cc19dbdff",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/DualTimelineGraph.swift",
+    "baselineSHA256": "f673e38e8df48c3b5a4276366b592ecc5aa012478ee33b300de96d6b17f66f4a",
+    "currentSHA256": "f673e38e8df48c3b5a4276366b592ecc5aa012478ee33b300de96d6b17f66f4a",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/GPUStatsDetailView.swift",
+    "baselineSHA256": "9e9f5d0ef56374a9c76c57bc13806248f51a0b91d947fba85e569a09760634d5",
+    "currentSHA256": "9e9f5d0ef56374a9c76c57bc13806248f51a0b91d947fba85e569a09760634d5",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/MemoryStatsDetailView.swift",
+    "baselineSHA256": "ea157a558c034434db77c6599d127995f529015b40e44e1b8551732db5d57978",
+    "currentSHA256": "ea157a558c034434db77c6599d127995f529015b40e44e1b8551732db5d57978",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/NetworkStatsDetailView.swift",
+    "baselineSHA256": "61670ef9a5f38d3dfd6326a9ecd015c9ff3553a478c55d6f6c7588742205b300",
+    "currentSHA256": "61670ef9a5f38d3dfd6326a9ecd015c9ff3553a478c55d6f6c7588742205b300",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/ProcessStats.swift",
+    "baselineSHA256": "5232f131ab54a6e359721d4187c115d5e68601d4db3a02a85d0e0d9d36686d8b",
+    "currentSHA256": "5232f131ab54a6e359721d4187c115d5e68601d4db3a02a85d0e0d9d36686d8b",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/RankedProcessPopover.swift",
+    "baselineSHA256": "57f030ae920bd56c5623397d3051a6f9c4da186ecb187cb8370daaf3001922d3",
+    "currentSHA256": "57f030ae920bd56c5623397d3051a6f9c4da186ecb187cb8370daaf3001922d3",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/StatsDetailSampling.swift",
+    "baselineSHA256": "5e4d0c633981ae16b3e9c606f1f353e2bd51cb2824f33e2a126208ba642af8dd",
+    "currentSHA256": "5e4d0c633981ae16b3e9c606f1f353e2bd51cb2824f33e2a126208ba642af8dd",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/components/Stats/StatsFormatting.swift",
+    "baselineSHA256": "a6ed970d2a312f16ba3b8bde4771acd33335d7f757494ba8e1f122e254e70e5c",
+    "currentSHA256": "a6ed970d2a312f16ba3b8bde4771acd33335d7f757494ba8e1f122e254e70e5c",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/managers/StatsManager.swift",
+    "baselineSHA256": "8c10a1c28ed9e8852efa8aad2992f2bd8071bb211cd633f448d9eab01b436a10",
+    "currentSHA256": "ac5a587ac93777a57cf51a8c20808badbc3ad3f1c10b405fc6e7d584fbd0f56b",
+    "unchanged": false,
+    "intentionalAdditionalChange": "Skip non-local volumes before reading capacities."
+  },
+  {
+    "path": "DynamicIsland/models/StatsSampling.swift",
+    "baselineSHA256": "4d214c0b9b06ad66db9e34014561655f7ba2f59498eb7c2c883c631e7b455b26",
+    "currentSHA256": "4d214c0b9b06ad66db9e34014561655f7ba2f59498eb7c2c883c631e7b455b26",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/utils/CPUSensorCollector.swift",
+    "baselineSHA256": "b6504c9e19e2f67b259afc723d1777dad6cb7a7d90d060e9be0e8c22544fb976",
+    "currentSHA256": "b6504c9e19e2f67b259afc723d1777dad6cb7a7d90d060e9be0e8c22544fb976",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIsland/utils/SystemStatsSampler.swift",
+    "baselineSHA256": "34b12542c9efcb5b57694d6571a557fa22cda07fc09e490190ca8af82ebad2a3",
+    "currentSHA256": "34b12542c9efcb5b57694d6571a557fa22cda07fc09e490190ca8af82ebad2a3",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "DynamicIslandTests/StatsPerformanceTests.swift",
+    "baselineSHA256": "7a8541f0d48d60e31a76760121cad1a005ccf6a7e26d132da03be5b88cb16174",
+    "currentSHA256": "7a8541f0d48d60e31a76760121cad1a005ccf6a7e26d132da03be5b88cb16174",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/architecture.md",
+    "baselineSHA256": "f3a423bb7cfb3d4a7c9c8ce29dd3a97921a5a6b814e5ea5582acb8f9fe8dc561",
+    "currentSHA256": "7529ffc7b9fc25abc1d9cb880224d1a8d07cc0c6c780d8f20fe424358837d175",
+    "unchanged": false,
+    "intentionalAdditionalChange": "Retain prior Stats section; update date/session quit sentence and append stability boundaries."
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/.gitignore",
+    "baselineSHA256": "ec0faa0842d00c23b5755e8903c4ee4adb00f1e17d2ff6e8ebb6289f7cf7a845",
+    "currentSHA256": "ec0faa0842d00c23b5755e8903c4ee4adb00f1e17d2ff6e8ebb6289f7cf7a845",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/README.md",
+    "baselineSHA256": "fbac59455fd30fb95ee7b5dd492f9099c6377171a14f0ac4f781b3fa02e041a1",
+    "currentSHA256": "fbac59455fd30fb95ee7b5dd492f9099c6377171a14f0ac4f781b3fa02e041a1",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/baseline-accessibility.log",
+    "baselineSHA256": "7d58c5096b3a0bb47ac586ed9bb8e74b224de0f4ac8ed5f4a3161e6d621a349e",
+    "currentSHA256": "7d58c5096b3a0bb47ac586ed9bb8e74b224de0f4ac8ed5f4a3161e6d621a349e",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/baseline-collector.txt",
+    "baselineSHA256": "65a5ec0f078b70ed0b9c38b9bfb4344c50553f7227ec39fb462158095d667040",
+    "currentSHA256": "65a5ec0f078b70ed0b9c38b9bfb4344c50553f7227ec39fb462158095d667040",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/benchmark-main.swift",
+    "baselineSHA256": "50be47d0117a73b09faf506e7a2b3fd6c0c1e6fba14690ec8352612ca6592fe5",
+    "currentSHA256": "50be47d0117a73b09faf506e7a2b3fd6c0c1e6fba14690ec8352612ca6592fe5",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/benchmark-support.swift",
+    "baselineSHA256": "548c5943762643c26877b4943c0d40e37bdad5b359738e873c58fbf180c0b7e6",
+    "currentSHA256": "548c5943762643c26877b4943c0d40e37bdad5b359738e873c58fbf180c0b7e6",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/build-receipts.txt",
+    "baselineSHA256": "daff134d5173c94a954da745817348a205111f7587ae584eb7f42c456eacbf6c",
+    "currentSHA256": "daff134d5173c94a954da745817348a205111f7587ae584eb7f42c456eacbf6c",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/measurements.json",
+    "baselineSHA256": "d967438520be93cc02055885415c8839cab729f8fbff3d3db14232c9cb199ad4",
+    "currentSHA256": "d967438520be93cc02055885415c8839cab729f8fbff3d3db14232c9cb199ad4",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/native-tests.log",
+    "baselineSHA256": "189d22c731f2f0026a93ce92b0802f86a8619be5fee89df85e80f6c9df8d15d1",
+    "currentSHA256": "189d22c731f2f0026a93ce92b0802f86a8619be5fee89df85e80f6c9df8d15d1",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/receipt.json",
+    "baselineSHA256": "71135632bf6c8fe305ca9bebc8c442cb63a39b47e3f445da4162062caab7ab17",
+    "currentSHA256": "71135632bf6c8fe305ca9bebc8c442cb63a39b47e3f445da4162062caab7ab17",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/audit/2026-10-08-stats-performance/revised-collector.txt",
+    "baselineSHA256": "412466fc3aaba9e0807cb57623262cdf1df57dd56b3212e7d2e9a8f1d4c1df17",
+    "currentSHA256": "412466fc3aaba9e0807cb57623262cdf1df57dd56b3212e7d2e9a8f1d4c1df17",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  },
+  {
+    "path": "docs/stats-performance-2026-10-08.md",
+    "baselineSHA256": "1bc7e37cd9f42749041cace9824e5d8aa8451124ad5b9f5bf730ea900cab09b3",
+    "currentSHA256": "1bc7e37cd9f42749041cace9824e5d8aa8451124ad5b9f5bf730ea900cab09b3",
+    "unchanged": true,
+    "intentionalAdditionalChange": null
+  }
+]

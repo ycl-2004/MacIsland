@@ -64,18 +64,24 @@ final class SiriVisibilityMonitor: ObservableObject {
         // Observe display sleep/wake
         let workspaceCenter = NSWorkspace.shared.notificationCenter
         workspaceCenter.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
             self?.isDisplayOn = false
             self?.updateMonitoringState()
+            }
         }
         workspaceCenter.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
             self?.isDisplayOn = true
             self?.updateMonitoringState()
+            }
         }
 
         // Observe power state
         NotificationCenter.default.addObserver(forName: NSNotification.Name.NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
             self?.isInLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
             self?.updateMonitoringState()
+            }
         }
         self.isInLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
 
@@ -151,7 +157,7 @@ final class SiriVisibilityMonitor: ObservableObject {
         if monitoringTimer?.timeInterval != currentInterval {
             monitoringTimer?.invalidate()
             monitoringTimer = Timer.scheduledTimer(withTimeInterval: currentInterval, repeats: true) { [weak self] _ in
-                self?.checkSiriVisibility()
+                Task { @MainActor in self?.checkSiriVisibility() }
             }
             monitoringTimer?.tolerance = currentInterval * 0.1
         }

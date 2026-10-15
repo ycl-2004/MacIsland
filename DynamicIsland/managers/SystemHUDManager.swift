@@ -173,8 +173,7 @@ class SystemHUDManager {
     
     deinit {
         cancellables.removeAll()
-        Task { @MainActor in
-            await stopSystemObserver()
-        }
+        let observer = changesObserver
+        Task { @MainActor in observer?.stopObserving() }
     }
 }

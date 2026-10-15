@@ -1,0 +1,13 @@
+{"unixTime": 1791694569.030516, "pid": 80956, "cpuPercent": 0.1, "rssKB": 131120, "elapsed": "01:19", "children": 3, "openFDs": 29}
+{"unixTime": 1791694574.0442681, "pid": 80956, "cpuPercent": 0.5, "rssKB": 131120, "elapsed": "01:25", "children": 3, "openFDs": 29}
+{"unixTime": 1791694579.04306, "pid": 80956, "cpuPercent": 1.1, "rssKB": 131120, "elapsed": "01:30", "children": 3, "openFDs": 29}
+{"unixTime": 1791694584.051936, "pid": 80956, "cpuPercent": 0.4, "rssKB": 131072, "elapsed": "01:35", "children": 3, "openFDs": 29}
+{"unixTime": 1791694589.058023, "pid": 80956, "cpuPercent": 0.0, "rssKB": 131072, "elapsed": "01:40", "children": 3, "openFDs": 29}
+{"unixTime": 1791694594.058762, "pid": 80956, "cpuPercent": 27.3, "rssKB": 143216, "elapsed": "01:45", "children": 3, "openFDs": 29}
+{"unixTime": 1791694599.055648, "pid": 80956, "cpuPercent": 5.4, "rssKB": 173696, "elapsed": "01:50", "children": 3, "openFDs": 29}
+{"unixTime": 1791694604.055995, "pid": 80956, "cpuPercent": 5.7, "rssKB": 188016, "elapsed": "01:55", "children": 3, "openFDs": 29}
+{"unixTime": 1791694609.082528, "pid": 80956, "cpuPercent": 0.1, "rssKB": 172880, "elapsed": "02:00", "children": 3, "openFDs": 29}
+{"unixTime": 1791694614.081151, "pid": 80956, "cpuPercent": 0.3, "rssKB": 172720, "elapsed": "02:05", "children": 3, "openFDs": 29}
+{"unixTime": 1791694619.084998, "pid": 80956, "cpuPercent": 2.0, "rssKB": 172240, "elapsed": "02:10", "children": 3, "openFDs": 29}
+{"unixTime": 1791694624.091685, "pid": 80956, "cpuPercent": 0.3, "rssKB": 172176, "elapsed": "02:15", "children": 3, "openFDs": 29}
+{"unixTime": 1791694629.096502, "pid": 80956, "cpuPercent": 0.3, "rssKB": 172128, "elapsed": "02:20", "children": 3, "openFDs": 29}

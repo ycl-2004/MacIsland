@@ -48,15 +48,6 @@ enum ExternalDisplayStyle: String, CaseIterable, Defaults.Serializable, Identifi
             return String(localized: "Dynamic Island")
         }
     }
-
-    var description: String {
-        switch self {
-        case .notch:
-            return String(localized: "Classic notch shape that blends into the top screen edge")
-        case .dynamicIsland:
-            return String(localized: "Pill-shaped island with rounded corners, similar to iPhone's Dynamic Island")
-        }
-    }
 }
 
 public enum ContentType: Int, Codable, Hashable, Equatable {

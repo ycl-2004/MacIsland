@@ -20,6 +20,7 @@ import AppKit
 import Combine
 import Defaults
 import Foundation
+import os
 import SwiftUI
 
 final class DoNotDisturbManager: ObservableObject {
@@ -39,6 +40,7 @@ final class DoNotDisturbManager: ObservableObject {
     @Published private(set) var isFocusToastDismissing: Bool = false
 
     private let notificationCenter = DistributedNotificationCenter.default()
+    private let metadataGeneration = OSAllocatedUnfairLock(initialState: UUID())
     private let metadataExtractionQueue = DispatchQueue(label: "com.dynamicisland.focus.metadata", qos: .userInitiated)
     private let pollingQueue = DispatchQueue(label: "com.dynamicisland.focus.polling", qos: .utility)
     private let focusLogStream = FocusLogStream()
@@ -109,6 +111,7 @@ final class DoNotDisturbManager: ObservableObject {
     }
 
     func stopMonitoring() {
+        metadataGeneration.withLock { $0 = UUID() }
         guard isMonitoring else { return }
 
         notificationCenter.removeObserver(self, name: .focusModeEnabled, object: nil)
@@ -141,6 +144,7 @@ final class DoNotDisturbManager: ObservableObject {
     }
 
     private func apply(notification: Notification, isActive: Bool) {
+        metadataGeneration.withLock { $0 = UUID() }
         metadataExtractionQueue.async { [weak self] in
             guard let self = self else { return }
 
@@ -149,9 +153,10 @@ final class DoNotDisturbManager: ObservableObject {
         }
     }
 
-    private func publishMetadata(identifier: String?, name: String?, isActive: Bool?, source: String) {
+    private func publishMetadata(identifier: String?, name: String?, isActive: Bool?, source: String, expectedGeneration: UUID? = nil) {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            guard let self = self, self.isMonitoring else { return }
+            if let expectedGeneration, self.metadataGeneration.withLock({ $0 }) != expectedGeneration { return }
 
             let trimmedIdentifier = identifier?.trimmingCharacters(in: .whitespacesAndNewlines)
             let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -178,7 +183,7 @@ final class DoNotDisturbManager: ObservableObject {
                         self.currentFocusModeIdentifier = FocusModeType.doNotDisturb.rawValue
                         self.currentFocusModeName = FocusModeType.doNotDisturb.displayName
                     }
-                    debugPrint("[DoNotDisturbManager] Focus active-only update -> source: \(source) | isActive: \(isActive)")
+                    debugLog("[DoNotDisturbManager] Focus active-only update -> source: \(source) | isActive: \(isActive)")
                 }
                 return
             }
@@ -249,7 +254,7 @@ final class DoNotDisturbManager: ObservableObject {
             }
 
             if identifierChanged || nameChanged || shouldToggleActive {
-                debugPrint("[DoNotDisturbManager] Focus update -> source: \(source) | identifier: \(trimmedIdentifier ?? "<nil>") | name: \(trimmedName ?? "<nil>") | resolved: \(resolvedMode.rawValue)")
+                debugLog("[DoNotDisturbManager] Focus update -> source: \(source) | identifier: \(trimmedIdentifier ?? "<nil>") | name: \(trimmedName ?? "<nil>") | resolved: \(resolvedMode.rawValue)")
             }
 
             guard let isActive = isActive, shouldToggleActive else { return }
@@ -303,7 +308,7 @@ final class DoNotDisturbManager: ObservableObject {
                     }
                     self.scheduleMetadataClear()
                     self.beginFocusToastDismissIfNeeded()
-                    debugPrint("[DoNotDisturbManager] State verification: focus no longer active, resetting.")
+                    debugLog("[DoNotDisturbManager] State verification: focus no longer active, resetting.")
                     break
                 }
             }
@@ -421,7 +426,7 @@ final class DoNotDisturbManager: ObservableObject {
             candidates.append(object)
         }
 
-        debugPrint("[DoNotDisturbManager] raw focus payload -> name: \(notification.name.rawValue), object: \(String(describing: notification.object)), userInfo: \(String(describing: notification.userInfo))")
+        debugLog("[DoNotDisturbManager] raw focus payload -> name: \(notification.name.rawValue), object: \(String(describing: notification.object)), userInfo: \(String(describing: notification.userInfo))")
 
         for candidate in candidates {
             if identifier == nil {
@@ -523,6 +528,7 @@ private extension Notification.Name {
 
 private extension DoNotDisturbManager {
     func applyMonitoringModeChange(_ mode: FocusMonitoringMode) {
+        metadataGeneration.withLock { $0 = UUID() }
         guard isMonitoring else { return }
 
         if mode == .useDevTools {
@@ -541,10 +547,12 @@ private extension DoNotDisturbManager {
     /// seeds the initial focus state from it. Tries progressively larger windows so the common
     /// case (focus toggled recently) resolves in ~1-2s without scanning a full day of logs.
     private func checkInitialFocusStateViaLog() {
+        let epoch = metadataGeneration.withLock { state -> UUID in state = UUID(); return state }
         metadataExtractionQueue.async { [weak self] in
             guard let self else { return }
 
             for window in ["5m", "1h", "24h"] {
+                guard self.metadataGeneration.withLock({ $0 }) == epoch else { return }
                 let task = Process()
                 task.executableURL = URL(fileURLWithPath: "/usr/bin/log")
                 task.arguments = [
@@ -554,14 +562,9 @@ private extension DoNotDisturbManager {
                     "--style", "compact",
                     "--predicate", "process == \"duetexpertd\" AND eventMessage CONTAINS \"semanticModeIdentifier\""
                 ]
-                let pipe = Pipe()
-                task.standardOutput = pipe
-                task.standardError = Pipe()
-
-                guard (try? task.run()) != nil else { return }
-                task.waitUntilExit()
-
-                let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                guard let result = ProcessRunner.captureBlocking(task, timeout: 5, limit: 1024 * 1024),
+                      result.outcome == .exited(0), !result.truncated else { return }
+                let output = String(decoding: result.output, as: UTF8.self)
                 let lines = output.components(separatedBy: "\n").filter {
                     $0.contains("semanticModeIdentifier") && !$0.hasPrefix("Filtering")
                 }
@@ -575,7 +578,7 @@ private extension DoNotDisturbManager {
                 let name = FocusMetadataDecoder.extractName(from: lastLine)
                 guard identifier != nil || name != nil else { return }
 
-                self.publishMetadata(identifier: identifier, name: name, isActive: true, source: "log-initial")
+                self.publishMetadata(identifier: identifier, name: name, isActive: true, source: "log-initial", expectedGeneration: epoch)
                 return
             }
         }

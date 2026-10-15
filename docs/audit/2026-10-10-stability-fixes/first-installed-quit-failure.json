@@ -1,0 +1,28 @@
+{
+  "firstQuit": {
+    "action": "quit",
+    "forcedTermination": false,
+    "normalTerminationConfirmed": false,
+    "previous": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 62485,
+        "terminated": false
+      }
+    ],
+    "requestsAccepted": [
+      true
+    ]
+  },
+  "afterLoadStandardMenuQuit": {
+    "action": "inspect",
+    "instances": []
+  },
+  "rootCause": "The lazily instantiated Extra Space restored its saved text after the gate snapshot; restoration was classified as an edit.",
+  "fix": "Await each initial restoration before snapshots; individual save methods also wait for their initial load.",
+  "regression": "StabilityHardeningTests.testFirstQuitAwaitsLazyRestorationBeforeDetectingEdits",
+  "failedRevisionBinarySHA256": "1a5287ce841fe07d3381f5fa9064e579244d7d06617491cc9d69b0839b37e44b",
+  "forcedTermination": false
+}

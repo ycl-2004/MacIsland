@@ -20,23 +20,19 @@ struct ExtraSpaceSettings: View {
                 }
                 .settingsHighlight(id: "extraSpace-Enable Extra Space")
             } header: {
-                Text("Extra Space")
-            } footer: {
-                Text("Show Extra Space alongside Home, Stats and Agents. Turning it off hides the tab and keeps your text.")
+                SettingsInfoLabel("Extra Space", info: "Adds a text tab to the notch. Turning it off hides the tab and keeps your text.")
             }
 
             Section {
                 KeyboardShortcuts.Recorder("Open Extra Space:", name: .openExtraSpace)
-                Label("One continuous text area", systemImage: "text.alignleft")
-                Label("Automatically saved on this Mac", systemImage: "internaldrive")
                 LabeledContent("Text storage", value: "\(ByteCountFormatter.string(fromByteCount: Int64(store.byteCount), countStyle: .binary)) / 5 MB")
                 Button("Show Local Content File") { store.revealContent() }
                 if store.hasPreviousVersion {
                     Button("Restore Previous Saved Version") { store.recoverPrevious() }
                 }
                 if let error = store.errorMessage { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            } footer: {
-                Text("Double-click the text area, or click Edit or Paste, to change text. Press ⌘S or click Save to finish editing. While editing, scroll inside the text. \(closeHint) Use ⌘F to find text and Export to save a .txt copy. Your text stays available after closing the notch or restarting Atoll.")
+            } header: {
+                SettingsInfoLabel("Text", info: "Double-click the text, or click Edit or Paste, to change it. Press ⌘S or click Save when you're done. \(closeHint) Press ⌘F to find text; Export saves a .txt copy. Your text is saved automatically on this Mac.")
             }
         }
         .navigationTitle("Extra Space")

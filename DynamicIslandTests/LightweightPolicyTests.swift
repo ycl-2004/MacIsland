@@ -7,42 +7,33 @@ import XCTest
 @MainActor
 final class LightweightPolicyTests: XCTestCase {
     func testFeatureManagementDestinationRendersInTheSettingsWindow() async throws {
+        // The rendered detail page names the window, so the title shows which
+        // page actually appeared. SwiftUI-drawn buttons get no accessibility
+        // nodes until an assistive client asks (macOS 27), so labels cannot.
         let hosting = NSHostingView(rootView: SettingsView().frame(width: 700, height: 600))
         hosting.sizingOptions = []
-        let window = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = hosting
         window.alphaValue = 0
         window.orderFrontRegardless()
         defer { window.orderOut(nil); window.contentView = nil; window.close() }
-        try await Task.sleep(for: .milliseconds(100))
-        NotificationCenter.default.post(name: .atollSettingsDestination, object: "features")
-        try await Task.sleep(for: .milliseconds(200))
-        hosting.layoutSubtreeIfNeeded()
-        var visited = Set<ObjectIdentifier>()
-        func accessibilityLabels(_ value: Any, depth: Int = 0) -> [String] {
-            guard depth < 20, let object = value as? NSObject, visited.insert(ObjectIdentifier(object)).inserted else { return [] }
-            var labels: [String] = []
-            let labelSelector = NSSelectorFromString("accessibilityLabel")
-            if object.responds(to: labelSelector), let label = object.perform(labelSelector)?.takeUnretainedValue() as? String { labels.append(label) }
-            let childrenSelector = NSSelectorFromString("accessibilityChildren")
-            if object.responds(to: childrenSelector), let children = object.perform(childrenSelector)?.takeUnretainedValue() as? [Any] {
-                labels += children.flatMap { accessibilityLabels($0, depth: depth + 1) }
-            }
-            return labels
+        func waitForTitle(_ title: String) async throws {
+            for _ in 0..<150 where window.title != title { try await Task.sleep(for: .milliseconds(20)) }
         }
-        let labels = accessibilityLabels(hosting)
-        XCTAssertTrue(labels.contains { $0.contains("Preview lightweight suggestions") }, "The destination must display Feature Management, not fall back to General. Labels: \(labels)")
+        try await waitForTitle("General")
+        XCTAssertEqual(window.title, "General", "Settings opens on General before any destination arrives")
+        NotificationCenter.default.post(name: .atollSettingsDestination, object: "features")
+        try await waitForTitle("Feature Management")
         let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
         hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
-        let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
-        try data.write(to: URL(fileURLWithPath: "/tmp/atoll-feature-management.png"))
+        // Kept in the result bundle only when the test fails.
+        add(XCTAttachment(data: try XCTUnwrap(bitmap.representation(using: .png, properties: [:])), uniformTypeIdentifier: "public.png"))
+        XCTAssertEqual(window.title, "Feature Management", "The destination must display Feature Management, not fall back to General")
     }
 
     func testRealDefaultsTransactionRejectsStalePreviewAndPreservesLaterEdits() throws {
-        let name = "atoll-preset-test-\(UUID())"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: try temporaryDefaultsSuite()))
         let stats = Defaults.Key<Bool>("stats", default: true, suite: defaults)
         let lyrics = Defaults.Key<Bool>("lyrics", default: true, suite: defaults)
         let keys = [("Stats", stats), ("Lyrics", lyrics)]
@@ -111,6 +102,35 @@ final class LightweightPolicyTests: XCTestCase {
         XCTAssertEqual(policy.agentRefreshInterval(conversationOpen: false), .seconds(10))
         policy.isLocked = true
         XCTAssertEqual(policy.agentRefreshInterval(conversationOpen: true), .seconds(15))
+    }
+
+    func testWaveformCaptureFollowsDrawingViewsWithGrace() async throws {
+        let queue = DispatchQueue(label: "test.waveform-demand")
+        var events: [String] = []
+        let demand = WaveformDemand(queue: queue, grace: 0.05,
+                                    start: { events.append("start") }, stop: { events.append("stop") })
+        let closed = UUID(), open = UUID()
+        func settle(_ milliseconds: Int = 0) async throws {
+            try await Task.sleep(for: .milliseconds(milliseconds))
+            queue.sync {}
+        }
+        demand.setDisplaying(true, id: closed)
+        demand.setDisplaying(true, id: open)
+        demand.setDisplaying(false, id: closed)
+        try await settle()
+        XCTAssertEqual(events, ["start"], "a second view shares the running capture")
+        // A notch transition swaps views inside the grace: capture keeps running.
+        demand.setDisplaying(false, id: open)
+        demand.setDisplaying(true, id: closed)
+        try await settle(120)
+        XCTAssertFalse(events.contains("stop"))
+        demand.setDisplaying(false, id: closed)
+        demand.setDisplaying(false, id: closed)
+        try await settle(120)
+        XCTAssertEqual(events.last, "stop", "paused or hidden waveforms keep no capture running")
+        XCTAssertEqual(events.filter { $0 == "stop" }.count, 1)
+        let wanted = queue.sync { demand.isWanted }
+        XCTAssertFalse(wanted)
     }
 
     func testStatsStartsFromPublishedVisibilityAndStopsWhenHidden() {

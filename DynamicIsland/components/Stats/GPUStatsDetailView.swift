@@ -54,9 +54,10 @@ struct GPUStatsDetailView: View {
         }
         .frame(minWidth: 360, minHeight: 380)
         .onAppear(perform: refreshProcesses)
-        .onReceive(statsManager.$lastUpdated) { _ in
-            refreshProcesses()
+        .onReceive(statsManager.$topCPUProcesses) { processes in
+            topProcesses = Array(processes.prefix(processDisplayLimit))
         }
+        .statsDetailSampling(.gpu)
     }
     
     private func refreshProcesses() {

@@ -174,3 +174,8 @@ __pycache__/
 
 !Tools/report-build-cache.py
 !tests/OSDGuardianRegression.py
+
+!Tools/verify-stability.py
+!Tools/build-provenance.py
+!Tools/monitor-stability.py
+!tests/ProcessSupervisorRegression.py

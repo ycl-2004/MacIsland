@@ -1,6 +1,6 @@
 # ADR-001: Own system HUD suppression through a recovery helper
 
-Status: accepted for this local build. Date: 2026-10-06.
+Status: superseded by [ADR-002](002-stability-boundaries.md) on 2026-10-10. Original date: 2026-10-06.
 
 Atoll replaces the native volume/brightness HUD by pausing OSDUIHelper. A
 termination callback alone cannot recover from SIGKILL or a crash. The optional

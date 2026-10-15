@@ -1,0 +1,103 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test-without-building -xctestrun /tmp/atoll-next-version-fixes/native-verified/DynamicIsland.xctestrun -destination platform=macOS -parallel-testing-enabled NO "-only-testing:DynamicIslandTests/LightweightPolicyTests/testFeatureManagementDestinationRendersInTheSettingsWindow" -resultBundlePath /tmp/atoll-stats-probe/native/BaselineAccessibility.xcresult
+
+Writing result bundle at path:
+	/tmp/atoll-stats-probe/native/BaselineAccessibility.xcresult
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:macOS, arch:arm64e, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:x86_64, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64e, variant:Mac Catalyst, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:Mac Catalyst, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:x86_64, variant:Mac Catalyst, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64e, variant:DriverKit, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:DriverKit, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64e, variant:Designed for [iPad,iPhone], id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], id:00008132-001A681436D3801C, name:My Mac }
+2026-10-08 16:28:33.379697-0700 Atoll[56931:8436417] ✅ Fullscreen status: ["Built-in Retina Display": false]
+2026-10-08 16:28:33.429556-0700 Atoll[56931:8436417] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x78708cdda0> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-08 16:28:33.508195-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508229-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508247-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508262-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508277-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508291-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508305-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508318-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508599-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508615-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508628-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508642-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508656-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508678-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508857-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508869-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508881-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508891-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508906-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.508919-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509192-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509216-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509231-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509245-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509257-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509269-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509413-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509435-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509449-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509462-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509474-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509485-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509586-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509600-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509611-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509622-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509633-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509644-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509711-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509722-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509733-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509744-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509754-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509764-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509859-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509871-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509882-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509892-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509903-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.509913-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.510072-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.510084-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.510094-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.510105-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.510116-0700 Atoll[56931:8436417] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=244516783128577, rateLimit=32hz }
+2026-10-08 16:28:33.510156-0700 Atoll[56931:8436417] [carc] Reporter disconnected or already stopped. { func=stop, reporterID=244516783128577 }
+2026-10-08 16:28:33.562492-0700 Atoll[56931:8436417] [] CMIO_DAL_CMIOExtension_Device.mm:373:Device legacy uuid isn't present, using new style uuid instead
+2026-10-08 16:28:33.699959-0700 Atoll[56931:8436427] [] warning: failed to mark memory(GRAPHICS) error 0x8 ((os/kern) no access)
+Test Suite 'Selected tests' started at 2026-10-08 16:28:33.791.
+Test Suite 'DynamicIslandTests.xctest' started at 2026-10-08 16:28:33.792.
+Test Suite 'LightweightPolicyTests' started at 2026-10-08 16:28:33.792.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testFeatureManagementDestinationRendersInTheSettingsWindow]' started.
+2026-10-08 16:28:34.090212-0700 Atoll[56931:8436529] [Common] Unable to obtain a task name port right for pid 413: (os/kern) failure (0x5)
+/Users/yichenlin/Desktop/Tester/Atoll/DynamicIslandTests/LightweightPolicyTests.swift:35: error: -[DynamicIslandTests.LightweightPolicyTests testFeatureManagementDestinationRendersInTheSettingsWindow] : XCTAssertTrue failed - The destination must display Feature Management, not fall back to General. Labels: []
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testFeatureManagementDestinationRendersInTheSettingsWindow]' failed (2.497 seconds).
+Test Suite 'LightweightPolicyTests' failed at 2026-10-08 16:28:36.290.
+	 Executed 1 test, with 1 failure (0 unexpected) in 2.497 (2.498) seconds
+Test Suite 'DynamicIslandTests.xctest' failed at 2026-10-08 16:28:36.290.
+	 Executed 1 test, with 1 failure (0 unexpected) in 2.497 (2.498) seconds
+Test Suite 'Selected tests' failed at 2026-10-08 16:28:36.290.
+	 Executed 1 test, with 1 failure (0 unexpected) in 2.497 (2.499) seconds
+2026-10-08 16:28:47.961 xcodebuild[56925:8436294] [MT] IDETestOperationsObserverDebug: 15.142 elapsed -- Testing started completed.
+2026-10-08 16:28:47.961 xcodebuild[56925:8436294] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 16:28:47.961 xcodebuild[56925:8436294] [MT] IDETestOperationsObserverDebug: 15.142 sec, +15.142 sec -- end
+
+Test session results, code coverage, and logs:
+	/tmp/atoll-stats-probe/native/BaselineAccessibility.xcresult
+
+Failing tests:
+	LightweightPolicyTests.testFeatureManagementDestinationRendersInTheSettingsWindow()
+
+** TEST EXECUTE FAILED **
+
+Testing started

@@ -151,7 +151,7 @@ class CalendarManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleEventStoreChanged()
+            MainActor.assumeIsolated {             self?.handleEventStoreChanged() }
         }
     }
 

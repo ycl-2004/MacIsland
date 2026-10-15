@@ -248,7 +248,8 @@
 				F54406E32CD4987A00C7AFD9 /* Sources */,
 				F54406E42CD4987A00C7AFD9 /* Frameworks */,
 				F54406E52CD4987A00C7AFD9 /* Resources */,
-                A70F1A022F90000100F1A120 /* Build OSD recovery helper */,
+                A70F1A022F90000100F1A120 /* Build owned-process supervisor */,
+                A70F1A022F90000100F1A121 /* Record build identity */,
 			);
 			buildRules = (
 			);
@@ -350,16 +351,28 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-        A70F1A022F90000100F1A120 /* Build OSD recovery helper */ = {
+        A70F1A022F90000100F1A120 /* Build owned-process supervisor */ = {
             isa = PBXShellScriptBuildPhase;
             buildActionMask = 2147483647;
             files = ();
-            inputPaths = ("$(SRCROOT)/Tools/OSDRecoveryGuardian.c",);
-            outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/AtollOSDGuardian",);
-            name = "Build OSD recovery helper";
+            inputPaths = ("$(SRCROOT)/Tools/AtollProcessSupervisor.c",);
+            outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/AtollProcessSupervisor",);
+            name = "Build owned-process supervisor";
             runOnlyForDeploymentPostprocessing = 0;
             shellPath = /bin/sh;
-            shellScript = "set -eu\nmkdir -p \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nset --\nfor ATOLL_HELPER_ARCH in $ARCHS; do set -- \"$@\" -arch \"$ATOLL_HELPER_ARCH\"; done\nxcrun clang \"$@\" -std=c11 -Os -Wall -Wextra -Werror -mmacosx-version-min=14.6 \"$SRCROOT/Tools/OSDRecoveryGuardian.c\" -o \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/AtollOSDGuardian\"\nif [ \"$CODE_SIGNING_ALLOWED\" = YES ]; then /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" --options runtime \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/AtollOSDGuardian\"; fi\n";
+            shellScript = "set -eu\nrm -f \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/AtollOSDGuardian\"\nmkdir -p \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nset --\nfor ATOLL_HELPER_ARCH in $ARCHS; do set -- \"$@\" -arch \"$ATOLL_HELPER_ARCH\"; done\nxcrun clang \"$@\" -std=c11 -Os -Wall -Wextra -Werror -mmacosx-version-min=14.6 \"$SRCROOT/Tools/AtollProcessSupervisor.c\" -o \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/AtollProcessSupervisor\"\nif [ \"$CODE_SIGNING_ALLOWED\" = YES ]; then /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" --options runtime \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/AtollProcessSupervisor\"; fi\n";
+        };
+        A70F1A022F90000100F1A121 /* Record build identity */ = {
+            isa = PBXShellScriptBuildPhase;
+            alwaysOutOfDate = 1;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = ();
+            outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/BuildInfo.json",);
+            name = "Record build identity";
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh;
+            shellScript = "set -eu\n/usr/bin/env python3 \"$SRCROOT/Tools/build-provenance.py\"\n";
         };
 /* End PBXShellScriptBuildPhase section */
 

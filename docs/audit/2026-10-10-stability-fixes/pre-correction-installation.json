@@ -1,0 +1,64 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "stage": "/tmp/atoll-stability-fixes/Atoll-signed-734f4e722e69443f8ea26d76f1b3ded9.app",
+  "target": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261010-161944/Atoll.app",
+  "previousSHA256": "da526aa52368dc446b992f3e920132c4a8011fa3bacb76191dfb1b6a2cf2242d",
+  "unsignedReleaseSHA256": "b66690abbba39c348d37724c25612bd8d461845f9930e1d7520a2076c1d1ea25",
+  "signedSHA256": "1a5287ce841fe07d3381f5fa9064e579244d7d06617491cc9d69b0839b37e44b",
+  "sameSigningTeam": true,
+  "team": "BQYHJCCRMP",
+  "signatureVerified": true,
+  "preparedAt": "2026-10-10T16:19:44.794414-07:00",
+  "buildInfo": {
+    "build": "1637",
+    "commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+    "configuration": "Release",
+    "dirty": "true",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "00b805084fca7b108172a13cf6b37bf3be8a345a1a6632e23ce96031e5a5bc4b",
+    "version": "1.0.0",
+    "xcode": "2700"
+  },
+  "productionReplaced": true,
+  "originalApplicationBackup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261010-161944/OriginalAtoll.app",
+  "installedAt": "2026-10-10T16:20:18.221511-07:00",
+  "installedSHA256": "1a5287ce841fe07d3381f5fa9064e579244d7d06617491cc9d69b0839b37e44b",
+  "normalQuit": {
+    "action": "quit",
+    "forcedTermination": false,
+    "normalTerminationConfirmed": true,
+    "previous": [],
+    "requestsAccepted": []
+  },
+  "forcedTermination": false,
+  "initialLaunch": {
+    "action": "launch",
+    "instance": {
+      "bundlePath": "/Applications/Atoll.app",
+      "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+      "finishedLaunching": false,
+      "pid": 62485,
+      "terminated": false
+    },
+    "success": true
+  },
+  "initialStableInstance": {
+    "action": "inspect",
+    "instances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 62485,
+        "terminated": false
+      }
+    ]
+  },
+  "startupSmoke": {
+    "pid": 62485,
+    "samples": 6,
+    "stopped": "duration"
+  }
+}

@@ -83,12 +83,7 @@ func debugLog(
 }
 
 struct Logger {
-    private static let subsystem = "com.ebullioscopic.Atoll"
-    private static let dateFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
+    private static let subsystem = AtollDiagnostics.subsystem
     /// Built once, up front: `log` is called from any thread, and filling a
     /// cache lazily would race on the dictionary.
     private static let osLoggers: [LogCategory: OSLog] = Dictionary(
@@ -106,20 +101,24 @@ struct Logger {
         line: Int = #line
     ) {
         let configuredLevel = Defaults[.logLevel]
-        if configuredLevel == .none || category.defaultLevel.rawValue > configuredLevel.rawValue {
+        let critical = category == .error || category == .warning
+        if !critical && (configuredLevel == .none || category.defaultLevel.rawValue > configuredLevel.rawValue) {
             return
         }
 
         let fileName = (file as NSString).lastPathComponent
-        let timestamp = dateFormatter.string(from: Date())
-        let entry = "\(category.rawValue) [\(timestamp)] [\(fileName):\(line)] \(function) - \(message())"
-        os_log("%{public}@", log: osLoggers[category, default: .default], type: .default, entry)
+        let site = "\(category.osCategoryName):\(fileName):\(line):\(function)"
+        if critical && !AtollDiagnostics.events.record(site: site) { return }
+        let type: OSLogType = category == .error ? .error : (category == .warning ? .default : (category == .debug ? .debug : .info))
+        // The fixed source site is public; interpolated text may contain paths
+        // or user content and stays private even when verbose logging is enabled.
+        os_log("%{public}@ %{private}@", log: osLoggers[category, default: .default], type: type, site, message())
 
 #if DEBUG
-        Swift.print(entry)
+        Swift.print("\(site) - \(message())")
 #endif
     }
-    
+
     static func trackMemory(
         file: String = #file,
         function: String = #function,
@@ -127,7 +126,7 @@ struct Logger {
     ) {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
-        
+
         let kerr: kern_return_t = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
                 task_info(mach_task_self_,
@@ -136,7 +135,7 @@ struct Logger {
                          &count)
             }
         }
-        
+
         if kerr == KERN_SUCCESS {
             let usedMB = Double(info.resident_size) / 1024.0 / 1024.0
             log(String(format: "Memory used: %.2f MB", usedMB),
@@ -156,7 +155,7 @@ extension View {
 
 struct ViewLifecycleTracker: ViewModifier {
     let identifier: String
-    
+
     func body(content: Content) -> some View {
         content
             .onAppear {
@@ -172,19 +171,12 @@ struct ViewLifecycleTracker: ViewModifier {
 
 // Global overrides to filter scattered print and NSLog statements throughout the app
 
-public func NSLog(_ format: String, _ args: CVarArg...) {
-    let configuredLevel = Defaults[.logLevel]
-    if configuredLevel == .none { return }
-    
+public func NSLog(_ format: String, _ args: CVarArg..., file: String = #file, function: String = #function, line: Int = #line) {
     let message = String(format: format, arguments: args)
     let lowerMessage = message.lowercased()
-    
+
     let isError = message.contains("❌") || lowerMessage.contains("error") || lowerMessage.contains("failed")
     let isWarning = message.contains("⚠️") || lowerMessage.contains("warning")
-    
-    let simulatedLevel: LogLevel = isError ? .error : (isWarning ? .warning : .debug)
-    
-    if simulatedLevel.rawValue > configuredLevel.rawValue { return }
-    
-    Foundation.NSLog("%@", message)
-} 
+
+    Logger.log(message, category: isError ? .error : (isWarning ? .warning : .debug), file: file, function: function, line: line)
+}

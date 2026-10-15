@@ -28,39 +28,39 @@ struct FeatureManagementSettings: View {
                 if preset.snapshot != nil {
                     Button("Undo lightweight settings") { preset.restore() }
                 }
-            } header: { Text("Your setup") } footer: {
-                Text("Keep the features you use. Suggestions only switch off optional visuals and weather; music, Extra Space, Agents, Timer and Shelf keep your choices. Undo preserves settings you changed afterwards.")
+            } header: {
+                SettingsInfoLabel("Your setup", info: "Suggestions only turn off optional visuals and weather. Music, Extra Space, Agents, Timer and Shelf keep your choices. Undo keeps any settings you changed afterwards.")
             }
             Section {
-                feature("Music controls", key: .showStandardMediaControls, tab: "media", note: "Playback controls. Media tracking continues for live activities.")
-                feature("Extra Space", key: .enableExtraSpaceFeature, tab: "extraSpace", note: "A local scratchpad. No clipboard monitoring; hiding it keeps your text.")
-                feature("Agents", key: .enableAgentsFeature, tab: "agents", note: "Local events and connection refresh. Hooks are installed separately; screen questions need Screen Recording permission.")
-                feature("Timer", key: .enableTimerFeature, tab: "timer", note: "Runs until its deadline, including when the notch is closed.")
-                feature("Calendar", key: .showCalendar, tab: "calendar", note: "Calendar and reminder access; meeting links stay in Home.")
+                feature("Music controls", key: .showStandardMediaControls, tab: "media", note: "Play, pause and skip from the notch.")
+                feature("Extra Space", key: .enableExtraSpaceFeature, tab: "extraSpace", note: "A text tab in the notch. Hiding it keeps your text.")
+                feature("Agents", key: .enableAgentsFeature, tab: "agents", note: "Shows your coding agents' sessions in the notch. Screen questions need Screen Recording permission.")
+                feature("Timer", key: .enableTimerFeature, tab: "timer", note: "Keeps running while the notch is closed.")
+                feature("Calendar", key: .showCalendar, tab: "calendar", note: "Shows your events and reminders. Needs Calendar and Reminders access.")
             } header: { Text("Everyday tools") }
             Section {
-                feature("Stats", key: .enableStatsFeature, tab: "stats", note: "System sampling while visible; optional background sampling is slower.")
-                feature("Real-time waveform", key: .enableRealTimeWaveform, tab: "media", note: "Audio capture and live rendering. Needs audio capture permission.")
-                feature("Lyrics", key: .enableLyrics, tab: "media", note: "Fetches lyrics for the current track when enabled.")
-                feature("Camera mirror", key: .showMirror, tab: "appearance", note: "On-demand camera preview. Needs Camera permission.")
-                feature("Lock screen weather", key: .enableLockScreenWeatherWidget, tab: "lockScreen", note: "Weather requests and refresh while locked. Location permission if using current location.")
-                feature("Downloads", key: .enableDownloadListener, tab: "downloads", note: "Watches download folders when enabled; folder access may be required.")
-                feature("Color Picker", key: .enableColorPickerFeature, tab: "colorPicker", note: "On-demand screen color selection. Needs Screen Recording permission.")
+                feature("Stats", key: .enableStatsFeature, tab: "stats", note: "Measures your Mac only while Stats is showing, unless background sampling is on.")
+                feature("Real-time waveform", key: .enableRealTimeWaveform, tab: "media", note: "Moves the visualizer with your music. Needs audio recording permission.")
+                feature("Lyrics", key: .enableLyrics, tab: "media", note: "Fetches lyrics for the current song.")
+                feature("Camera mirror", key: .showMirror, tab: "appearance", note: "A camera preview when you open it. Needs Camera permission.")
+                feature("Lock screen weather", key: .enableLockScreenWeatherWidget, tab: "lockScreen", note: "Refreshes the weather while your Mac is locked. Uses Location if you choose current location.")
+                feature("Downloads", key: .enableDownloadListener, tab: "downloads", note: "Shows progress for files saved to your Downloads folder.")
+                feature("Color Picker", key: .enableColorPickerFeature, tab: "colorPicker", note: "Picks colors from the screen. Needs Screen Recording permission.")
             } header: { Text("Optional tools") }
             Section {
                 Button("Shelf settings") { navigate("shelf") }
-                Text("Hiding Shelf keeps its contents. Clear the tray separately in Shelf settings.").font(.caption).foregroundStyle(.secondary)
                 Button("Keyboard shortcuts") { navigate("shortcuts") }
                 Button("Calendar and meeting links") { navigate("calendar") }
                 Button("Hide during screenshots and recordings") { navigate("general") }
-                Text("Reorder notch tabs by dragging their icons in the open notch.").font(.caption).foregroundStyle(.secondary)
-            } header: { Text("Quick access") }
+            } header: {
+                SettingsInfoLabel("Quick access", info: "To reorder the notch tabs, drag their icons in the open notch.")
+            }
             Section {
                 if let resources { Text(resources).font(.caption).textSelection(.enabled) }
                 else { Text("Reading current resource counters…").foregroundStyle(.secondary) }
                 Button("Refresh resource overview") { Task { await refreshResources() } }
-            } header: { Text("Local storage and services") } footer: {
-                Text("Sampled when this page opens or you refresh. These are current cache and text counters, not per-feature process memory estimates.")
+            } header: {
+                SettingsInfoLabel("Local storage and services", info: "Counted when this page opens or when you refresh. These are cache and text sizes, not memory used by each feature.")
             }
         }
         .navigationTitle("Feature Management")
@@ -147,14 +147,15 @@ private struct ManagedFeatureRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(title, isOn: $enabled)
-            Text(status(enabled)).font(.caption).foregroundStyle(.secondary)
-                .accessibilityLabel("\(title) status: \(status(enabled))")
-            HStack(alignment: .top) {
-                Text(note).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: $enabled) {
+                SettingsInfoLabel(LocalizedStringKey(title), info: LocalizedStringKey(note))
+            }
+            HStack(alignment: .firstTextBaseline) {
+                Text(status(enabled)).font(.caption).foregroundStyle(.secondary)
+                    .accessibilityLabel("\(title) status: \(status(enabled))")
                 Spacer(minLength: 8)
-                Button("Details", action: details).font(.caption).accessibilityLabel("\(title) settings")
+                Button("Details", action: details).controlSize(.small).accessibilityLabel("\(title) settings")
             }
         }.padding(.vertical, 3)
     }

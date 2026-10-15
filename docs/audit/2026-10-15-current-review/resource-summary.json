@@ -1,0 +1,40 @@
+{
+  "pid": 842,
+  "scope": "main process only; existing user workload; first part overlaps build/fixtures",
+  "ps": {
+    "samples": 36,
+    "sampleSpanSeconds": 175.111576795578,
+    "monitorDurationSeconds": 180,
+    "cpuPercentMin": 0.0,
+    "cpuPercentMedian": 0.0,
+    "cpuPercentMax": 5.7,
+    "rssMiBMin": 42.53125,
+    "rssMiBMax": 48.984375,
+    "rssMiBLast": 48.421875,
+    "openFDCounts": [
+      28
+    ],
+    "directChildCounts": [
+      3
+    ]
+  },
+  "kernel": {
+    "samples": 25,
+    "seconds": 120.08922399999574,
+    "cpuTimeSeconds": 1.056386625,
+    "singleCoreCPUPercent": 0.8796681249268773,
+    "rssMiBMin": 47.59375,
+    "rssMiBMax": 49.015625,
+    "physicalFootprintMiBMin": 95.28246307373047,
+    "physicalFootprintMiBMax": 95.34496307373047,
+    "physicalFootprintMiBLast": 95.29808807373047,
+    "packageIdleWakeupsPerSecond": 0.34973995668421914,
+    "interruptWakeupsPerSecond": 11.158370046591754
+  },
+  "notEstablished": [
+    "controlled idle baseline",
+    "whole process tree overhead",
+    "long term leak freedom",
+    "battery impact"
+  ]
+}

@@ -130,6 +130,7 @@ import Foundation
             "DynamicIsland/managers/Agents/AgentSession.swift",
             "DynamicIsland/managers/Agents/AgentSessionStore.swift",
             "DynamicIsland/utils/PrivateContentFile.swift",
+            "DynamicIsland/utils/LatestSnapshotWriter.swift",
             "DynamicIsland/helpers/AppRuntimeEnvironment.swift"))
         results["combine_lifetime_control"] = swift_probe("combine-lifetime", r'''
 import Combine

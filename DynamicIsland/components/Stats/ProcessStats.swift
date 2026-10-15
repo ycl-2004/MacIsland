@@ -22,7 +22,7 @@ import SwiftUI
 
 // Process information structure
 struct ProcessStats: Identifiable, Hashable {
-    let id = UUID()
+    var id: Int32 { pid }
     let pid: Int32
     let name: String
     let cpuUsage: Double
@@ -41,7 +41,7 @@ struct ProcessStats: Identifiable, Hashable {
     }
 }
 
-enum ProcessRankingType {
+enum ProcessRankingType: Hashable, Sendable {
     case cpu
     case memory
     case gpu

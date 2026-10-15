@@ -1,0 +1,86 @@
+{
+  "scenario": "Installed Release, existing preferences, closed notch with Agent activity; ordinary desktop use, initial isolated tests/build overlap; not controlled idle or energy measurement.",
+  "ps": {
+    "samples": 144,
+    "firstUnixTime": 1791691510.693811,
+    "lastUnixTime": 1791692226.2764,
+    "spanSeconds": 715.5825891494751,
+    "sampledCPUPercentMean": 2.1881944444444446,
+    "sampledCPUPercentMedian": 1.0,
+    "sampledCPUPercentMax": 31.9,
+    "rssMiBMin": 72.5,
+    "rssMiBMax": 108.15625,
+    "rssMiBFirst": 80.078125,
+    "rssMiBFinal": 91.703125,
+    "openFDCounts": [
+      27,
+      28
+    ],
+    "directChildCounts": [
+      3
+    ]
+  },
+  "cumulativeCounters": [
+    {
+      "pid": 71861,
+      "kind": "Atoll",
+      "durationSeconds": 120.08352100000775,
+      "cpuPercentOneCore": 2.6702627595891864,
+      "footprintMiBMin": 55.407371520996094,
+      "footprintMiBMax": 69.2042465209961,
+      "footprintMiBFinal": 57.141746520996094,
+      "rssMiBFinal": 91.703125,
+      "interruptWakeupsPerSecond": 11.90837833610748,
+      "packageIdleWakeupsPerSecond": 3.722409172195835,
+      "diskBytesWritten": 32768
+    },
+    {
+      "pid": 71874,
+      "kind": "AtollProcessSupervisor",
+      "durationSeconds": 120.08352100000775,
+      "cpuPercentOneCore": 0.0,
+      "footprintMiBMin": 1.2191619873046875,
+      "footprintMiBMax": 1.2191619873046875,
+      "footprintMiBFinal": 1.2191619873046875,
+      "rssMiBFinal": 0.71875,
+      "interruptWakeupsPerSecond": 0.0,
+      "packageIdleWakeupsPerSecond": 0.0,
+      "diskBytesWritten": 0
+    },
+    {
+      "pid": 71875,
+      "kind": "mediaremote perl",
+      "durationSeconds": 120.08352100000775,
+      "cpuPercentOneCore": 0.00013289361604688712,
+      "footprintMiBMin": 8.031845092773438,
+      "footprintMiBMax": 8.047470092773438,
+      "footprintMiBFinal": 8.031845092773438,
+      "rssMiBFinal": 16.765625,
+      "interruptWakeupsPerSecond": 0.016655074595954517,
+      "packageIdleWakeupsPerSecond": 0.0,
+      "diskBytesWritten": 0
+    },
+    {
+      "pid": 71877,
+      "kind": "log",
+      "durationSeconds": 120.08352100000775,
+      "cpuPercentOneCore": 0.10597065326445454,
+      "footprintMiBMin": 3.4690704345703125,
+      "footprintMiBMax": 3.4846954345703125,
+      "footprintMiBFinal": 3.4846954345703125,
+      "rssMiBFinal": 3.71875,
+      "interruptWakeupsPerSecond": 0.0,
+      "packageIdleWakeupsPerSecond": 0.0,
+      "diskBytesWritten": 0
+    }
+  ],
+  "timebase": {
+    "numer": 125,
+    "denom": 3
+  },
+  "limits": [
+    "Counter sampling covers main + two known direct helpers + one grandchild; ps observed three direct children. Not a full-tree total.",
+    "No allocations/leaks trace, battery-energy measurement, sleep/wake or 24-72h soak.",
+    "First experimental resource-counters.jsonl incorrectly labeled raw Mach ticks as cpuNs; excluded from reported CPU results and retained in Build. Corrected collector rerun is used."
+  ]
+}

@@ -110,9 +110,7 @@ final class NextVersionReliabilityTests: XCTestCase {
     func testShelfDisableRetainsContentAcrossPersistenceAndExplicitClear() async throws {
         let folder = try temporaryFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let suite = "shelf-disable-test-\(UUID())"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: try temporaryDefaultsSuite()))
         let key = Defaults.Key<Bool>("enabled", default: true, suite: defaults)
         let persistence = ShelfPersistenceService(directory: folder.appendingPathComponent("store"))
         let item = ShelfItem(kind: .text(string: "Keep this content"))

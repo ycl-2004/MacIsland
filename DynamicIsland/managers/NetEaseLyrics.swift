@@ -47,7 +47,7 @@ enum NetEaseLyrics {
     ) async throws -> LyricsResolution {
         guard let searchURL = searchURL(title: title, artist: artist) else { return LyricsResolution() }
 
-        let (searchData, searchResponse) = try await session.data(from: searchURL)
+        let (searchData, searchResponse) = try await BoundedHTTP.data(from: searchURL, session: session)
         let searchStatus = (searchResponse as? HTTPURLResponse)?.statusCode
         guard searchStatus == 200 else {
             Logger.log("NetEase lyrics: search HTTP \(searchStatus ?? -1) title=\(title) artist=\(artist) duration=\(duration)", category: .network)
@@ -63,7 +63,7 @@ enum NetEaseLyrics {
         }
         Logger.log("NetEase lyrics: match id=\(song.id) name=\(song.name) duration=\(song.duration) for title=\(title) artist=\(artist) duration=\(duration) songs=\(songs.count)", category: .debug)
 
-        let (lyricData, lyricResponse) = try await session.data(from: lyricURL)
+        let (lyricData, lyricResponse) = try await BoundedHTTP.data(from: lyricURL, session: session)
         let lyricStatus = (lyricResponse as? HTTPURLResponse)?.statusCode
         guard lyricStatus == 200 else {
             Logger.log("NetEase lyrics: lyric HTTP \(lyricStatus ?? -1) id=\(song.id)", category: .network)

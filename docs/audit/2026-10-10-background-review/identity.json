@@ -1,0 +1,21 @@
+{
+  "reviewedCommit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+  "baseline": "ce417b73631d1b59126496ca4d180ca756652c6d",
+  "currentSourceSHA256": "d270a8f0877de24a12af34a55f4586d9f044a14487c3d02a6dc6faeeb28ac7fd",
+  "installedBuildInfo": {
+    "build": "1637",
+    "commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+    "configuration": "Release",
+    "dirty": "true",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "d270a8f0877de24a12af34a55f4586d9f044a14487c3d02a6dc6faeeb28ac7fd",
+    "version": "1.0.0",
+    "xcode": "2700"
+  },
+  "sourceMatchesInstalled": true,
+  "installedBinarySHA256": "88c588b72fb12d79626a65c38b2f03fd218f5289d3ebe4a21ba718552dc62840",
+  "sourceUnchangedDuringReview": true,
+  "runningProcess": "71861 /Applications/At Sat Oct 10 20:57:01 2026",
+  "runningProcessIdentityEvidence": "Prior installation receipt launch PID and current process start-time continuity; ps path is truncated. Supplementary proc_pidpath read was not executed because automatic approval quota was exhausted."
+}

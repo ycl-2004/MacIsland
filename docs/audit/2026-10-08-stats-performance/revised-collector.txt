@@ -1,0 +1,63 @@
+Revised source benchmark: real manager + sampler, optimized Swift 5 build
+UI drawing, ps and volume capacities excluded; private isolated preference domain
+PHASE: CPU / memory / GPU overview
+sample 00 enqueue 0.152 ms publication 0.004 ms background 2.947 ms notifications 1
+sample 01 enqueue 0.151 ms publication 0.006 ms background 2.429 ms notifications 1
+sample 02 enqueue 0.143 ms publication 0.011 ms background 5.707 ms notifications 1
+sample 03 enqueue 0.087 ms publication 0.005 ms background 3.118 ms notifications 1
+sample 04 enqueue 0.123 ms publication 0.012 ms background 4.038 ms notifications 1
+sample 05 enqueue 0.103 ms publication 0.008 ms background 3.686 ms notifications 1
+sample 06 enqueue 0.094 ms publication 0.009 ms background 4.464 ms notifications 1
+sample 07 enqueue 0.078 ms publication 0.015 ms background 3.633 ms notifications 1
+sample 08 enqueue 0.121 ms publication 0.008 ms background 4.189 ms notifications 1
+sample 09 enqueue 0.149 ms publication 0.011 ms background 8.154 ms notifications 1
+sample 10 enqueue 0.072 ms publication 0.008 ms background 2.535 ms notifications 1
+sample 11 enqueue 0.074 ms publication 0.006 ms background 2.391 ms notifications 1
+sample 12 enqueue 0.132 ms publication 0.008 ms background 4.775 ms notifications 1
+sample 13 enqueue 0.089 ms publication 0.007 ms background 5.374 ms notifications 1
+sample 14 enqueue 0.093 ms publication 0.008 ms background 3.866 ms notifications 1
+sample 15 enqueue 0.090 ms publication 0.019 ms background 3.688 ms notifications 1
+sample 16 enqueue 0.158 ms publication 0.012 ms background 6.001 ms notifications 1
+sample 17 enqueue 0.114 ms publication 0.006 ms background 3.837 ms notifications 1
+sample 18 enqueue 0.068 ms publication 0.010 ms background 4.445 ms notifications 1
+sample 19 enqueue 0.119 ms publication 0.014 ms background 6.690 ms notifications 1
+sample 20 enqueue 0.076 ms publication 0.006 ms background 2.296 ms notifications 1
+sample 21 enqueue 0.080 ms publication 0.008 ms background 4.300 ms notifications 1
+sample 22 enqueue 0.094 ms publication 0.008 ms background 2.510 ms notifications 1
+sample 23 enqueue 0.144 ms publication 0.010 ms background 6.048 ms notifications 1
+sample 24 enqueue 0.178 ms publication 0.009 ms background 4.887 ms notifications 1
+enqueue: warm mean 0.110 ms max 0.178 ms
+publication: warm mean 0.009 ms max 0.019 ms
+background collection: warm mean 4.294 ms max 8.154 ms
+Valid readings: GPU devices 1, temperature false, frequency false, core readings 0
+PHASE: all graphs + CPU details
+sample 00 enqueue 0.330 ms publication 0.011 ms background 199.849 ms notifications 1
+sample 01 enqueue 0.068 ms publication 0.007 ms background 12.149 ms notifications 1
+sample 02 enqueue 0.164 ms publication 0.015 ms background 23.926 ms notifications 1
+sample 03 enqueue 0.184 ms publication 0.013 ms background 21.379 ms notifications 1
+sample 04 enqueue 0.064 ms publication 0.005 ms background 10.666 ms notifications 1
+sample 05 enqueue 0.116 ms publication 0.009 ms background 17.431 ms notifications 1
+sample 06 enqueue 0.067 ms publication 0.007 ms background 11.046 ms notifications 1
+sample 07 enqueue 0.126 ms publication 0.016 ms background 19.487 ms notifications 1
+sample 08 enqueue 0.164 ms publication 0.016 ms background 17.403 ms notifications 1
+sample 09 enqueue 0.161 ms publication 0.011 ms background 22.252 ms notifications 1
+sample 10 enqueue 0.134 ms publication 0.015 ms background 20.698 ms notifications 1
+sample 11 enqueue 0.094 ms publication 0.010 ms background 19.735 ms notifications 1
+sample 12 enqueue 0.142 ms publication 0.009 ms background 18.548 ms notifications 1
+sample 13 enqueue 0.084 ms publication 0.010 ms background 15.819 ms notifications 1
+sample 14 enqueue 0.071 ms publication 0.009 ms background 14.514 ms notifications 1
+sample 15 enqueue 0.108 ms publication 0.011 ms background 18.581 ms notifications 1
+sample 16 enqueue 0.150 ms publication 0.015 ms background 21.757 ms notifications 1
+sample 17 enqueue 0.082 ms publication 0.010 ms background 15.361 ms notifications 1
+sample 18 enqueue 0.099 ms publication 0.010 ms background 17.689 ms notifications 1
+sample 19 enqueue 0.138 ms publication 0.010 ms background 15.606 ms notifications 1
+sample 20 enqueue 0.112 ms publication 0.012 ms background 23.323 ms notifications 1
+sample 21 enqueue 0.142 ms publication 0.011 ms background 19.940 ms notifications 1
+sample 22 enqueue 0.180 ms publication 0.014 ms background 21.537 ms notifications 1
+sample 23 enqueue 0.177 ms publication 0.011 ms background 22.549 ms notifications 1
+sample 24 enqueue 0.090 ms publication 0.011 ms background 19.061 ms notifications 1
+enqueue: warm mean 0.122 ms max 0.184 ms
+publication: warm mean 0.011 ms max 0.016 ms
+background collection: warm mean 18.352 ms max 23.926 ms
+Valid readings: GPU devices 1, temperature true, frequency true, core readings 10
+Maximum heartbeat interval (2 ms requested): 31.605 ms

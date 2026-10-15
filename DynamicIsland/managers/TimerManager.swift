@@ -126,11 +126,19 @@ class TimerManager: ObservableObject {
     private var timerInstance: Timer?
     /// Drives a manual timer; nil for external timers and when idle.
     private var countdown: TimerCountdown?
+    @Published private(set) var recoveryError: String?
+    private let recoveryFile = RecoveryFile<TimerRecovery>(url: AppRuntimeEnvironment.contentURL(
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Atoll/timer.json"),
+        testPath: "timer.json"), limit: 16 * 1024)
+    private var recoveryLoad: Task<Void, Never>?
+    private var recoverySave: Task<Void, Never>?
+    private(set) var recoveryRevision = 0
+
     private var cancellables = Set<AnyCancellable>()
     private var soundPlayer: AVAudioPlayer?
     private var smoothCloseWorkItem: DispatchWorkItem?
     private var lifecycle = TimerLifecycle()
-    private let logger = os.Logger(subsystem: "com.Ebullioscopic.Atoll", category: "TimerManager")
+    private let logger = os.Logger(subsystem: AtollDiagnostics.subsystem, category: "TimerManager")
 
     /// Identifies the current timer run. Delayed cleanup must match this value
     /// before changing presentation state.
@@ -145,6 +153,8 @@ class TimerManager: ObservableObject {
     }
     // MARK: - Initialization
     private init() {
+        recoveryLoad = Task { @MainActor [weak self] in await self?.restoreRecovery() }
+
         // Views observe TimerManager, not the bridge; forward capability
         // changes so allowsManualInteraction reflects Clock app lifecycle.
         SystemTimerBridge.shared.$canControlClockTimer
@@ -164,6 +174,8 @@ class TimerManager: ObservableObject {
     
     // MARK: - Timer Methods
     func startTimer(duration: TimeInterval, name: String = "Timer", preset: TimerPreset? = nil) {
+        guard duration.isFinite, duration > 0, duration <= 366 * 24 * 3600, name.utf8.count <= 4096 else { return }
+        defer { scheduleRecoverySave() }
         if activeSource == .external {
             endExternalTimer(triggerSmoothClose: false)
         }
@@ -253,6 +265,7 @@ class TimerManager: ObservableObject {
         guard isTimerActive && !isPaused else { return }
         isPaused = true
         countdown?.pause()
+        scheduleRecoverySave()
         timerInstance?.invalidate()
         timerInstance = nil
     }
@@ -271,6 +284,7 @@ class TimerManager: ObservableObject {
         isPaused = false
         lastUpdated = Date()
         countdown?.resume()
+        scheduleRecoverySave()
         startTicking()
     }
 
@@ -389,6 +403,7 @@ class TimerManager: ObservableObject {
     }
     
     private func resetTimer() {
+        defer { scheduleRecoverySave() }
         countdown = nil
         endTimerSession()
         withAnimation(.smooth) {
@@ -403,6 +418,71 @@ class TimerManager: ObservableObject {
         isOvertime = false
         activePresetId = nil
         activeSource = .none
+    }
+
+    private func scheduleRecoverySave() {
+        recoveryRevision += 1
+        recoverySave?.cancel()
+        recoverySave = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.awaitInitialRecovery()
+            guard !Task.isCancelled else { return }
+            _ = await self.persistRecovery()
+        }
+    }
+
+    @MainActor
+    private func persistRecovery() async -> String? {
+        let active: TimerRecovery.Active?
+        if activeSource == .manual, isTimerActive, !isFinished, let countdown {
+            active = TimerRecovery.Active(countdown: countdown, duration: totalDuration,
+                name: timerName, paused: isPaused, presetID: activePresetId)
+        } else { active = nil }
+        do { try await recoveryFile.save(TimerRecovery(active: active)); recoveryError = nil }
+        catch { recoveryError = "Timer state could not be saved. Resolve the storage problem before quitting." }
+        return recoveryError
+    }
+
+    /// Restores the saved manual timer unless one was started since launch. A
+    /// failed read keeps the file; `awaitInitialRecovery` reads it again before saving.
+    @MainActor
+    private func restoreRecovery() async {
+        do {
+            let saved = try await recoveryFile.load()
+            if recoveryRevision == 0, !isTimerActive, let active = saved?.active, active.isRestorable() {
+                beginTimerSession()
+                countdown = active.countdown
+                activeSource = .manual
+                isTimerActive = true
+                timerName = active.name
+                totalDuration = active.duration
+                remainingTime = active.countdown.displayedSeconds()
+                elapsedTime = max(0, active.duration - remainingTime)
+                isPaused = active.paused
+                activePresetId = active.presetID
+                lastUpdated = Date()
+                if !active.paused { startTicking() }
+            }
+            // Expired timers are cleared quietly; restarting never replays an old alarm.
+            _ = await persistRecovery()
+        } catch { recoveryError = "Timer recovery failed. The saved file has been kept." }
+    }
+
+    /// Waits for the saved timer. A read that failed is tried again, so a file
+    /// repaired since launch is restored before anything is saved over it.
+    @MainActor
+    func awaitInitialRecovery() async {
+        await recoveryLoad?.value
+        if await recoveryFile.readFailed { await restoreRecovery() }
+    }
+
+    @MainActor
+    func saveForTermination() async -> String? {
+        await awaitInitialRecovery()
+        recoverySave?.cancel()
+        let revision = recoveryRevision
+        if let error = await persistRecovery() { return error }
+        return revision == recoveryRevision ? nil : "The timer changed while saving. Please try again."
     }
 
     // MARK: - Derived State
@@ -484,7 +564,7 @@ class TimerManager: ObservableObject {
         let store = TimerSoundStore.shared
         let savedPath = Defaults[.customTimerSoundPath]
         if case .missing(let fileName) = store.selection(forSavedPath: savedPath) {
-            logger.warning("Timer sound \(fileName, privacy: .public) is missing; playing the default")
+            logger.warning("Timer sound \(fileName, privacy: .private) is missing; playing the default")
         }
 
         // A chosen file that no longer decodes still gets the bundled sound
@@ -492,7 +572,7 @@ class TimerManager: ObservableObject {
         let candidates = [store.playableURL(forSavedPath: savedPath), TimerSoundStore.bundledSoundURL]
         for case let url? in candidates {
             guard let player = try? AVAudioPlayer(contentsOf: url) else {
-                logger.error("Timer sound \(url.lastPathComponent, privacy: .public) could not be played")
+                logger.error("Timer sound \(url.lastPathComponent, privacy: .private) could not be played")
                 continue
             }
             player.numberOfLoops = -1 // Loops until the timer is stopped

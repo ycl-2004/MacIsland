@@ -235,7 +235,7 @@ private actor MusicExplicitnessResolver {
         }
 
         do {
-            let (data, _) = try await session.data(from: url)
+            let (data, _) = try await BoundedHTTP.data(from: url, session: session)
             let response = try JSONDecoder().decode(ITunesExplicitnessSearchResponse.self, from: data)
 
             let bestMatch = response.results
@@ -390,7 +390,7 @@ private actor SpotifyExplicitnessResolver {
         }
 
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await BoundedHTTP.data(from: url, session: session)
             guard let httpResponse = response as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode),
                   let html = String(data: data, encoding: .utf8)
@@ -1694,7 +1694,7 @@ class MusicManager: ObservableObject {
         let urlString = "https://lrclib.net/api/search?track_name=\(encodedTitle)&artist_name=\(encodedArtist)"
         guard let url = URL(string: urlString) else { return LyricsResolution() }
 
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let (data, response) = try await BoundedHTTP.data(from: url)
         if let http = response as? HTTPURLResponse, http.statusCode == 200 {
             // Metadata updates assign duration after preparing lyrics. Read it
             // after the request, before trusting a whole-track instrumental flag.

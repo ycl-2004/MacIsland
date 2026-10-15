@@ -24,6 +24,7 @@ import AppKit
 import Combine
 import Foundation
 
+@MainActor
 final class NowPlayingController: ObservableObject {
     /// How recent a sender's timestamp has to be for the position beside it to
     /// count as a reading of now rather than a record of something earlier.
@@ -53,8 +54,37 @@ final class NowPlayingController: ObservableObject {
     private var pipeHandler: JSONLinesPipeHandler?
     private var streamTask: Task<Void, Never>?
 
+    private var retryTask: Task<Void, Never>?
+    private var retryPolicy: ServiceRetryPolicy
+    private var generation = UUID()
+    private var stopped = false
+    private var wakeSubscription: AnyCancellable?
+    private let adapterCommand: () -> AdapterCommand?
+    @Published private(set) var connectionStatus = "starting"
+
+    /// What the adapter runs: the bundled supervisor and script, unless a test supplies its own.
+    struct AdapterCommand {
+        let executable: URL
+        let arguments: [String]
+
+        static var bundled: AdapterCommand? {
+            guard
+                let scriptURL = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl"),
+                let supervisorURL = Bundle.main.url(forResource: "AtollProcessSupervisor", withExtension: nil),
+                let frameworkPath = Bundle.main.resourceURL?.appendingPathComponent("MediaRemoteAdapter.framework").path
+            else { return nil }
+            // --micros swaps the time keys for microsecond equivalents. The default
+            // "timestamp" is an ISO-8601 string truncated to whole seconds, which
+            // throws away up to a second of the playback anchor and makes every
+            // position estimate drift by that much.
+            return AdapterCommand(executable: supervisorURL,
+                                  arguments: ["/usr/bin/perl", scriptURL.path, frameworkPath, "stream", "--micros"])
+        }
+    }
+
     // MARK: - Initialization
-    init?() {
+    init?(adapterCommand: @escaping () -> AdapterCommand? = { AdapterCommand.bundled },
+          retryPolicy: ServiceRetryPolicy = ServiceRetryPolicy()) {
         guard
             let bundle = CFBundleCreate(
                 kCFAllocatorDefault,
@@ -79,70 +109,95 @@ final class NowPlayingController: ObservableObject {
             MRMediaRemoteSetShuffleModePointer, to: (@convention(c) (Int) -> Void).self)
         MRMediaRemoteSetRepeatModeFunction = unsafeBitCast(
             MRMediaRemoteSetRepeatModePointer, to: (@convention(c) (Int) -> Void).self)
+        self.adapterCommand = adapterCommand
+        self.retryPolicy = retryPolicy
 
-        Task { await setupNowPlayingObserver() }
+        wakeSubscription = NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didWakeNotification)
+            .sink { [weak self] _ in Task { @MainActor in self?.reconnectIfUnavailable() } }
+        Task { [weak self] in await self?.setupNowPlayingObserver() }
     }
 
     deinit {
-        stop()
+        streamTask?.cancel()
+        retryTask?.cancel()
+        if let process { ProcessRunner.terminateOwned(process) }
+        if let pipeHandler { Task { await pipeHandler.close() } }
     }
 
-    /// Ends the adapter process. It never notices Atoll going away by itself,
-    /// and deinit alone is not enough: the stream task holds this controller
-    /// for as long as the stream runs.
     func stop() {
-        streamTask?.cancel()
-        streamTask = nil
+        stopped = true
+        generation = UUID()
+        connectionStatus = "stopped"
+        wakeSubscription = nil
+        retryTask?.cancel(); retryTask = nil
+        closeAdapter()
+    }
 
-        if let pipeHandler {
-            Task { await pipeHandler.close() }
-        }
+    /// Opens one new bounded round of retries after the last one ran out. A
+    /// system wake or a playback command calls it, so the adapter comes back
+    /// once its cause is gone without retrying forever in the background.
+    func reconnectIfUnavailable() {
+        guard !stopped, connectionStatus == "unavailable" else { return }
+        retryPolicy.reset()
+        connectionStatus = "starting"
+        Task { [weak self] in await self?.setupNowPlayingObserver() }
+    }
 
-        if let process, process.isRunning {
-            process.terminate()
-        }
-
+    private func closeAdapter() {
+        streamTask?.cancel(); streamTask = nil
+        if let pipeHandler { Task { await pipeHandler.close() } }
+        if let process { ProcessRunner.terminateOwned(process) }
         process = nil
         pipeHandler = nil
     }
 
-    /// Adapters left behind by an earlier Atoll that crashed or was killed
-    /// keep running under launchd. Only those are matched: parent is launchd,
-    /// script inside an Atoll bundle -- other apps ship the same adapter.
-    private static func terminateOrphanedAdapters() {
-        let pkill = Process()
-        pkill.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
-        pkill.arguments = ["-P", "1", "-f", "Atoll[^/]*\\.app/Contents/Resources/mediaremote-adapter\\.pl"]
-        do {
-            try pkill.run()
-            pkill.waitUntilExit()
-        } catch {
-            Logger.log("NowPlayingController: could not look for orphaned adapters: \(error)", category: .warning)
+    private func adapterEnded(epoch: UUID) {
+        guard !stopped, epoch == generation else { return }
+        generation = UUID()
+        closeAdapter()
+        playbackState.isPlaying = false
+        Logger.log("Now Playing adapter disconnected", category: .warning)
+        guard let delay = retryPolicy.nextDelay() else {
+            connectionStatus = "unavailable"
+            return
+        }
+        connectionStatus = "retrying"
+        retryTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self, !self.stopped else { return }
+            await self.setupNowPlayingObserver()
         }
     }
 
     // MARK: - Playback Commands
     func play() async {
+        reconnectIfUnavailable()
         MRMediaRemoteSendCommandFunction(0, nil)
     }
 
     func pause() async {
+        reconnectIfUnavailable()
         MRMediaRemoteSendCommandFunction(1, nil)
     }
 
     func togglePlay() async {
+        reconnectIfUnavailable()
         MRMediaRemoteSendCommandFunction(2, nil)
     }
 
     func nextTrack() async {
+        reconnectIfUnavailable()
         MRMediaRemoteSendCommandFunction(4, nil)
     }
 
     func previousTrack() async {
+        reconnectIfUnavailable()
         MRMediaRemoteSendCommandFunction(5, nil)
     }
 
     func seek(to time: Double) async {
+        reconnectIfUnavailable()
         MRMediaRemoteSetElapsedTimeFunction(time)
     }
 
@@ -194,63 +249,43 @@ final class NowPlayingController: ObservableObject {
     
     // MARK: - Setup Methods
     private func setupNowPlayingObserver() async {
-        Self.terminateOrphanedAdapters()
+        guard !stopped else { return }
+        let epoch = UUID()
+        generation = epoch
+        connectionStatus = "starting"
         let process = Process()
-        guard
-            let scriptURL = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl"),
-            //let frameworkPath = Bundle.main.privateFrameworksPath?.appending("/MediaRemoteAdapter.framework")
-            let frameworkPath =
-                Bundle.main.resourceURL?
-                    .appendingPathComponent("MediaRemoteAdapter.framework")
-                    .path
-
-        else {
-            assertionFailure("Could not find mediaremote-adapter.pl script or framework path")
+        guard let command = adapterCommand() else {
+            connectionStatus = "unavailable"
+            Logger.log("Now Playing adapter resources are unavailable", category: .error)
             return
         }
-        
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
-        // --micros swaps the time keys for microsecond equivalents. The default
-        // "timestamp" is an ISO-8601 string truncated to whole seconds, which
-        // throws away up to a second of the playback anchor and makes every
-        // position estimate drift by that much.
-        process.arguments = [scriptURL.path, frameworkPath, "stream", "--micros"]
-        
+        process.executableURL = command.executable
+        process.arguments = command.arguments
+
         let pipeHandler = JSONLinesPipeHandler()
         process.standardOutput = await pipeHandler.getPipe()
 
-        // Capture stderr so framework/script errors are logged
-        let stderrPipe = Pipe()
-        process.standardError = stderrPipe
-        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty,
-                  let message = String(data: data, encoding: .utf8)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !message.isEmpty
-            else { return }
-            debugLog("NowPlayingController [stderr]: \(message)")
-        }
-        
+        // A noisy adapter cannot fill a stderr pipe or retain unbounded diagnostics.
+        process.standardError = FileHandle.nullDevice
+        guard !stopped, epoch == generation else { await pipeHandler.close(); return }
         self.process = process
         self.pipeHandler = pipeHandler
-
+        process.terminationHandler = { [weak self] _ in
+            Task { @MainActor in self?.adapterEnded(epoch: epoch) }
+        }
         do {
             try process.run()
+            connectionStatus = "ready"
+            retryPolicy.ready()
             streamTask = Task { [weak self] in
-                await self?.processJSONStream()
+                await pipeHandler.readJSONLines(as: NowPlayingUpdate.self) { [weak self] update in
+                    guard let self, !self.stopped, self.generation == epoch else { return }
+                    await self.handleAdapterUpdate(update)
+                }
+                self?.adapterEnded(epoch: epoch)
             }
         } catch {
-            assertionFailure("Failed to launch mediaremote-adapter.pl: \(error)")
-        }
-    }
-
-    // MARK: - Async Stream Processing
-    private func processJSONStream() async {
-        guard let pipeHandler = self.pipeHandler else { return }
-        
-        await pipeHandler.readJSONLines(as: NowPlayingUpdate.self) { [weak self] update in
-            await self?.handleAdapterUpdate(update)
+            adapterEnded(epoch: epoch)
         }
     }
 

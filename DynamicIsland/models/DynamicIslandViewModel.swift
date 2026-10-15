@@ -285,7 +285,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
     func open() {
         let targetSize = calculateDynamicNotchSize()
 
-        let applyWindowResize: () -> Void = {
+        let applyWindowResize: @MainActor @Sendable () -> Void = {
             guard let delegate = AppDelegate.shared else { return }
             delegate.ensureWindowSize(
                 addShadowPadding(to: targetSize),

@@ -320,16 +320,8 @@ final class PinnedLyricsSettingsTests: XCTestCase {
     }
 
     func testContextRoundTripsThroughDefaultsWithoutTouchingUserPreferences() throws {
-        // A suite named by a path keeps its plist in the temporary folder; a
-        // named one would leave an empty plist in ~/Library/Preferences.
-        let folder = FileManager.default.temporaryDirectory.appending(path: "Atoll.PinnedLyricsTests.\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let name = folder.appending(path: "defaults").path
+        let name = try temporaryDefaultsSuite()
         let suite = UserDefaults(suiteName: name)!
-        defer {
-            suite.removePersistentDomain(forName: name)
-            try? FileManager.default.removeItem(at: folder)
-        }
         let key = Defaults.Key<PinnedLyricContext>("pinnedLyricContext", default: .current, suite: suite)
         XCTAssertEqual(Defaults[key], .current)
         for context in PinnedLyricContext.allCases {

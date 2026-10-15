@@ -1,0 +1,51 @@
+{
+  "recordedAt": "2026-10-15T07:04:56.623008+00:00",
+  "projectCommit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+  "toolchain": "Xcode 27.0\nBuild version 27A266a",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+  "installedProcess": {
+    "pid": 842,
+    "executable": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "startedLocal": "2026-10-13 18:29:44 -0700"
+  },
+  "installedBuildInfo": {
+    "build": "1637",
+    "commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+    "configuration": "Release",
+    "dirty": "true",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "8c2b6bb119509675e436f024e4808f631f2e64e58856639fdb7ea4131b7b18ad",
+    "version": "1.0.0",
+    "xcode": "2700"
+  },
+  "testedBuildInfo": {
+    "build": "1637",
+    "commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+    "configuration": "Debug",
+    "dirty": "true",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "8c2b6bb119509675e436f024e4808f631f2e64e58856639fdb7ea4131b7b18ad",
+    "version": "1.0.0",
+    "xcode": "2700"
+  },
+  "installedExecutableSHA256": "c057f99e60279990ee75d1a7f83d631a68f3b43d1d1dcf8bd673b15c90042eca",
+  "releaseBuildSucceeded": true,
+  "releaseWarningLines": 46,
+  "sourceModifiedThisReview": false,
+  "scope": [
+    "current source tests and build",
+    "synthetic stress probes",
+    "existing production process metadata and resource counters"
+  ],
+  "notRun": [
+    "real Agent CLI",
+    "XCUITest",
+    "sanitizers",
+    "sleep/wake and multiple displays",
+    "24-72 hour soak"
+  ],
+  "fixturePassGroups": 17,
+  "sourceSHA256AtCloseout": "8c2b6bb119509675e436f024e4808f631f2e64e58856639fdb7ea4131b7b18ad"
+}

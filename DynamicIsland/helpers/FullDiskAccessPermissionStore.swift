@@ -121,8 +121,8 @@ final class FullDiskAccessPermissionStore: ObservableObject {
     func requestAccessPrompt() {
 #if os(macOS)
         let alert = NSAlert()
-        alert.messageText = String(localized: "Full Disk Access Required")
-        alert.informativeText = String(localized: "Dynamic Island needs Full Disk Access to detect custom Focus indicators and power the Shelf. Click Continue to open Full Disk Access settings, then press the + button and select Dynamic Island (we'll reveal it in Finder for you).")
+        alert.messageText = String(localized: "Allow Full Disk Access")
+        alert.informativeText = String(localized: "Full Disk Access lets Atoll show custom Focus icons and keep Shelf files from any folder. Click Continue to open the settings, then click + and choose Atoll, which is shown in Finder for you.")
         alert.alertStyle = .informational
         alert.addButton(withTitle: String(localized: "Continue"))
         alert.addButton(withTitle: String(localized: "Cancel"))

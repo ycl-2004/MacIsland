@@ -17,7 +17,7 @@ struct NotchAgentsView: View {
                 Text("Sessions").font(.notch(.caption, weight: .semibold))
                 Text("\(orderedSessions.count)").monospacedDigit().foregroundStyle(.inkTertiary)
                 Spacer()
-                if let message = conversations.connectionMessage {
+                if let message = conversations.draftPersistenceError ?? conversations.connectionMessage {
                     Image(systemName: "bolt.slash.circle").foregroundStyle(.inkTertiary).help(message).accessibilityLabel("Codex connection status: \(message)")
                 }
                 Button { store.remove(endedSessions) } label: {

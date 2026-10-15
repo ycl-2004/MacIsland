@@ -27,7 +27,6 @@ import os
 final class SystemTimerBridge: ObservableObject {
     static let shared = SystemTimerBridge()
 
-    private let logger = os.Logger(subsystem: "com.Ebullioscopic.Atoll", category: "SystemTimerBridge")
 
     // Cached so layout reads (allowsManualInteraction) don't enumerate running apps.
     @Published private(set) var canControlClockTimer = false
@@ -173,16 +172,16 @@ final class SystemTimerBridge: ObservableObject {
         }
     }
 
-    private func logDebug(_ message: String) {
-        logger.debug("\(message, privacy: OSLogPrivacy.public)")
+    private func logDebug(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        Logger.log(message, category: .debug, file: file, function: function, line: line)
     }
 
-    private func logInfo(_ message: String) {
-        logger.info("\(message, privacy: OSLogPrivacy.public)")
+    private func logInfo(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        Logger.log(message, category: .lifecycle, file: file, function: function, line: line)
     }
 
-    private func logError(_ message: String) {
-        logger.error("\(message, privacy: OSLogPrivacy.public)")
+    private func logError(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        Logger.log(message, category: .error, file: file, function: function, line: line)
     }
 
     private func startIfNeeded() {
@@ -294,7 +293,7 @@ final class SystemTimerBridge: ObservableObject {
 
         let outputPipe = Pipe()
         process.standardOutput = outputPipe
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
 
         logBuffer.removeAll(keepingCapacity: false)
         nonJSONLogLineCount = 0
@@ -339,8 +338,7 @@ final class SystemTimerBridge: ObservableObject {
         if let process = logProcess {
             process.terminationHandler = nil
             if process.isRunning {
-                process.terminate()
-                process.waitUntilExit()
+                ProcessRunner.terminateOwned(process)
                 logInfo("Log stream terminated (pid: \(process.processIdentifier))")
             }
         }

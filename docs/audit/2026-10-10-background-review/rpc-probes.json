@@ -1,0 +1,5 @@
+{
+  "control": "characters=16000, utf8Bytes=64000, requestTimeout=0.15s, requestElapsed=0.162423250003485s, maximumMainActorHeartbeatGap=0.015720166673418134s, outcome=error: Codex did not respond in time.",
+  "outOfDraftBudgetDiscarded": "characters=16000, utf8Bytes=400000, requestTimeout=0.15s, requestElapsed=3.0015113333356567s, maximumMainActorHeartbeatGap=3.012072541663656s, outcome=returned",
+  "withinBothDraftLimits": "characters=2621, utf8Bytes=65525, requestTimeout=0.15s, requestElapsed=2.999657208332792s, maximumMainActorHeartbeatGap=3.0118167499967967s, outcome=returned"
+}

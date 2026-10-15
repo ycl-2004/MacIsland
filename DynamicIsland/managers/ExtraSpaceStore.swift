@@ -17,13 +17,25 @@ final class ExtraSpaceStore: ObservableObject {
     let fileURL: URL
     private let saveDelay: TimeInterval
     private let persistenceQueue = DispatchQueue(label: "app.atoll.extra-space.persistence", qos: .utility)
-    private var pendingSave: DispatchWorkItem?
+    private var pendingSave: Task<Void, Never>?
     private var revision = 0
     private var enqueuedRevision: Int?
     private let writer = Writer()
+    private struct SaveSnapshot { let text: String; let revision: Int }
+    private struct SaveResult { let revision: Int; let failure: String?; let hasPrevious: Bool }
+    private lazy var snapshotWriter = LatestSnapshotWriter<SaveSnapshot, SaveResult>(
+        queue: persistenceQueue,
+        write: { [writer, fileURL] snapshot in
+            let failure = writer.write(snapshot.text, revision: snapshot.revision, to: fileURL)
+            return SaveResult(revision: snapshot.revision, failure: failure, hasPrevious: writer.hasPrevious)
+        },
+        didWrite: { [weak self] result in
+            DispatchQueue.main.async {
+                self?.didSave(revision: result.revision, failure: result.failure, hasPrevious: result.hasPrevious)
+            }
+        })
     @Published private(set) var byteCount = 0
     @Published private(set) var hasPreviousVersion = false
-    private var terminationObserver: NSObjectProtocol?
 
     init(fileURL: URL? = nil, saveDelay: TimeInterval = 0.5) {
         self.fileURL = fileURL ?? AppRuntimeEnvironment.contentURL(
@@ -31,17 +43,8 @@ final class ExtraSpaceStore: ObservableObject {
             testPath: "ExtraSpace/content.txt")
         self.saveDelay = saveDelay
         load()
-        // Final cleanup must finish before AppKit exits; ordinary saves remain
-        // asynchronous. https://developer.apple.com/documentation/appkit/nsapplication/willterminatenotification
-        terminationObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.flushPendingSave() }
-        }
-    }
-
-    deinit {
-        if let terminationObserver { NotificationCenter.default.removeObserver(terminationObserver) }
+        // Quit/restart saving belongs to AppTerminationCoordinator, before
+        // AppKit commits to termination. A willTerminate observer cannot cancel.
     }
 
     func updateText(_ newText: String) {
@@ -55,19 +58,13 @@ final class ExtraSpaceStore: ObservableObject {
         revision += 1
         if !isDirty { isDirty = true }
         pendingSave?.cancel()
-        let snapshot = newText
-        let snapshotRevision = revision
-        let url = fileURL
-        let writer = writer
-        let work = DispatchWorkItem { [weak self] in
-            let failure = writer.write(snapshot, revision: snapshotRevision, to: url)
-            let previous = writer.hasPrevious
-            DispatchQueue.main.async {
-                self?.didSave(revision: snapshotRevision, failure: failure, hasPrevious: previous)
-            }
+        let delay = saveDelay
+        pendingSave = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self else { return }
+            self.pendingSave = nil
+            self.saveNow()
         }
-        pendingSave = work
-        persistenceQueue.asyncAfter(deadline: .now() + saveDelay, execute: work)
     }
 
     /// Leaving the tab or disabling the feature saves immediately, without
@@ -77,29 +74,33 @@ final class ExtraSpaceStore: ObservableObject {
         enqueuedRevision = revision
         pendingSave?.cancel()
         pendingSave = nil
-        let snapshot = text
-        let snapshotRevision = revision
-        let url = fileURL
-        let writer = writer
-        persistenceQueue.async { [weak self] in
-            let failure = writer.write(snapshot, revision: snapshotRevision, to: url)
-            let previous = writer.hasPrevious
-            DispatchQueue.main.async {
-                self?.didSave(revision: snapshotRevision, failure: failure, hasPrevious: previous)
-            }
-        }
+        snapshotWriter.submit(SaveSnapshot(text: text, revision: revision))
     }
 
     func flushPendingSave() {
         guard isLoaded, isDirty else { return }
-        pendingSave?.cancel()
-        pendingSave = nil
-        let snapshot = text
-        let url = fileURL
-        let snapshotRevision = revision
-        let writer = writer
-        let result = persistenceQueue.sync { (writer.write(snapshot, revision: snapshotRevision, to: url), writer.hasPrevious) }
-        didSave(revision: revision, failure: result.0, hasPrevious: result.1)
+        saveNow()
+        guard let result = snapshotWriter.flushSynchronously() else { return }
+        didSave(revision: result.revision, failure: result.failure, hasPrevious: result.hasPrevious)
+    }
+
+    /// Queue a barrier after the initial read and its main-queue publication.
+    /// A lazily-created store must not look like a user edit during Quit.
+    func awaitInitialLoad() async {
+        await withCheckedContinuation { continuation in
+            persistenceQueue.async {
+                DispatchQueue.main.async { continuation.resume() }
+            }
+        }
+    }
+
+    func saveForTermination() async -> String? {
+        if !isLoaded { await awaitInitialLoad() }
+        guard isLoaded, isDirty else { return nil }
+        saveNow()
+        guard let result = await snapshotWriter.flush() else { return nil }
+        didSave(revision: result.revision, failure: result.failure, hasPrevious: result.hasPrevious)
+        return result.failure ?? (isDirty ? "Text changed while saving. Please try again." : nil)
     }
 
     func retry() {
@@ -152,6 +153,7 @@ final class ExtraSpaceStore: ObservableObject {
     func recoverPrevious() {
         guard !isRelaunching else { return }
         pendingSave?.cancel(); pendingSave = nil
+        snapshotWriter.discardPending()
         enqueuedRevision = nil
         let url = fileURL
         persistenceQueue.async { [weak self] in

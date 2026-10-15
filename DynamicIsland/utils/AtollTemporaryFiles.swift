@@ -1,8 +1,7 @@
 import Foundation
 
-/// Every temporary file Atoll writes lives under one folder, one subfolder per
-/// feature, so all of it can be removed together: a launch starts with nothing
-/// left from an earlier run, and quitting leaves nothing behind.
+/// Shelf attachments outlive a run. Other temporary files belong to one app
+/// instance, so a retiring instance never removes its replacement's files.
 enum AtollTemporaryFiles {
     enum Area: String, CaseIterable {
         /// Screenshots taken for a screen question.
@@ -17,11 +16,16 @@ enum AtollTemporaryFiles {
     }
 
     static let root = AppRuntimeEnvironment.contentURL(FileManager.default.temporaryDirectory.appendingPathComponent("Atoll", isDirectory: true), testPath: "Temporary")
+    private static let runDirectory = root.appendingPathComponent("Runs/\(ProcessInfo.processInfo.processIdentifier)-\(UUID())", isDirectory: true)
+
+    private static func path(_ area: Area) -> URL {
+        (area == .shelf ? root : runDirectory).appendingPathComponent(area.rawValue, isDirectory: true)
+    }
 
     /// The folder for one feature's temporary files, created when missing and
     /// readable by this user only.
     static func directory(_ area: Area) -> URL {
-        let url = root.appendingPathComponent(area.rawValue, isDirectory: true)
+        let url = path(area)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         return url
     }
@@ -31,9 +35,23 @@ enum AtollTemporaryFiles {
     static func removeAll(except kept: Set<Area>) {
         let fm = FileManager.default
         for area in Area.allCases where !kept.contains(area) {
-            try? fm.removeItem(at: root.appendingPathComponent(area.rawValue, isDirectory: true))
+            try? fm.removeItem(at: path(area))
         }
+        rmdir(runDirectory.path)
+        removeDeadRuns()
         removeLegacyFiles()
+    }
+
+    private static func removeDeadRuns() {
+        let fm = FileManager.default
+        let folder = root.appendingPathComponent("Runs", isDirectory: true)
+        let entries = (try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isSymbolicLinkKey])) ?? []
+        for entry in entries {
+            guard (try? entry.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink != true,
+                  let prefix = entry.lastPathComponent.split(separator: "-").first,
+                  let pid = Int32(prefix), pid > 1, kill(pid, 0) == -1, errno == ESRCH else { continue }
+            try? fm.removeItem(at: entry)
+        }
     }
 
     /// How old an entry has to be before `removeUnused` may take it. What is in
@@ -45,7 +63,7 @@ enum AtollTemporaryFiles {
     /// `unusedEntryMinimumAge`, then the area's folder and the root once
     /// nothing is left in them.
     static func removeUnused(in area: Area, inUse: Set<URL>) {
-        let folder = root.appendingPathComponent(area.rawValue, isDirectory: true)
+        let folder = path(area)
         removeEntries(of: folder, notIn: inUse, createdBefore: Date().addingTimeInterval(-unusedEntryMinimumAge))
         // `rmdir` only removes an empty folder, so one a new file has just gone
         // into stays.
@@ -77,7 +95,11 @@ enum AtollTemporaryFiles {
         let temporary = fm.temporaryDirectory
         guard let names = try? fm.contentsOfDirectory(atPath: temporary.path) else { return }
         for name in names where legacyPrefixes.contains(where: name.hasPrefix) {
-            try? fm.removeItem(at: temporary.appendingPathComponent(name))
+            let url = temporary.appendingPathComponent(name)
+            // An older application version might still be alive during upgrade.
+            guard let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
+                  modified < Date().addingTimeInterval(-86400) else { continue }
+            try? fm.removeItem(at: url)
         }
     }
 }

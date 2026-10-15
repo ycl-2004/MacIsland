@@ -1,0 +1,167 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test-without-building -xctestrun /tmp/atoll-stats-probe/native/Stats.xctestrun -destination platform=macOS -parallel-testing-enabled NO "-skip-testing:DynamicIslandTests/LightweightPolicyTests/testFeatureManagementDestinationRendersInTheSettingsWindow" -resultBundlePath /tmp/atoll-stats-probe/native/StatsDelivery.xcresult
+
+Writing result bundle at path:
+	/tmp/atoll-stats-probe/native/StatsDelivery.xcresult
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:macOS, arch:arm64e, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:x86_64, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64e, variant:Mac Catalyst, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:Mac Catalyst, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:x86_64, variant:Mac Catalyst, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64e, variant:DriverKit, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:DriverKit, id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64e, variant:Designed for [iPad,iPhone], id:00008132-001A681436D3801C, name:My Mac }
+{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], id:00008132-001A681436D3801C, name:My Mac }
+2026-10-08 16:38:17.347937-0700 Atoll[57815:8451529] [Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.348206-0700 Atoll[57815:8451529] [Application] Error registering app with intents framework: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.348727-0700 Atoll[57815:8451519] [Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.348754-0700 Atoll[57815:8451519] [Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.349363-0700 Atoll[57815:8451520] [Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.349388-0700 Atoll[57815:8451520] [Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.349981-0700 Atoll[57815:8451520] [Connection] Will NOT re-try to establish the connection
+2026-10-08 16:38:17.350012-0700 Atoll[57815:8451529] [Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.350034-0700 Atoll[57815:8451529] [Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-10-08 16:38:17.367306-0700 Atoll[57815:8451474] ✅ Fullscreen status: ["Built-in Retina Display": false]
+2026-10-08 16:38:17.394340-0700 Atoll[57815:8451474] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x77c553ebc0> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-08 16:38:17.478197-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478228-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478248-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478263-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478277-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478291-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478304-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478317-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478329-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478474-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478500-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478519-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478536-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478619-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478635-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478647-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478659-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478670-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478681-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478692-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478765-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478777-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478788-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478798-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478809-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478820-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478903-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478927-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478943-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478957-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478975-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.478987-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479015-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479026-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479038-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479048-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479063-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479077-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479152-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479165-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479175-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479186-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479197-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479207-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479279-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479292-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479302-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479314-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479325-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479335-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479396-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479408-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479418-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479429-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479439-0700 Atoll[57815:8451474] [carc] Message send exceeds rate-limit threshold and will be dropped. { reporterID=248313534218241, rateLimit=32hz }
+2026-10-08 16:38:17.479487-0700 Atoll[57815:8451474] [carc] Reporter disconnected or already stopped. { func=stop, reporterID=248313534218241 }
+2026-10-08 16:38:17.537301-0700 Atoll[57815:8451474] [] CMIO_DAL_CMIOExtension_Device.mm:373:Device legacy uuid isn't present, using new style uuid instead
+2026-10-08 16:38:17.659008-0700 Atoll[57815:8451520] [] warning: failed to mark memory(GRAPHICS) error 0x8 ((os/kern) no access)
+Test Suite 'Selected tests' started at 2026-10-08 16:38:17.761.
+Test Suite 'DynamicIslandTests.xctest' started at 2026-10-08 16:38:17.762.
+Test Suite 'LightweightPolicyTests' started at 2026-10-08 16:38:17.762.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testBackgroundStatsResumeAfterUnlockButDoNotColdStart]' started.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testBackgroundStatsResumeAfterUnlockButDoNotColdStart]' passed (0.007 seconds).
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testConnectionRefreshSlowsWithoutDisablingEvents]' started.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testConnectionRefreshSlowsWithoutDisablingEvents]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testPresetRoundTripAndShelfExclusion]' started.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testPresetRoundTripAndShelfExclusion]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testPresetUndoProtectsManualEditsIncludingRoundTrips]' started.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testPresetUndoProtectsManualEditsIncludingRoundTrips]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testRealDefaultsTransactionRejectsStalePreviewAndPreservesLaterEdits]' started.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testRealDefaultsTransactionRejectsStalePreviewAndPreservesLaterEdits]' passed (0.007 seconds).
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testStatsGateAndBackgroundCadence]' started.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testStatsGateAndBackgroundCadence]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testStatsStartsFromPublishedVisibilityAndStopsWhenHidden]' started.
+Test Case '-[DynamicIslandTests.LightweightPolicyTests testStatsStartsFromPublishedVisibilityAndStopsWhenHidden]' passed (0.001 seconds).
+Test Suite 'LightweightPolicyTests' passed at 2026-10-08 16:38:17.783.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.019 (0.021) seconds
+Test Suite 'NextVersionReliabilityTests' started at 2026-10-08 16:38:17.783.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testCalendarServiceOnlyQueriesForDemandAndPreservesReminderConsumer]' started.
+2026-10-08 16:38:17.786184-0700 Atoll[57815:8451474] [lifecycle] 🔄 [2026-10-08T23:38:17.786Z] [CalendarManager.swift:449] updateEvents(force:) - CalendarManager: Updating events (force: false)
+🔄 [2026-10-08T23:38:17.786Z] [CalendarManager.swift:449] updateEvents(force:) - CalendarManager: Updating events (force: false)
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testCalendarServiceOnlyQueriesForDemandAndPreservesReminderConsumer]' passed (0.116 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testCoordinatorRoutesDisabledCurrentRememberedAndShortcutTargets]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testCoordinatorRoutesDisabledCurrentRememberedAndShortcutTargets]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testPermissionSnapshotRequiresReadAccessAndDistinguishesCameraDenial]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testPermissionSnapshotRequiresReadAccessAndDistinguishesCameraDenial]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReadOnlyFindBarOpensAndCancelsWithoutEditingOrChangingUndo]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReadOnlyFindBarOpensAndCancelsWithoutEditingOrChangingUndo]' passed (0.241 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReduceMotionRemovesTheActualCoreAnimationPulse]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReduceMotionRemovesTheActualCoreAnimationPulse]' passed (0.045 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReminderCompletionImmediatelyUpdatesTheIndependentSnapshot]' started.
+2026-10-08 16:38:18.197256-0700 Atoll[57815:8451474] [lifecycle] 🔄 [2026-10-08T23:38:18.197Z] [CalendarManager.swift:449] updateEvents(force:) - CalendarManager: Updating events (force: true)
+🔄 [2026-10-08T23:38:18.197Z] [CalendarManager.swift:449] updateEvents(force:) - CalendarManager: Updating events (force: true)
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReminderCompletionImmediatelyUpdatesTheIndependentSnapshot]' passed (0.008 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReminderSnapshotFollowsTodayAndRollsAcrossMidnightIndependentlyOfHome]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testReminderSnapshotFollowsTodayAndRollsAcrossMidnightIndependentlyOfHome]' passed (0.007 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testRoutingUsesSavedOrderAndKeepsColorPickerSeparate]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testRoutingUsesSavedOrderAndKeepsColorPickerSeparate]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testShelfDisableRetainsContentAcrossPersistenceAndExplicitClear]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testShelfDisableRetainsContentAcrossPersistenceAndExplicitClear]' passed (0.046 seconds).
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testTextExportPreservesUnicodeAndFailureDoesNotChangeTheDocument]' started.
+Test Case '-[DynamicIslandTests.NextVersionReliabilityTests testTextExportPreservesUnicodeAndFailureDoesNotChangeTheDocument]' passed (0.002 seconds).
+Test Suite 'NextVersionReliabilityTests' passed at 2026-10-08 16:38:18.256.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.469 (0.472) seconds
+Test Suite 'StatsPerformanceTests' started at 2026-10-08 16:38:18.256.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testClearHistoryRejectsAnInFlightOldHistory]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testClearHistoryRejectsAnInFlightOldHistory]' passed (0.015 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testDetailDemandIsIndependentAcrossWindows]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testDetailDemandIsIndependentAcrossWindows]' passed (0.003 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testOneCoherentPublicationPerSample]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testOneCoherentPublicationPerSample]' passed (0.009 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testOverviewSamplerSkipsDetailAndDisabledHardware]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testOverviewSamplerSkipsDetailAndDisabledHardware]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testProcessIdentitySurvivesMetricUpdates]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testProcessIdentitySurvivesMetricUpdates]' passed (0.001 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testRestartRejectsPreviousGeneration]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testRestartRejectsPreviousGeneration]' passed (0.021 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testSlowSampleLeavesMainActorResponsiveAndCoalescesRequests]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testSlowSampleLeavesMainActorResponsiveAndCoalescesRequests]' passed (0.022 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testStoppedSampleCannotPublishLateResults]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testStoppedSampleCannotPublishLateResults]' passed (0.009 seconds).
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testTimerRequestsSamplesDuringControlTracking]' started.
+Test Case '-[DynamicIslandTests.StatsPerformanceTests testTimerRequestsSamplesDuringControlTracking]' passed (1.187 seconds).
+Test Suite 'StatsPerformanceTests' passed at 2026-10-08 16:38:19.527.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 1.268 (1.271) seconds
+Test Suite 'DynamicIslandTests.xctest' passed at 2026-10-08 16:38:19.528.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 1.756 (1.766) seconds
+Test Suite 'Selected tests' passed at 2026-10-08 16:38:19.528.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 1.756 (1.767) seconds
+2026-10-08 16:38:19.820 xcodebuild[57811:8451358] [MT] IDETestOperationsObserverDebug: 3.642 elapsed -- Testing started completed.
+2026-10-08 16:38:19.820 xcodebuild[57811:8451358] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 16:38:19.820 xcodebuild[57811:8451358] [MT] IDETestOperationsObserverDebug: 3.642 sec, +3.642 sec -- end
+
+Test session results, code coverage, and logs:
+	/tmp/atoll-stats-probe/native/StatsDelivery.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started

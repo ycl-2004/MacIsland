@@ -498,18 +498,15 @@ struct LockScreenMusicPanel: View {
         }
     }
 
-    @ViewBuilder
     private func visualizer(height: CGFloat) -> some View {
         let width = CGFloat(Defaults[.visualizerBarCount]) * 4
-        if Defaults[.useMusicVisualizer] {
-            Rectangle()
-                .fill((Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray).spectrogramGradient())
-                .mask {
-                    AudioVisualizerView(isPlaying: .constant(musicManager.isPlaying))
-                        .frame(width: width, height: height)
-                }
-                .frame(width: width, height: height)
-        }
+        return Rectangle()
+            .fill((Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray).spectrogramGradient())
+            .mask {
+                AudioVisualizerView(isPlaying: .constant(musicManager.isPlaying))
+                    .frame(width: width, height: height)
+            }
+            .frame(width: width, height: height)
     }
 
     private func toggleExpanded() {

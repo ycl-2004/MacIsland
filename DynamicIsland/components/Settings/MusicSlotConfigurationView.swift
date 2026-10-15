@@ -52,12 +52,10 @@ struct MusicSlotConfigurationView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 6) {
             Text("Layout Preview")
                 .font(.headline)
-            Text("Drag items between slots or drop from the palette to remap controls.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            SettingsInfoButton("Drag controls between slots. Drag a control from the palette onto a slot, or click it to fill the first empty slot.")
         }
     }
 
@@ -108,10 +106,6 @@ struct MusicSlotConfigurationView: View {
                 Spacer()
                 ScrollHintIndicator()
             }
-            Text("Drag a control onto a slot or tap to place it in the first empty slot.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
             ScrollView(.horizontal, showsIndicators: true) {
                 HStack(spacing: 12) {
                     ForEach(pickerOptions, id: \.self) { control in

@@ -58,14 +58,37 @@ enum ProcessRunner {
         precondition(!Thread.isMainThread, "Move process collection off the UI thread")
         let result = BlockingResult()
         let done = DispatchSemaphore(value: 0)
-        Task.detached(priority: .utility) {
+        let task = Task.detached(priority: .utility) {
             result.value = try? await capture(process, timeout: timeout, limit: limit)
             done.signal()
         }
-        done.wait()
+        // A kernel/filesystem stall cannot be cancelled by Swift. Bound the
+        // caller's wait as well; the execution retains ownership until reaped.
+        guard done.wait(timeout: .now() + max(0, timeout) + 2) == .success else {
+            task.cancel()
+            return nil
+        }
         return result.value
     }
-    private final class BlockingResult: @unchecked Sendable { var value: Captured? }
+    private final class BlockingResult: @unchecked Sendable {
+        private let lock = NSLock()
+        private var stored: Captured?
+        var value: Captured? {
+            get { lock.withLock { stored } }
+            set { lock.withLock { stored = newValue } }
+        }
+    }
+
+    /// Stop an already-running stream without waiting on its caller's queue.
+    /// Retaining Process until the grace expires prevents PID reuse confusion.
+    static func terminateOwned(_ process: Process, grace: TimeInterval = 0.25) {
+        guard process.isRunning else { return }
+        let pid = process.processIdentifier
+        process.terminate()
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + grace) {
+            if process.isRunning, process.processIdentifier == pid { Darwin.kill(pid, SIGKILL) }
+        }
+    }
 
     private static func drain(_ reader: PipeReadWaiter, limit: Int) async -> (Data, Bool) {
         defer { reader.close() }
@@ -90,7 +113,7 @@ enum ProcessRunner {
         init(_ process: Process) { self.process = process }
 
         func start(_ continuation: CheckedContinuation<Outcome, Error>, timeout: TimeInterval?) {
-            queue.async {
+            queue.async { [self] in
                 guard !self.cancelled else { continuation.resume(throwing: CancellationError()); return }
                 self.continuation = continuation
                 self.process.terminationHandler = { [weak self] process in

@@ -42,6 +42,7 @@ final class CPUSensorCollector {
     private var channels: CFMutableDictionary?
     private var subscription: IOReportSubscriptionRef?
     private var previousSample: (samples: CFDictionary, time: TimeInterval)?
+    private var primaryTemperatureKey: String?
 
     init() {
         setupFrequencyChannel()
@@ -55,8 +56,15 @@ final class CPUSensorCollector {
 
     func readTemperature() -> CPUTemperatureMetrics {
         let platform = hardware.platform
-        if let value = primaryTemperatureKeyCandidates.compactMap({ SMC.shared.getValue($0) }).first(where: { $0 < 110 }) {
+        if let key = primaryTemperatureKey, let value = SMC.shared.getValue(key), value < 110 {
             return CPUTemperatureMetrics(celsius: value)
+        }
+        primaryTemperatureKey = nil
+        for key in primaryTemperatureKeyCandidates {
+            if let value = SMC.shared.getValue(key), value < 110 {
+                primaryTemperatureKey = key
+                return CPUTemperatureMetrics(celsius: value)
+            }
         }
         let list = temperatureFallbackKeys(for: platform)
         var total: Double = 0
@@ -71,6 +79,11 @@ final class CPUSensorCollector {
             return CPUTemperatureMetrics(celsius: nil)
         }
         return CPUTemperatureMetrics(celsius: total / count)
+    }
+
+    /// A reopened detail panel must not average frequency over its hidden time.
+    func resetFrequencySample() {
+        previousSample = nil
     }
 
     func readFrequency() -> CPUFrequencyMetrics? {

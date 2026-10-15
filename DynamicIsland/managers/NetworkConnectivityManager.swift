@@ -271,31 +271,11 @@ final class NetworkConnectivityManager: NSObject, ObservableObject, CWEventDeleg
 
     private static func networkSetupWiFiName(for interfaceName: String) -> String? {
         let process = Process()
-        let output = Pipe()
-        let termination = DispatchSemaphore(value: 0)
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/networksetup")
         process.arguments = ["-getairportnetwork", interfaceName]
-        process.standardOutput = output
-        process.standardError = Pipe()
-        process.terminationHandler = { _ in
-            termination.signal()
-        }
-
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-
-        // `networksetup` normally returns immediately, but do not let a
-        // system-settings or interface race stall the connectivity queue.
-        guard termination.wait(timeout: .now() + 1) == .success else {
-            process.terminate()
-            return nil
-        }
-
-        guard process.terminationStatus == 0 else { return nil }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
+        guard let result = ProcessRunner.captureBlocking(process, timeout: 1, limit: 64 * 1024),
+              result.outcome == .exited(0), !result.truncated else { return nil }
+        let data = result.output
         guard let result = String(data: data, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
               let separator = result.firstIndex(of: ":") else {

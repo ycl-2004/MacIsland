@@ -93,44 +93,7 @@ final class MemoryUsageMonitor {
     }
 
     func relaunchApplication() {
-        let workspace = NSWorkspace.shared
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-
-        let appURL = Bundle.main.bundleURL
-
-        for window in NSApp.windows {
-            if let editor = window.firstResponder as? ExtraSpaceTextView {
-                if editor.hasMarkedText() { editor.unmarkText(); editor.didChangeText() }
-                window.makeFirstResponder(nil)
-            }
-        }
-        ExtraSpaceStore.shared.isRelaunching = true
-        ExtraSpaceStore.shared.flushPendingSave()
-        AgentSessionStore.shared.flushPendingSave()
-        ShelfStateViewModel.shared.flushPendingSave()
-        if ExtraSpaceStore.shared.isDirty || ShelfPersistenceService.shared.lastError != nil {
-            ExtraSpaceStore.shared.isRelaunching = false
-            let alert = NSAlert()
-            alert.messageText = "Atoll could not save before restarting"
-            alert.informativeText = ExtraSpaceStore.shared.errorMessage ?? ShelfPersistenceService.shared.lastError ?? "Try saving again before restarting."
-            alert.runModal()
-            return
-        }
-        workspace.openApplication(at: appURL, configuration: configuration) { application, error in
-            Task { @MainActor in
-                guard error == nil, let application, !application.isTerminated,
-                      application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
-                    ExtraSpaceStore.shared.isRelaunching = false
-                    let alert = NSAlert()
-                    alert.messageText = "Atoll could not restart"
-                    alert.informativeText = error?.localizedDescription ?? "The replacement did not start. Your current session remains open."
-                    alert.runModal()
-                    return
-                }
-                NSApplication.shared.terminate(nil)
-            }
-        }
+        AppTerminationCoordinator.shared.restart()
     }
 
     private func currentResidentSize() -> UInt64? {

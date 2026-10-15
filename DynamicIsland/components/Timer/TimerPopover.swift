@@ -45,6 +45,10 @@ struct TimerPopover: View {
     var body: some View {
         VStack(spacing: 16) {
             HeaderView(statusText: statusText)
+            if let error = timerManager.recoveryError {
+                Text(error).font(.caption).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             
             if timerManager.isTimerActive {
                 ActiveTimerSection(timerManager: timerManager)

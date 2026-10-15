@@ -30,7 +30,6 @@ import SwiftUI
 enum MusicSecondaryLiveActivity: Equatable {
     case timer
     case reminder(ReminderLiveActivityManager.ReminderEntry)
-    case recording
     case focus(FocusModeType)
     case capsLock(showLabel: Bool)
     case shelf(count: Int)
@@ -41,8 +40,6 @@ enum MusicSecondaryLiveActivity: Equatable {
             return "timer"
         case .reminder(let entry):
             return "reminder-\(entry.id)"
-        case .recording:
-            return "recording"
         case .focus(let mode):
             return "focus-\(mode.rawValue)"
         case .capsLock(let showLabel):
@@ -58,7 +55,6 @@ enum MusicSecondaryLiveActivity: Equatable {
         switch self {
         case .timer: return .timer
         case .reminder: return .reminder
-        case .recording: return .recording
         case .focus: return .doNotDisturb
         case .capsLock, .shelf: return nil
         }

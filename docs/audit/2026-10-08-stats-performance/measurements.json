@@ -1,0 +1,402 @@
+[
+  {
+    "collection_ms" : 2.9465840000000001,
+    "enqueue_ms" : 0.15204100000000001,
+    "index" : 0,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0042079999999999999
+  },
+  {
+    "collection_ms" : 2.4286249999999998,
+    "enqueue_ms" : 0.15095800000000001,
+    "index" : 1,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0061250000000000002
+  },
+  {
+    "collection_ms" : 5.7068329999999996,
+    "enqueue_ms" : 0.142875,
+    "index" : 2,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.011416000000000001
+  },
+  {
+    "collection_ms" : 3.118417,
+    "enqueue_ms" : 0.086832999999999994,
+    "index" : 3,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0054580000000000002
+  },
+  {
+    "collection_ms" : 4.0382499999999997,
+    "enqueue_ms" : 0.123083,
+    "index" : 4,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.011708
+  },
+  {
+    "collection_ms" : 3.6857090000000001,
+    "enqueue_ms" : 0.10337499999999999,
+    "index" : 5,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0084580000000000002
+  },
+  {
+    "collection_ms" : 4.4639579999999999,
+    "enqueue_ms" : 0.094417000000000001,
+    "index" : 6,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0092079999999999992
+  },
+  {
+    "collection_ms" : 3.6327500000000001,
+    "enqueue_ms" : 0.07775,
+    "index" : 7,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.015292
+  },
+  {
+    "collection_ms" : 4.1890419999999997,
+    "enqueue_ms" : 0.121417,
+    "index" : 8,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0080409999999999995
+  },
+  {
+    "collection_ms" : 8.1537089999999992,
+    "enqueue_ms" : 0.14858299999999999,
+    "index" : 9,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.011124999999999999
+  },
+  {
+    "collection_ms" : 2.5347080000000002,
+    "enqueue_ms" : 0.071915999999999994,
+    "index" : 10,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0077920000000000003
+  },
+  {
+    "collection_ms" : 2.3911250000000002,
+    "enqueue_ms" : 0.073957999999999996,
+    "index" : 11,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0064580000000000002
+  },
+  {
+    "collection_ms" : 4.7753750000000004,
+    "enqueue_ms" : 0.13191700000000001,
+    "index" : 12,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0081250000000000003
+  },
+  {
+    "collection_ms" : 5.3738330000000003,
+    "enqueue_ms" : 0.088999999999999996,
+    "index" : 13,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.006875
+  },
+  {
+    "collection_ms" : 3.8664170000000002,
+    "enqueue_ms" : 0.093165999999999999,
+    "index" : 14,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0079170000000000004
+  },
+  {
+    "collection_ms" : 3.6880419999999998,
+    "enqueue_ms" : 0.089624999999999996,
+    "index" : 15,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.019125
+  },
+  {
+    "collection_ms" : 6.0008749999999997,
+    "enqueue_ms" : 0.15770799999999999,
+    "index" : 16,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.011917000000000001
+  },
+  {
+    "collection_ms" : 3.8366250000000002,
+    "enqueue_ms" : 0.11375,
+    "index" : 17,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0061250000000000002
+  },
+  {
+    "collection_ms" : 4.4445410000000001,
+    "enqueue_ms" : 0.067791000000000004,
+    "index" : 18,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0098750000000000001
+  },
+  {
+    "collection_ms" : 6.6897500000000001,
+    "enqueue_ms" : 0.11862499999999999,
+    "index" : 19,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.014166
+  },
+  {
+    "collection_ms" : 2.29575,
+    "enqueue_ms" : 0.075749999999999998,
+    "index" : 20,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0060000000000000001
+  },
+  {
+    "collection_ms" : 4.2997909999999999,
+    "enqueue_ms" : 0.080458000000000002,
+    "index" : 21,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0077920000000000003
+  },
+  {
+    "collection_ms" : 2.5099999999999998,
+    "enqueue_ms" : 0.093665999999999999,
+    "index" : 22,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0081250000000000003
+  },
+  {
+    "collection_ms" : 6.0480830000000001,
+    "enqueue_ms" : 0.143875,
+    "index" : 23,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.010125
+  },
+  {
+    "collection_ms" : 4.8865829999999999,
+    "enqueue_ms" : 0.17812500000000001,
+    "index" : 24,
+    "notifications" : 1,
+    "phase" : "CPU \/ memory \/ GPU overview",
+    "publication_ms" : 0.0085000000000000006
+  },
+  {
+    "collection_ms" : 199.849041,
+    "enqueue_ms" : 0.329708,
+    "index" : 0,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010500000000000001
+  },
+  {
+    "collection_ms" : 12.148624999999999,
+    "enqueue_ms" : 0.067875000000000005,
+    "index" : 1,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0074999999999999997
+  },
+  {
+    "collection_ms" : 23.925999999999998,
+    "enqueue_ms" : 0.16408300000000001,
+    "index" : 2,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.014709
+  },
+  {
+    "collection_ms" : 21.379458,
+    "enqueue_ms" : 0.183917,
+    "index" : 3,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.012917
+  },
+  {
+    "collection_ms" : 10.665709,
+    "enqueue_ms" : 0.064083000000000001,
+    "index" : 4,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0052500000000000003
+  },
+  {
+    "collection_ms" : 17.431291999999999,
+    "enqueue_ms" : 0.11608300000000001,
+    "index" : 5,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0089999999999999993
+  },
+  {
+    "collection_ms" : 11.046459,
+    "enqueue_ms" : 0.067459000000000005,
+    "index" : 6,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0069579999999999998
+  },
+  {
+    "collection_ms" : 19.487417000000001,
+    "enqueue_ms" : 0.12570799999999999,
+    "index" : 7,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.01575
+  },
+  {
+    "collection_ms" : 17.402875000000002,
+    "enqueue_ms" : 0.16412499999999999,
+    "index" : 8,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.015540999999999999
+  },
+  {
+    "collection_ms" : 22.251916999999999,
+    "enqueue_ms" : 0.16087499999999999,
+    "index" : 9,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.011084
+  },
+  {
+    "collection_ms" : 20.697624999999999,
+    "enqueue_ms" : 0.13383300000000001,
+    "index" : 10,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.015125
+  },
+  {
+    "collection_ms" : 19.734708000000001,
+    "enqueue_ms" : 0.094333,
+    "index" : 11,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010459
+  },
+  {
+    "collection_ms" : 18.547750000000001,
+    "enqueue_ms" : 0.141709,
+    "index" : 12,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0087919999999999995
+  },
+  {
+    "collection_ms" : 15.818833,
+    "enqueue_ms" : 0.083959000000000006,
+    "index" : 13,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0095829999999999995
+  },
+  {
+    "collection_ms" : 14.513875000000001,
+    "enqueue_ms" : 0.070832999999999993,
+    "index" : 14,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0093749999999999997
+  },
+  {
+    "collection_ms" : 18.580542000000001,
+    "enqueue_ms" : 0.107917,
+    "index" : 15,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010500000000000001
+  },
+  {
+    "collection_ms" : 21.757124999999998,
+    "enqueue_ms" : 0.15033299999999999,
+    "index" : 16,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.015292
+  },
+  {
+    "collection_ms" : 15.361124999999999,
+    "enqueue_ms" : 0.082375000000000004,
+    "index" : 17,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.0097909999999999994
+  },
+  {
+    "collection_ms" : 17.688832999999999,
+    "enqueue_ms" : 0.098500000000000004,
+    "index" : 18,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010125
+  },
+  {
+    "collection_ms" : 15.606125,
+    "enqueue_ms" : 0.138125,
+    "index" : 19,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010208
+  },
+  {
+    "collection_ms" : 23.323374999999999,
+    "enqueue_ms" : 0.111834,
+    "index" : 20,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.011708
+  },
+  {
+    "collection_ms" : 19.940000000000001,
+    "enqueue_ms" : 0.142375,
+    "index" : 21,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010958000000000001
+  },
+  {
+    "collection_ms" : 21.537375000000001,
+    "enqueue_ms" : 0.18004200000000001,
+    "index" : 22,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.014083999999999999
+  },
+  {
+    "collection_ms" : 22.548791999999999,
+    "enqueue_ms" : 0.17658299999999999,
+    "index" : 23,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010749999999999999
+  },
+  {
+    "collection_ms" : 19.061291000000001,
+    "enqueue_ms" : 0.089791999999999997,
+    "index" : 24,
+    "notifications" : 1,
+    "phase" : "all graphs + CPU details",
+    "publication_ms" : 0.010583
+  }
+]

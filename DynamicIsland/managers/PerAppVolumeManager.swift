@@ -24,7 +24,7 @@ import Defaults
 import Foundation
 import os.log
 
-private let perAppVolumeLog = OSLog(subsystem: "com.atoll.dynamicisland", category: "PerAppVolume")
+private let perAppVolumeLog = OSLog(subsystem: AtollDiagnostics.subsystem, category: "PerAppVolume")
 
 /// One app that CoreAudio knows how to play audio for.
 struct AudioApp: Identifiable, Equatable {
@@ -306,7 +306,7 @@ final class PerAppVolumeManager: ObservableObject {
                 taps[identifier] = tap
                 isPermissionBlocked = false
             } catch {
-                os_log(.error, log: perAppVolumeLog, "Could not tap %{public}@: %{public}@",
+                os_log(.error, log: perAppVolumeLog, "Could not tap %{private}@: %{private}@",
                        identifier, String(describing: error))
                 // A refused tap is almost always the audio-recording prompt not
                 // having been accepted, so surface it rather than silently

@@ -1,0 +1,13 @@
+{
+  "title": "Test - DynamicIsland",
+  "environmentDescription": "DynamicIsland \u00b7 Built with macOS 27.0.1",
+  "result": "Passed",
+  "totalTestCount": 311,
+  "passedTests": 311,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "expectedFailures": 0,
+  "runtimeWarnings": [],
+  "startTime": 1791671283.846,
+  "finishTime": 1791671309.93
+}

@@ -45,9 +45,10 @@ struct MemoryStatsDetailView: View {
         }
         .frame(minWidth: 380, minHeight: 420)
         .onAppear(perform: refreshProcesses)
-        .onReceive(statsManager.$lastUpdated) { _ in
-            refreshProcesses()
+        .onReceive(statsManager.$topCPUProcesses) { processes in
+            topProcesses = Array(processes.sorted { $0.memoryUsage > $1.memoryUsage }.prefix(processDisplayLimit))
         }
+        .statsDetailSampling(.memory)
     }
     
     private func refreshProcesses() {

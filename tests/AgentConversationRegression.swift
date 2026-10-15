@@ -1,16 +1,17 @@
 import Foundation
 import CryptoKit
+import Darwin
 
 // Build: xcrun swiftc -swift-version 5 DynamicIsland/managers/Agents/*.swift
 //   DynamicIsland/managers/Agents/Sources/*.swift DynamicIsland/managers/Agents/Terminals/*.swift
-//   DynamicIsland/utils/{AtollTemporaryFiles,PipeReadWaiter,PrivateContentFile}.swift
+//   DynamicIsland/utils/{AtollTemporaryFiles,PipeReadWaiter,PrivateContentFile,LatestSnapshotWriter}.swift
 //   DynamicIsland/helpers/AppRuntimeEnvironment.swift tests/AgentConversationRegression.swift
 //   -o /tmp/agent-regress; then run /tmp/agent-regress tests/agent-rpc-fixture.
 // Tests inject their own Codex client and never run or read installed agents.
 
 // App-wide pieces the agent files use, stood in for outside the app.
 enum Logger {
-    enum Category { case agents }
+    enum Category { case agents, error }
     static func log(_ message: String, category: Category) {}
 }
 
@@ -141,9 +142,11 @@ struct AgentConversationRegression {
         try await verifyHookScript()
         verifyTerminalCommands()
         try await verifyTerminals()
+        try await verifySentDraftsFreeTheirSlots()
         try verifyTemporaryFileCleanup()
         try verifyWebSocket()
         if CommandLine.arguments.count > 1 { try await verifyProcessTransport(CommandLine.arguments[1]) }
+        if CommandLine.arguments.count > 1 { try await verifyTransportBackpressure(CommandLine.arguments[1]) }
     }
 
     @MainActor
@@ -418,7 +421,7 @@ struct AgentConversationRegression {
                 service.stop()
                 continue
             }
-            service.drafts[sessionID] = "Continue this exact thread"
+            service.setDraft("Continue this exact thread", for: sessionID)
             service.send(id: sessionID); service.send(id: sessionID)
             try await waitUntil { !service.sending.contains(sessionID) }
             precondition(client.starts.count <= 1, "one click sends once")
@@ -426,7 +429,7 @@ struct AgentConversationRegression {
             case "accepted":
                 precondition(client.starts.count == 1 && client.starts[0]["threadId"] as? String == threadID)
                 let commandID = client.starts[0]["clientUserMessageId"] as! String
-                precondition(service.drafts[sessionID] == "" && !service.uncertainIDs.contains(sessionID))
+                precondition(service.drafts[sessionID] == nil && !service.uncertainIDs.contains(sessionID))
                 precondition(store.session(id: sessionID)!.messages.map(\.id) == [commandID])
                 // Codex echoes the message as an item; it replaces the optimistic line.
                 client.onEvent?("item/started", ["threadId": threadID, "item": ["id": "item-1", "type": "userMessage", "clientId": commandID,
@@ -438,14 +441,14 @@ struct AgentConversationRegression {
                 service.answerApproval(service.approvals[0], allow: false)
                 precondition(client.replies.last?["decision"] as? String == "decline")
             case "uncertain":
-                precondition(service.uncertainIDs.contains(sessionID) && service.drafts[sessionID] != "")
+                precondition(service.uncertainIDs.contains(sessionID) && service.drafts[sessionID] == "Continue this exact thread")
                 let relaunched = AgentConversationService(store: store, defaults: defaults, client: FakeCodexClient(),
                                                           terminals: FakeTerminals().make())
                 precondition(relaunched.uncertainIDs.contains(sessionID), "an unconfirmed send survives a relaunch")
                 service.send(id: sessionID)
                 precondition(client.starts.count == 1, "never retried automatically")
             default:
-                precondition(service.errors[sessionID] != nil && service.drafts[sessionID] != "" && !service.uncertainIDs.contains(sessionID))
+                precondition(service.errors[sessionID] != nil && service.drafts[sessionID] == "Continue this exact thread" && !service.uncertainIDs.contains(sessionID))
             }
             service.stop()
         }
@@ -677,7 +680,7 @@ struct AgentConversationRegression {
         _ = service.receive(nextStop)
         service.park(nextStop, reply: { replies.append($0) }, onClose: { _ in })
 
-        service.drafts[claudeID] = "From Atoll"
+        service.setDraft("From Atoll", for: claudeID)
         service.send(id: claudeID); service.send(id: claudeID)
         precondition(replies.count == 2, "one click wakes once")
         let wake = String(decoding: replies[1]!, as: UTF8.self)
@@ -685,7 +688,7 @@ struct AgentConversationRegression {
         precondition(echo.prompt == "From Atoll" && service.sending.contains(claudeID))
         // Claude echoes the wake as its next prompt: delivered, shown unwrapped, draft cleared.
         _ = service.receive(hook(.promptSubmitted, source: "claude", prompt: "<task-notification>\n\(wake)\n</task-notification>"))
-        precondition(!service.sending.contains(claudeID) && service.drafts[claudeID] == "")
+        precondition(!service.sending.contains(claudeID) && service.drafts[claudeID] == nil)
         precondition(store.session(id: claudeID)!.messages.last?.text == "From Atoll" && store.session(id: claudeID)!.state == .thinking)
 
         // Antigravity: only while it works, handed over at its next step.
@@ -694,7 +697,7 @@ struct AgentConversationRegression {
         step.eventName = "PreInvocation"
         precondition(service.receive(step) == nil)
         precondition(service.canSend(store.session(id: agyID)!))
-        service.drafts[agyID] = "Also lint"
+        service.setDraft("Also lint", for: agyID)
         service.send(id: agyID)
         precondition(!service.canSend(store.session(id: agyID)!), "one message waits at a time")
         var toolDone = hook(.thinking, source: "agy")
@@ -770,7 +773,7 @@ struct AgentConversationRegression {
 
         let wait = try run(["claude", "wait"], payload: payload, environment: ["CLAUDE_CODE_ENTRYPOINT": "cli"])
         try await waitUntil { service.canSend(store.session(id: claudeID)!) }
-        service.drafts[claudeID] = "Hello from the notch"
+        service.setDraft("Hello from the notch", for: claudeID)
         service.send(id: claudeID)
         _ = try await finished(wait)
         precondition(wait.terminationStatus == 2 && AtollMessageEnvelope.unwrap(output(wait, \.standardError))?.prompt == "Hello from the notch")
@@ -786,7 +789,7 @@ struct AgentConversationRegression {
         let first = try await finished(try run(["agy", "PreInvocation", "{}"], payload: agyPayload))
         precondition(output(first, \.standardOutput) == "{}", "the neutral reply when nothing waits")
         try await waitUntil { store.session(id: agyID) != nil }
-        service.drafts[agyID] = "Also run lint"
+        service.setDraft("Also run lint", for: agyID)
         service.send(id: agyID)
         let next = try await finished(try run(["agy", "PreInvocation", "{}"], payload: agyPayload))
         let injected = try JSONSerialization.jsonObject(with: Data(output(next, \.standardOutput).utf8)) as! [String: Any]
@@ -961,11 +964,11 @@ struct AgentConversationRegression {
         precondition(store.session(id: cmuxID)!.terminalPane == "S1" && store.session(id: cmuxID)!.terminalDevice == "/dev/ttys007")
         // Working: a message still goes in, as it would from the keyboard.
         precondition(service.route(for: store.session(id: cmuxID)!) == .terminal("cmux"))
-        service.drafts[cmuxID] = "Also add tests\nplease"
+        service.setDraft("Also add tests\nplease", for: cmuxID)
         service.send(id: cmuxID)
         try await waitUntil { !service.sending.contains(cmuxID) }
         precondition(fake.commands.map { $0.text ?? $0.arguments.last! } == ["Also add tests", "shift+enter", "please", "enter"])
-        precondition(service.drafts[cmuxID] == "" && service.notices[cmuxID] != nil && service.errors[cmuxID] == nil)
+        precondition(service.drafts[cmuxID] == nil && service.notices[cmuxID] != nil && service.errors[cmuxID] == nil)
         _ = service.receive(event(.promptSubmitted, key: "cmux", host: "com.cmuxterm.app", pane: "S1", prompt: "Also add tests\nplease"))
         precondition(service.notices[cmuxID] == nil, "the agent took it; the conversation shows it now")
 
@@ -973,7 +976,7 @@ struct AgentConversationRegression {
         // pending approval, or into a terminal that is not running.
         fake.commands.removeAll()
         fake.agentInForeground = false
-        service.drafts[cmuxID] = "rm -rf build"
+        service.setDraft("rm -rf build", for: cmuxID)
         service.send(id: cmuxID)
         try await waitUntil { service.errors[cmuxID] != nil }
         precondition(fake.commands.isEmpty && service.drafts[cmuxID] == "rm -rf build")
@@ -1010,7 +1013,7 @@ struct AgentConversationRegression {
         try await waitUntil { fake.commands.count == 2 }
         precondition(store.session(id: ghosttyID)?.terminalPane == "G1", "another folder is another session's pane")
         _ = service.receive(event(.turnFinished, key: "ghostty", host: GhosttyTerminalHost.id))
-        service.drafts[ghosttyID] = "Typed by Atoll"
+        service.setDraft("Typed by Atoll", for: ghosttyID)
         service.send(id: ghosttyID)
         try await waitUntil { !service.sending.contains(ghosttyID) }
         precondition(fake.commands.last!.arguments == ["G1"] && fake.commands.last!.text == "Typed by Atoll")
@@ -1031,6 +1034,34 @@ struct AgentConversationRegression {
         let closed = await service.openTerminal(store.session(id: terminalID)!)
         precondition(closed == .unavailable)
         print("PASS: panes from cmux, Terminal and Ghostty, typing while working, refusals (agent gone, approval, not running, not allowed), moved sessions, focus")
+    }
+
+    /// A delivered message gives its draft slot back, so sending to more
+    /// sessions than the draft budget never blocks typing in a new one.
+    @MainActor
+    static func verifySentDraftsFreeTheirSlots() async throws {
+        let store = AgentSessionStore(persistenceURL: nil)
+        let fake = FakeTerminals()
+        let (service, _) = makeService(FakeCodexClient(), store: store, terminals: fake)
+        service.start()
+        defer { service.stop() }
+        for index in 0..<70 {
+            let key = "slot-\(index)"
+            let id = AgentSession.key(sourceID: "claude", sessionKey: key)
+            let pid = Int32(1000 + index)
+            fake.devices[pid] = "/dev/ttys\(pid)"
+            var started = hook(.promptSubmitted, source: "claude", key: key, prompt: "Start", host: "com.cmuxterm.app")
+            started.hostPane = "S\(index)"
+            started.hostProcessID = pid
+            _ = service.receive(started)
+            service.setDraft("Message \(index)", for: id)
+            precondition(service.errors[id] == nil && service.drafts[id] == "Message \(index)", "slot \(index) is free")
+            service.send(id: id)
+            try await waitUntil { !service.sending.contains(id) }
+            precondition(service.errors[id] == nil && service.drafts[id] == nil)
+        }
+        precondition(service.drafts.isEmpty, "delivered drafts leave no slot behind")
+        print("PASS: 70 delivered drafts free their slots; the draft budget counts only unsent text")
     }
 
     /// Leftover cleanup keeps what saved items still use, whichever spelling of
@@ -1107,5 +1138,66 @@ struct AgentConversationRegression {
         catch AgentConnectionError.unavailable { }
         rpc.close()
         print("PASS: real JSONL process transport, Unicode, fragmented frames, rejection and bounded timeout")
+    }
+
+    @MainActor
+    static func verifyTransportBackpressure(_ fixture: String) async throws {
+        let rpc = CodexRPCClient(preferSharedDaemon: false)
+        defer { rpc.close() }
+        try await rpc.start(executable: fixture)
+        do {
+            _ = try await rpc.request("echo", ["text": String(repeating: "x", count: CodexPipeWriter.maximumMessageBytes)])
+            preconditionFailure("serialized message limit must include the JSON envelope")
+        } catch AgentConnectionError.unavailable { }
+        precondition(rpc.isReady, "rejected frames must not damage the connection")
+        let replies = try await withThrowingTaskGroup(of: Int.self) { group in
+            for index in 0..<8 {
+                group.addTask { @MainActor in
+                    let reply = try await rpc.request("echo", ["index": index])
+                    return reply["index"] as! Int
+                }
+            }
+            var values: [Int] = []
+            for try await value in group { values.append(value) }
+            return values.sorted()
+        }
+        precondition(replies == Array(0..<8), "concurrent frames must not interleave")
+        let prompt = String(repeating: "👨‍👩‍👧‍👦", count: 2_621)
+        precondition(prompt.count <= 16_000 && prompt.utf8.count <= 65_536)
+        _ = try await rpc.request("fixture/pause", [:])
+        var previous = ProcessInfo.processInfo.systemUptime
+        var largestGap = 0.0
+        let heartbeat = Task { @MainActor in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(10)) } catch { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                largestGap = max(largestGap, now - previous); previous = now
+            }
+        }
+        let started = ProcessInfo.processInfo.systemUptime
+        do {
+            _ = try await rpc.request("turn/start", ["input": [["type": "text", "text": prompt]]], timeout: 0.15)
+            preconditionFailure("paused reader must time out")
+        } catch AgentConnectionError.unavailable { }
+        let elapsed = ProcessInfo.processInfo.systemUptime - started
+        heartbeat.cancel()
+        precondition(elapsed < 0.8 && largestGap < 0.5, "pipe backpressure must not block MainActor or its deadline")
+        precondition(!rpc.isReady, "partial frames require disconnect before another message")
+
+        try await rpc.start(executable: fixture)
+        let stubborn = try await rpc.request("fixture/stubborn", [:])
+        let childPID = Int32(stubborn["pid"] as! Int)
+        _ = try await rpc.request("fixture/pause", [:])
+        let request = Task { @MainActor in
+            try await rpc.request("turn/start", ["input": [["type": "text", "text": prompt]]], timeout: 12)
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        let cancelledAt = ProcessInfo.processInfo.systemUptime
+        request.cancel()
+        do { _ = try await request.value; preconditionFailure("cancelled write must resume") }
+        catch is CancellationError { }
+        precondition(ProcessInfo.processInfo.systemUptime - cancelledAt < 0.8 && !rpc.isReady)
+        try await waitUntil { kill(childPID, 0) == -1 && errno == ESRCH }
+        print("PASS: serialized size budget, concurrent FIFO requests, stalled-reader timeout \(elapsed)s / MainActor gap \(largestGap)s, partial-write cancellation, reconnect and stubborn owned-child cleanup")
     }
 }

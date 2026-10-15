@@ -56,6 +56,7 @@ struct NetworkStatsDetailView: View {
             .padding(16)
         }
         .frame(minWidth: 360, minHeight: 340)
+        .statsDetailSampling(.network)
     }
     
     private func average(_ values: [Double]) -> Double {

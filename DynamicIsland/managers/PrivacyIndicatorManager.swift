@@ -125,11 +125,12 @@ class PrivacyIndicatorManager: ObservableObject {
         }
     }
     
-    /// Check if any indicator is active (respecting user settings)
-    var hasAnyIndicator: Bool {
+    /// The main privacy activity is for camera/microphone use. Recording has
+    /// its own side indicator and must not displace the shelf or other content.
+    var hasCameraOrMicrophoneIndicator: Bool {
         let showCamera = cameraActive && Defaults[.enableCameraDetection]
         let showMic = microphoneActive && Defaults[.enableMicrophoneDetection]
-        return showCamera || showMic || screenRecordingActive
+        return showCamera || showMic
     }
     
     // MARK: - Initialization

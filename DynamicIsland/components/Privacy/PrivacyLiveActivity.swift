@@ -22,7 +22,6 @@ import Defaults
 struct PrivacyLiveActivity: View {
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject var privacyManager = PrivacyIndicatorManager.shared
-    @ObservedObject var recordingManager = ScreenRecordingManager.shared
     @State private var isHovering: Bool = false
     @State private var gestureProgress: CGFloat = 0
     @State private var isExpanded: Bool = false
@@ -35,30 +34,16 @@ struct PrivacyLiveActivity: View {
     
     var body: some View {
         HStack(spacing: 0) {
-            // Left side - Recording pulsator OR microphone (if both indicators active without recording)
+            // Microphone stays on the left when both privacy indicators are active.
             Color.clear
                 .background {
-                    if isExpanded {
-                        HStack {
-                            if recordingManager.isRecording {
-                                // Recording pulsator
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.red.opacity(0.15))
-                                    
-                                    PulsingDot(color: .systemRed, diameter: 10)
-                                }
-                                .frame(width: vm.effectiveClosedNotchHeight - 12, height: vm.effectiveClosedNotchHeight - 12)
-                            } else if bothIndicatorsActive {
-                                // Microphone on left when both active and no recording
-                                PrivacyIcon(type: .microphone)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    if isExpanded && bothIndicatorsActive {
+                        PrivacyIcon(type: .microphone)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     }
                 }
-                .frame(width: isExpanded && (recordingManager.isRecording || bothIndicatorsActive) ? max(0, vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12) + gestureProgress / 2 + 20) : 0, height: vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12))
-            
+                .frame(width: isExpanded && bothIndicatorsActive ? max(0, vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12) + gestureProgress / 2 + 20) : 0, height: vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12))
+
             // Center - Black fill
             Rectangle()
                 .fill(.black)
@@ -69,16 +54,7 @@ struct PrivacyLiveActivity: View {
                 .background {
                     if isExpanded {
                         HStack(spacing: 4) {
-                            // When both active without recording: only camera on right (mic is on left)
-                            // When recording + both: show both on right
-                            // When only one active: show that one
-                            
-                            if bothIndicatorsActive && recordingManager.isRecording {
-                                // Both indicators on right when recording
-                                PrivacyIcon(type: .microphone)
-                                PrivacyIcon(type: .camera)
-                            } else if bothIndicatorsActive {
-                                // Only camera on right when both active (mic is on left)
+                            if bothIndicatorsActive {
                                 PrivacyIcon(type: .camera)
                             } else {
                                 // Single indicator
@@ -101,7 +77,7 @@ struct PrivacyLiveActivity: View {
                 isExpanded = true
             }
         }
-        .onChange(of: privacyManager.hasAnyIndicator) { _, newValue in
+        .onChange(of: privacyManager.hasCameraOrMicrophoneIndicator) { _, newValue in
             if !newValue {
                 withAnimation(.smooth(duration: 0.4)) {
                     isExpanded = false

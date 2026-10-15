@@ -95,9 +95,6 @@ final class TimerHUDTests: XCTestCase {
         vm.closedNotchSize = CGSize(width: 185, height: 37)
         vm.hideOnClosed = false
         defer { vm.destroy() }
-        let output = URL(fileURLWithPath: "/tmp/atoll-timer-previews", isDirectory: true)
-        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-
         var initialPixelWidth: Int?
         for remaining: TimeInterval in [360000, 36000, 3600, 3599, 60, 59, 5, 0, -1, -3600] {
             timer.remainingTime = remaining
@@ -135,8 +132,7 @@ final class TimerHUDTests: XCTestCase {
             let rightCentre = Double(try XCTUnwrap(rightInk.first) + XCTUnwrap(rightInk.last)) / 2
             XCTAssertEqual(leftCentre, Double(wingWidth) / 2, accuracy: 6, time)
             XCTAssertEqual(rightCentre, Double(image.width) - Double(wingWidth) / 2, accuracy: 3, time)
-            let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
-            try png.write(to: output.appendingPathComponent("timer-\(Int(remaining)).png"))
+            attachPreview(try XCTUnwrap(bitmap.representation(using: .png, properties: [:])), named: "timer-\(Int(remaining))")
         }
     }
 }

@@ -47,11 +47,13 @@ final class CodexRPCClient: CodexConversationClient {
     var onDisconnect: (() -> Void)?
     private var process: Process?
     private var input: FileHandle?
+    private var writer: CodexPipeWriter?
     private var output: FileHandle?
     private var buffer = Data()
     private var nextID = 0
     private var pending: [Int: CheckedContinuation<[String: Any], Error>] = [:]
     private var timers: [Int: Task<Void, Never>] = [:]
+    private var writeTokens: [Int: UUID] = [:]
     private var startup: Task<Void, Error>?
     private var generation = UUID()
     private(set) var isReady = false
@@ -77,7 +79,7 @@ final class CodexRPCClient: CodexConversationClient {
             if isSharedDaemon {
                 try await withCheckedThrowingContinuation { (waiter: CheckedContinuation<Void, Error>) in
                     upgradeWaiter = waiter
-                    do { try input?.write(contentsOf: websocket.handshake) }
+                    do { try enqueue(websocket.handshake, timeout: 3) }
                     catch { upgradeWaiter = nil; waiter.resume(throwing: error) }
                     let epoch = generation
                     Task { [weak self] in
@@ -136,6 +138,10 @@ final class CodexRPCClient: CodexConversationClient {
         input = stdin.fileHandleForWriting
         output = stdout.fileHandleForReading
         try process.run()
+        writer = try CodexPipeWriter(handle: stdin.fileHandleForWriting) { [weak self] _ in
+            guard let self, self.generation == epoch else { return }
+            self.close()
+        }
     }
 
     private static func sharedSocketPath() -> String? {
@@ -155,30 +161,51 @@ final class CodexRPCClient: CodexConversationClient {
     }
 
     func request(_ method: String, _ params: [String: Any], timeout: Double = 12) async throws -> [String: Any] {
+        try Task.checkCancellation()
+        guard pending.count < CodexPipeWriter.maximumQueuedMessages else {
+            throw AgentConnectionError.unavailable("Too many pending Codex requests. Please try again later.")
+        }
         nextID += 1
         let id = nextID
-        return try await withCheckedThrowingContinuation { continuation in
-            pending[id] = continuation
-            timers[id] = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(timeout))
-                guard !Task.isCancelled else { return }
-                self?.finish(id, result: .failure(AgentConnectionError.unavailable(String(localized: "Codex did not respond in time."))))
+        let epoch = generation
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                guard !Task.isCancelled else { continuation.resume(throwing: CancellationError()); return }
+                pending[id] = continuation
+                let token = UUID()
+                writeTokens[id] = token
+                timers[id] = Task { [weak self] in
+                    do { try await Task.sleep(for: .seconds(timeout)) } catch { return }
+                    self?.expire(id, error: AgentConnectionError.unavailable(String(localized: "Codex did not respond in time.")))
+                }
+                do { try write(["id": id, "method": method, "params": params], token: token) }
+                catch { finish(id, result: .failure(error)) }
             }
-            do { try write(["id": id, "method": method, "params": params]) }
-            catch { finish(id, result: .failure(error)) }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == epoch else { return }
+                self.expire(id, error: CancellationError())
+            }
         }
     }
 
     func reply(id: Any, result: [String: Any]) throws { try write(["id": id, "result": result]) }
 
-    private func write(_ value: [String: Any]) throws {
-        guard let input, process?.isRunning == true else {
+    private func enqueue(_ data: Data, token: UUID = UUID(), timeout: TimeInterval = 12) throws {
+        guard let writer, process?.isRunning == true else {
             throw AgentConnectionError.unavailable(String(localized: "Codex is disconnected."))
         }
+        try writer.enqueue(data, token: token, timeout: timeout)
+    }
+
+    private func write(_ value: [String: Any], token: UUID = UUID()) throws {
         var data = try JSONSerialization.data(withJSONObject: value)
+        guard data.count <= CodexPipeWriter.maximumMessageBytes - 14 else {
+            throw AgentConnectionError.unavailable("The Codex message is too large to send.")
+        }
         if isSharedDaemon { data = try CodexWebSocketFraming.frame(data) }
         else { data.append(0x0A) }
-        try input.write(contentsOf: data)
+        try enqueue(data, token: token)
     }
 
     private func receive(_ data: Data) {
@@ -189,7 +216,7 @@ final class CodexRPCClient: CodexConversationClient {
                     case .ready:
                         let waiter = upgradeWaiter; upgradeWaiter = nil; waiter?.resume()
                     case .text(let data): receiveMessage(data)
-                    case .ping(let data): try input?.write(contentsOf: CodexWebSocketFraming.frame(data, opcode: 10))
+                    case .ping(let data): try enqueue(CodexWebSocketFraming.frame(data, opcode: 10))
                     case .closed: close(); return
                     }
                 }
@@ -228,7 +255,15 @@ final class CodexRPCClient: CodexConversationClient {
 
     private func finish(_ id: Int, result: Result<[String: Any], Error>) {
         timers.removeValue(forKey: id)?.cancel()
+        writeTokens.removeValue(forKey: id)
         pending.removeValue(forKey: id)?.resume(with: result)
+    }
+
+    private func expire(_ id: Int, error: Error) {
+        guard pending[id] != nil else { return }
+        let mustClose = writeTokens[id].map { writer?.cancel($0) == true } ?? false
+        finish(id, result: .failure(error))
+        if mustClose { close() }
     }
 
     func close() {
@@ -241,11 +276,12 @@ final class CodexRPCClient: CodexConversationClient {
         startup?.cancel()
         startup = nil
         output?.readabilityHandler = nil
+        writer?.stop(); writer = nil
         try? input?.close()
         try? output?.close()
         input = nil; output = nil
         process?.terminationHandler = nil
-        if process?.isRunning == true { process?.terminate() }
+        if let process { ProcessRunner.terminateOwned(process) }
         process = nil
         buffer.removeAll()
         for id in Array(pending.keys) {

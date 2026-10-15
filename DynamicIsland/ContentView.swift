@@ -46,7 +46,6 @@ struct ContentView: View {
     @ObservedObject var timerManager = TimerManager.shared
     @ObservedObject var reminderManager = ReminderLiveActivityManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
-    @ObservedObject var statsManager = StatsManager.shared
     @ObservedObject var recordingManager = ScreenRecordingManager.shared
     @ObservedObject var privacyManager = PrivacyIndicatorManager.shared
     @ObservedObject var doNotDisturbManager = DoNotDisturbManager.shared
@@ -86,8 +85,6 @@ struct ContentView: View {
     @Default(.showDoNotDisturbIndicator) var showDoNotDisturbIndicator
     @Default(.enableScreenRecordingDetection) var enableScreenRecordingDetection
     @Default(.showRecordingIndicator) var showRecordingIndicator
-    @Default(.recordingHoverStyle) var recordingHoverStyle
-    @Default(.recordingControlMode) var recordingControlMode
     @Default(.enableCapsLockIndicator) var enableCapsLockIndicator
     @Default(.showStandardMediaControls) var showStandardMediaControls
     @Default(.externalDisplayStyle) var externalDisplayStyle
@@ -104,6 +101,10 @@ struct ContentView: View {
     
     // Dynamic sizing based on view type and graph count with smooth transitions
     var dynamicNotchSize: CGSize {
+        recordingHUDLayout.addingIndicator(to: mainContentNotchSize)
+    }
+
+    private var mainContentNotchSize: CGSize {
         let baseSize = openNotchSize
 
         if isConnectivityHUDVisible,
@@ -137,13 +138,6 @@ struct ContentView: View {
             return CGSize(width: max(baseSize.width, inlineWidth), height: baseSize.height)
         }
 
-        if let size = recordingHUDLayout.size(
-            closedNotchSize: vm.closedNotchSize,
-            effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
-        ) {
-            return size
-        }
-        
         // Battery HUD expansion: lay out at the size the HUD draws.
         if vm.notchState == .closed,
            coordinator.expandingView.show,
@@ -198,7 +192,6 @@ struct ContentView: View {
 
     @Namespace var albumArtNamespace
 
-    @Default(.useMusicVisualizer) var useMusicVisualizer
     @Default(.musicControlWindowEnabled) var musicControlWindowEnabled
     @Default(.useModernCloseAnimation) var useModernCloseAnimation
 
@@ -454,42 +447,14 @@ struct ContentView: View {
         return !musicManager.isPlayerIdle && hasMusicMetadata
     }
 
-    private var recordingLiveActivityVisibleOnClosedNotch: Bool {
-        recordingHUDLayout.isVisible
-    }
-
     private var recordingHUDLayout: RecordingHUDLayout {
         makeRecordingHUDLayout(
             notchState: vm.notchState,
             screenRecordingDetectionEnabled: enableScreenRecordingDetection,
             showRecordingIndicator: showRecordingIndicator,
             hideOnClosed: vm.hideOnClosed,
-            isRecording: recordingManager.isRecording,
-            closedMusicPairingEligible: closedMusicPairingEligible(
-                hasActiveMusicSnapshot: hasActiveMusicSnapshotForClosedPairing
-            ),
-            recordingControlMode: recordingControlMode,
-            canStopFromHUD: recordingManager.shouldShowStopControlsInHUD,
-            recordingHoverStyle: recordingHoverStyle,
-            suppressHoverExpansion: recordingManager.isScreenSharingAppActive,
-            expanded: isHovering
+            isRecording: recordingManager.isRecording
         )
-    }
-
-    private var recordingHUDDefaultExpandedOnHover: Bool {
-        recordingHUDLayout.showsDefaultExpansion
-    }
-
-    private var recordingHUDInlineExpandedOnHover: Bool {
-        recordingHUDLayout.showsInlineExpansion
-    }
-
-    private var recordingHUDExtraWidth: CGFloat {
-        recordingHUDLayout.extraWidth
-    }
-
-    private var recordingHUDExtraHeight: CGFloat {
-        recordingHUDLayout.extraHeight
     }
 
     private var displayedBatteryHUDLevel: Int {
@@ -525,21 +490,6 @@ struct ContentView: View {
         }
     }
 
-    private var activeClosedRecordingSurfaceShape: AnyShape? {
-        guard recordingHUDDefaultExpandedOnHover else { return nil }
-
-        if isDynamicIslandMode {
-            return AnyShape(DynamicIslandPillShape(cornerRadius: dynamicIslandPillCornerRadiusInsets.opened))
-        }
-
-        return AnyShape(
-            NotchShape(
-                topCornerRadius: cornerRadiusInsets.closed.top,
-                bottomCornerRadius: 40
-            )
-        )
-    }
-
     private func resolvedBatteryNotificationStyle(for kind: BatteryTemporaryHUDKind) -> BatteryNotificationStyle {
         kind.style(lowBattery: lowBatteryHUDStyle, fullBattery: fullBatteryHUDStyle)
     }
@@ -568,9 +518,6 @@ struct ContentView: View {
                     bottomCornerRadius: bottomRadius
                 )
             )
-        }
-        if let activeClosedRecordingSurfaceShape {
-            return activeClosedRecordingSurfaceShape
         }
         if let activeClosedBatterySurfaceShape {
             return activeClosedBatterySurfaceShape
@@ -622,7 +569,12 @@ struct ContentView: View {
     }
 
     private var mainNotchSurface: some View {
-        notchLayout()
+        RecordingLiveActivity(
+            layout: recordingHUDLayout,
+            closedNotchSize: CGSize(width: vm.closedNotchSize.width, height: vm.effectiveClosedNotchHeight)
+        ) {
+            notchLayout()
+        }
             .frame(alignment: .top)
             .padding(.horizontal, notchHorizontalInset)
             .padding([.horizontal, .bottom], notchOpenPadding)
@@ -710,7 +662,6 @@ struct ContentView: View {
                     }
                     .onTapGesture {
                         guard !isConnectivityHUDVisible else { return }
-                        guard !recordingOpenGestureLocked else { return }
                         if handleClosedMusicWaveformTapIfNeeded() {
                             return
                         }
@@ -983,13 +934,6 @@ struct ContentView: View {
                     enqueueMusicControlWindowSync(forceRefresh: true, delay: hovering ? 0.05 : 0.12)
                 }
             }
-            .onChange(of: recordingManager.isRecording) { _, isRecording in
-                if isRecording {
-                    stopHoverClickMonitor()
-                } else if isHovering && Defaults[.openNotchOnHover] {
-                    startHoverClickMonitor()
-                }
-            }
             .onChange(of: musicManager.isPlaying) { _, isPlaying in
                 handleMusicControlPlaybackChange(isPlaying: isPlaying)
             }
@@ -1112,14 +1056,6 @@ struct ContentView: View {
                   enableReminderLiveActivity,
                   !vm.hideOnClosed {
             ReminderLiveActivity()
-        } else if mayShowClosedActivity(as: .recording),
-                  vm.notchState == .closed,
-                  recordingManager.isRecording,
-                  Defaults[.enableScreenRecordingDetection],
-                  Defaults[.showRecordingIndicator],
-                  !vm.hideOnClosed,
-                  !musicPairingEligible {
-            RecordingLiveActivity(hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
         } else if mayShowClosedActivity(as: .download),
                   vm.notchState == .closed,
                   downloadManager.isDownloading,
@@ -1140,7 +1076,7 @@ struct ContentView: View {
             DoNotDisturbLiveActivity()
         } else if mayShowClosedActivity(as: .privacy),
                   vm.notchState == .closed,
-                  privacyManager.hasAnyIndicator,
+                  privacyManager.hasCameraOrMicrophoneIndicator,
                   Defaults[.enableCameraDetection] || Defaults[.enableMicrophoneDetection],
                   !vm.hideOnClosed {
             PrivacyLiveActivity()
@@ -1447,10 +1383,6 @@ struct ContentView: View {
             return .reminder(reminder)
         }
 
-        if enableScreenRecordingDetection && showRecordingIndicator && recordingManager.isRecording {
-            return .recording
-        }
-
         if enableDoNotDisturbDetection && showDoNotDisturbIndicator && doNotDisturbManager.isDoNotDisturbActive {
             let mode = FocusModeType.resolve(identifier: doNotDisturbManager.currentFocusModeIdentifier, name: doNotDisturbManager.currentFocusModeName)
             return .focus(mode)
@@ -1480,8 +1412,6 @@ struct ContentView: View {
             return showLabel ? scaledWingWidth(baseWidth: baseWidth, centerBaseWidth: centerBaseWidth, factor: 0.4, extra: 12) : baseWidth
         case .focus:
             return focusRightWingWidth(baseWidth: baseWidth)
-        case .recording:
-            return recordingRightWingWidth(baseWidth: baseWidth)
         case .shelf:
             return baseWidth
         }
@@ -1536,15 +1466,6 @@ struct ContentView: View {
         return baseWidth
     }
 
-    private func recordingRightWingWidth(baseWidth: CGFloat) -> CGFloat {
-        // Keep recording pairings compact by reducing the width relative to the notch height.
-        let absoluteMin: CGFloat = 38
-        let preferredWidth = max(baseWidth * 0.6, 0)
-        let maxWidth = min(baseWidth - 6, 52)
-        let clampedPreferred = min(preferredWidth, maxWidth)
-        return min(baseWidth, max(absoluteMin, clampedPreferred))
-    }
-
     private func scaledWingWidth(baseWidth: CGFloat, centerBaseWidth: CGFloat, factor: CGFloat, extra: CGFloat) -> CGFloat {
         max(baseWidth, max(centerBaseWidth * factor, baseWidth + extra))
     }
@@ -1571,8 +1492,6 @@ struct ContentView: View {
                         .renderingMode(.template)
                         .font(.system(size: badgeSize * 0.5, weight: .semibold))
                         .foregroundStyle(mode.accentColor)
-                case .recording:
-                    PulsingDot(color: .systemRed, diameter: badgeSize * 0.45)
                 case .capsLock:
                     Image(systemName: "capslock.fill")
                         .font(.system(size: badgeSize * 0.5, weight: .semibold))
@@ -1631,12 +1550,10 @@ struct ContentView: View {
             if showLabel {
                 MusicCapsLockLabelView(color: capsLockTintMode.color)
             } else {
-                spectrumView(forceSpectrum: true)
+                spectrumView()
             }
         case .focus:
-            spectrumView(forceSpectrum: true)
-        case .recording:
-            spectrumView(forceSpectrum: true, trailingInset: 6)
+            spectrumView()
         case .shelf(let count):
             // File count badge: bold white number, like a minimal pill
             Text("\(count)")
@@ -1647,63 +1564,44 @@ struct ContentView: View {
                 .frame(alignment: .center)
         case .none:
             spectrumView(
-                forceSpectrum: false,
                 enableClosedPlayPauseOverlay: shouldShowClosedMusicWaveformPlayPauseOverlay(for: secondary)
             )
         }
     }
 
-    @ViewBuilder
-    private func spectrumVisualizer(
-        useMusicVisualizer: Bool,
-        forceSpectrum: Bool
-    ) -> some View {
-        let width = CGFloat(Defaults[.visualizerBarCount]) * 4
-        if useMusicVisualizer || forceSpectrum {
-            Rectangle()
-                .fill((Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray).spectrogramGradient())
-                .frame(width: 50, alignment: .center)
-                .matchedGeometryEffect(id: "spectrum", in: albumArtNamespace)
-                .mask {
-                    AudioVisualizerView(isPlaying: $musicManager.isPlaying)
-                        .frame(width: width, height: 12)
-                }
-        }
+    private var spectrumVisualizer: some View {
+        Rectangle()
+            .fill((Defaults[.coloredSpectrogram] ? Color(nsColor: musicManager.avgColor) : Color.gray).spectrogramGradient())
+            .frame(width: 50, alignment: .center)
+            .matchedGeometryEffect(id: "spectrum", in: albumArtNamespace)
+            .mask {
+                AudioVisualizerView(isPlaying: $musicManager.isPlaying)
+                    .frame(width: CGFloat(Defaults[.visualizerBarCount]) * 4, height: 12)
+            }
     }
 
-    @ViewBuilder
-    private func spectrumView(
-        forceSpectrum: Bool,
-        trailingInset: CGFloat = 0,
-        enableClosedPlayPauseOverlay: Bool = false
-    ) -> some View {
-        if useMusicVisualizer || forceSpectrum {
-            spectrumVisualizer(useMusicVisualizer: useMusicVisualizer, forceSpectrum: forceSpectrum)
-                .blur(radius: (enableClosedPlayPauseOverlay && isHoveringClosedMusicWaveformControl) ? 2.4 : 0)
-                .overlay {
-                    if enableClosedPlayPauseOverlay {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.black.opacity(isHoveringClosedMusicWaveformControl ? 0.24 : 0.02))
+    private func spectrumView(enableClosedPlayPauseOverlay: Bool = false) -> some View {
+        spectrumVisualizer
+            .blur(radius: (enableClosedPlayPauseOverlay && isHoveringClosedMusicWaveformControl) ? 2.4 : 0)
+            .overlay {
+                if enableClosedPlayPauseOverlay {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.black.opacity(isHoveringClosedMusicWaveformControl ? 0.24 : 0.02))
 
-                            Image(systemName: musicManager.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.white.opacity(isHoveringClosedMusicWaveformControl ? 0.98 : 0.0))
-                                .contentTransition(.symbolEffect(.replace))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .allowsHitTesting(false)
+                        Image(systemName: musicManager.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white.opacity(isHoveringClosedMusicWaveformControl ? 0.98 : 0.0))
+                            .contentTransition(.symbolEffect(.replace))
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .allowsHitTesting(false)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.trailing, trailingInset)
-                .animation(.smooth(duration: 0.16), value: isHoveringClosedMusicWaveformControl)
-                .animation(.smooth(duration: 0.2), value: musicManager.isPlaying)
-        } else {
-            LottieAnimationView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.smooth(duration: 0.16), value: isHoveringClosedMusicWaveformControl)
+            .animation(.smooth(duration: 0.2), value: musicManager.isPlaying)
     }
 
     private var timerAccentColor: Color {
@@ -1882,7 +1780,6 @@ struct ContentView: View {
     private func startHoverClickMonitor() {
         guard Defaults[.openNotchOnHover] else { return }
         guard !isConnectivityHUDVisible else { return }
-        guard !recordingLiveActivityVisibleOnClosedNotch else { return }
         guard hoverClickMonitor == nil else { return }
 
         let handleClick: @Sendable () -> Void = { [weak vm, weak lockScreenManager] in
@@ -1891,7 +1788,6 @@ struct ContentView: View {
                 guard !lockScreenManager.isLocked else { return }
                 guard vm.notchState == .closed else { return }
                 guard !self.isConnectivityHUDVisible else { return }
-                guard !self.recordingOpenGestureLocked else { return }
                 guard !self.coordinator.isHoverOpenSuppressed else { return }
                 guard self.isHovering else { return }
                 guard !self.handleClosedMusicWaveformTapIfNeeded() else { return }
@@ -1941,9 +1837,7 @@ struct ContentView: View {
         hoverTask?.cancel()
 
         if hovering {
-            if !recordingLiveActivityVisibleOnClosedNotch {
-                startHoverClickMonitor()
-            }
+            startHoverClickMonitor()
         } else {
             stopHoverClickMonitor()
             if isHoveringClosedMusicWaveformControl {
@@ -1967,7 +1861,6 @@ struct ContentView: View {
             guard vm.notchState == .closed,
                 !isSneakPeekVisibleOnCurrentScreen,
                 !isConnectivityHUDVisible,
-                !recordingLiveActivityVisibleOnClosedNotch,
                 (Defaults[.openNotchOnHover] || shouldFocusTimerTab) else { return }
 
             hoverTask = Task {
@@ -1977,8 +1870,6 @@ struct ContentView: View {
                 await MainActor.run {
                     guard self.vm.notchState == .closed,
                           self.isHovering,
-                          !self.recordingManager.isRecording,
-                          !self.recordingLiveActivityVisibleOnClosedNotch,
                           !self.isSneakPeekVisibleOnCurrentScreen,
                           !self.isConnectivityHUDVisible,
                           !self.coordinator.isHoverOpenSuppressed else { return }
@@ -2036,14 +1927,10 @@ struct ContentView: View {
 
         let closedHeight = vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0)
         let closedWidth = max(vm.closedNotchSize.width + (isHovering ? 8 : 0), 96)
-        let recordingSize = recordingHUDLayout.size(
-            closedNotchSize: vm.closedNotchSize,
-            effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
-        )
-        let height = max(closedHeight, recordingSize?.height ?? 0) + 6
+        let height = closedHeight + 6
             + PinnedLyricsView.reservedHeight(isEligible: pinnedLyricsVisible,
                 availability: musicManager.lyricsAvailability, context: pinnedLyricContext)
-        let width = max(closedWidth, recordingSize?.width ?? 0) + 24
+        let width = recordingHUDLayout.addingIndicator(to: CGSize(width: closedWidth, height: closedHeight)).width + 24
         // Match the whole surface's housing alignment, including its clip.
         let minX = screen.frame.midX - width / 2 + notchCenterShift
         let minY = screen.frame.maxY - height
@@ -2161,7 +2048,6 @@ struct ContentView: View {
 
     private func handleOpenScrollGesture(translation: CGFloat, phase: NSEvent.Phase) {
         guard vm.notchState == .closed else { return }
-        guard !recordingOpenGestureLocked else { return }
 
         withAnimation(.smooth) {
             gestureProgress = (translation / Defaults[.gestureSensitivity]) * 20
@@ -2182,10 +2068,6 @@ struct ContentView: View {
             }
             openNotch()
         }
-    }
-
-    private var recordingOpenGestureLocked: Bool {
-        recordingLiveActivityVisibleOnClosedNotch
     }
 
     private func handleCloseScrollGesture(translation: CGFloat, phase: NSEvent.Phase) {

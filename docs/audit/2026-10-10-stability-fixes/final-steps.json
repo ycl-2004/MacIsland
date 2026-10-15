@@ -1,0 +1,52 @@
+[
+  {
+    "name": "build",
+    "exit": 0,
+    "seconds": 33.72
+  },
+  {
+    "name": "sign-host",
+    "exit": 0,
+    "seconds": 0.19
+  },
+  {
+    "name": "native",
+    "exit": 0,
+    "seconds": 30.83
+  },
+  {
+    "name": "native-summary",
+    "exit": 0,
+    "seconds": 0.19
+  },
+  {
+    "name": "python",
+    "exit": 0,
+    "seconds": 9.0
+  },
+  {
+    "name": "agent-build",
+    "exit": 0,
+    "seconds": 21.49
+  },
+  {
+    "name": "agent",
+    "exit": 0,
+    "seconds": 1.87
+  },
+  {
+    "name": "plugin",
+    "exit": 0,
+    "seconds": 0.4
+  },
+  {
+    "name": "guardian",
+    "exit": 0,
+    "seconds": 0.57
+  },
+  {
+    "name": "supervisor",
+    "exit": 0,
+    "seconds": 0.95
+  }
+]

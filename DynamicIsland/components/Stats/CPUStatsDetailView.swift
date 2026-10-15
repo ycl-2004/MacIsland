@@ -61,5 +61,6 @@ struct CPUStatsDetailView: View {
         .onAppear {
             topProcesses = Array(statsManager.topCPUProcesses.prefix(8))
         }
+        .statsDetailSampling(.cpu)
     }
 }

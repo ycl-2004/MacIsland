@@ -1,0 +1,21 @@
+{
+  "pid": 80956,
+  "samples": 13,
+  "stopped": "duration",
+  "elapsedBetweenEndpointsSeconds": 60.06598615646362,
+  "rssMinMiB": 128.0,
+  "rssMaxMiB": 183.609375,
+  "rssLastMiB": 168.09375,
+  "cpuPointMedianPercent": 0.4,
+  "openFDRange": [
+    29,
+    29
+  ],
+  "directChildCountRange": [
+    3,
+    3
+  ],
+  "laterPhysicalFootprintMiB": 70.9854507446289,
+  "laterRSSMiB": 142.9375,
+  "scenario": "Fresh installed Release startup; existing preferences; not a controlled idle or long-run benchmark"
+}

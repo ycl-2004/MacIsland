@@ -50,6 +50,7 @@ struct DiskStatsDetailView: View {
             .padding(16)
         }
         .frame(minWidth: 360, minHeight: 340)
+        .statsDetailSampling(.disk)
     }
 }
 

@@ -85,7 +85,7 @@ final class KeyboardBrightnessSensor {
     }
 
     private static func readStandardRawLevel() throws -> Float {
-        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("AppleHIDKeyboardEventDriverV2"))
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleHIDKeyboardEventDriverV2"))
         guard service != 0 else {
             throw SensorError.Keyboard.notStandard
         }
@@ -96,12 +96,12 @@ final class KeyboardBrightnessSensor {
             "KeyboardBacklightBrightness" as CFString,
             kCFAllocatorDefault,
             0
-        )?.takeUnretainedValue() else {
+        )?.takeRetainedValue() else {
             throw SensorError.Keyboard.notStandard
         }
         if CFGetTypeID(property) == CFNumberGetTypeID() {
             var rawValue: Float = 0
-            if CFNumberGetValue(property as! CFNumber, .floatType, &rawValue) {
+            if CFNumberGetValue((property as! CFNumber), .floatType, &rawValue) {
                 return rawValue / maxKeyboardBrightness
             }
         }
@@ -110,13 +110,11 @@ final class KeyboardBrightnessSensor {
 
     private static func readM1RawLevel() throws -> Float {
         let task = Process()
-        task.launchPath = "/usr/libexec/corebrightnessdiag"
+        task.executableURL = URL(fileURLWithPath: "/usr/libexec/corebrightnessdiag")
         task.arguments = ["status-info"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        try task.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
+        guard let result = ProcessRunner.captureBlocking(task, timeout: 2, limit: 1024 * 1024),
+              result.outcome == .exited(0), !result.truncated else { throw SensorError.Keyboard.notSilicon }
+        let data = result.output
 
         if let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? NSDictionary,
            let keyboards = plist["CBKeyboards"] as? [String: [String: Any]] {
@@ -133,7 +131,7 @@ final class KeyboardBrightnessSensor {
     }
 
     private static func writeStandard(rawLevel: Float) throws {
-        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("AppleHIDKeyboardEventDriverV2"))
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleHIDKeyboardEventDriverV2"))
         guard service != 0 else {
             throw SensorError.Keyboard.notStandard
         }

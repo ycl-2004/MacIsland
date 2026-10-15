@@ -1,0 +1,6 @@
+{"unixTime": 1791674457.0467908, "pid": 62485, "cpuPercent": 0.0, "rssKB": 127200, "elapsed": "00:33", "children": 3, "openFDs": 27}
+{"unixTime": 1791674462.058845, "pid": 62485, "cpuPercent": 0.6, "rssKB": 127200, "elapsed": "00:38", "children": 3, "openFDs": 27}
+{"unixTime": 1791674467.0590909, "pid": 62485, "cpuPercent": 0.4, "rssKB": 127200, "elapsed": "00:43", "children": 3, "openFDs": 27}
+{"unixTime": 1791674472.062263, "pid": 62485, "cpuPercent": 0.0, "rssKB": 127200, "elapsed": "00:48", "children": 3, "openFDs": 27}
+{"unixTime": 1791674477.069792, "pid": 62485, "cpuPercent": 0.1, "rssKB": 127200, "elapsed": "00:53", "children": 3, "openFDs": 27}
+{"unixTime": 1791674482.0748842, "pid": 62485, "cpuPercent": 0.0, "rssKB": 127200, "elapsed": "00:58", "children": 3, "openFDs": 27}

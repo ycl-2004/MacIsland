@@ -603,7 +603,7 @@ final class ShelfItemViewModel: ObservableObject {
             panel.isAccessoryViewDisclosed = true
 
             // Wire up popup to switch filter mode
-            class PopupBinder: NSObject {
+            @MainActor class PopupBinder: NSObject {
                 weak var popup: NSPopUpButton?
                 weak var chooserDelegate: AppChooserDelegate?
                 weak var panel: NSOpenPanel?

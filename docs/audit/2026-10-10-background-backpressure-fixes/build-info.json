@@ -1,0 +1,11 @@
+{
+  "build": "1637",
+  "commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+  "configuration": "Release",
+  "dirty": "true",
+  "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+  "sdk": "macosx27.0",
+  "sourceSHA256": "8c2b6bb119509675e436f024e4808f631f2e64e58856639fdb7ea4131b7b18ad",
+  "version": "1.0.0",
+  "xcode": "2700"
+}

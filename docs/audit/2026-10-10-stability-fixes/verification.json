@@ -1,0 +1,142 @@
+{
+  "recordedAt": "2026-10-10T16:22:30.683492-07:00",
+  "scope": "Local code hardening, isolated regression, signed local replacement and startup acceptance; long-duration hardware acceptance remains pending.",
+  "environment": {
+    "macOS": "27.0.1",
+    "macOSBuild": "26A434",
+    "architecture": "arm64",
+    "xcode": "Xcode 27.0\nBuild version 27A266a",
+    "swiftLanguageMode": "5",
+    "deploymentTarget": "14.6",
+    "hostedCIToolchain": "Xcode 26.3 on macos-26; not executed"
+  },
+  "riskMapping": "../../stability-fixes-2026-10-10.md",
+  "native": {
+    "passed": 327,
+    "failed": 0,
+    "skipped": 0,
+    "runtimeWarnings": [],
+    "asanMemoryErrors": 0,
+    "tsanDataRaces": 0,
+    "rawReceipt": "/tmp/atoll-stability-fixes/final-quit-fix"
+  },
+  "addressSanitizer": {
+    "passed": 326,
+    "failed": 0,
+    "skipped": 0,
+    "runtimeWarnings": [
+      {
+        "issueType": "Runtime Warning",
+        "message": "[Internal] Thread running at User-initiated quality-of-service class waiting on a lower QoS thread running at Default quality-of-service class. Investigate ways to avoid priority inversions"
+      }
+    ],
+    "asanMemoryErrors": 0,
+    "tsanDataRaces": 0,
+    "rawReceipt": "/tmp/atoll-stability-fixes/asan-2"
+  },
+  "threadSanitizer": {
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0,
+    "runtimeWarnings": [
+      {
+        "issueType": "Runtime Warning",
+        "message": "Thread running at User-initiated quality-of-service class waiting on a lower QoS thread running at Default quality-of-service class. Investigate ways to avoid priority inversions"
+      }
+    ],
+    "asanMemoryErrors": 0,
+    "tsanDataRaces": 0,
+    "rawReceipt": "/tmp/atoll-stability-fixes/tsan-quit-fix"
+  },
+  "sanitizerScope": "ASAN ran 326 tests before the later initial-load Quit fix; the final normal suite ran 327 tests and updated TSAN ran 16 fault tests including that fix. Real audio render/private hardware services were disabled in XCTest.",
+  "retainedFailedAttempt": {
+    "receipt": "/tmp/atoll-stability-fixes/asan-1",
+    "totalTests": 325,
+    "failedTests": 1,
+    "reason": "ExtraSpaceScrollView absent after fixed 50 ms wait; changed test to await actual mounted view.",
+    "fixedIn": "asan-2",
+    "receiptInRepository": "first-asan-failure.log.md"
+  },
+  "fixtures": {
+    "pythonTests": 7,
+    "agentRPCGroups": 16,
+    "pluginCases": 7,
+    "legacyGuardianCases": 4,
+    "ownedSupervisorCases": 3,
+    "passed": true,
+    "rawReceipt": "/tmp/atoll-stability-fixes/final-quit-fix",
+    "realExternalAgentCLIUsed": false
+  },
+  "resourceProbes": {
+    "passed": true,
+    "receipt": "resource-probes.json",
+    "scope": "Exact-source UTF-8/cancellation/session-budget probes and lifetime/pipe controls; synthetic data only.",
+    "rawReceipt": "/tmp/atoll-stability-fixes/resource-probes-final.json"
+  },
+  "samplerSmoke": {
+    "fixtureSamples": 3,
+    "fixtureProcess": "Owned sleep process",
+    "installedStartupSamples": 6,
+    "longDurationAcceptance": false,
+    "installedStartupReceipt": "corrected-startup-summary.json",
+    "installedStartupBinarySHA256": "61bce6cc9c51d2e2e214892940ee8277fc1190770eaf92e9fe7aec09b08d5426"
+  },
+  "release": {
+    "passed": true,
+    "warningCount": 34,
+    "actorSendableOwnershipWarnings": 0,
+    "receipt": "release-build.json",
+    "rawLog": "/tmp/atoll-stability-fixes/release-quit-fix.log"
+  },
+  "provenance": {
+    "build": "1637",
+    "commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+    "configuration": "Release",
+    "dirty": "true",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "75d54263b0851ca55c20f133a596d89b01ca9d82bcf029e72bceb9b89063a8b2",
+    "version": "1.0.0",
+    "xcode": "2700"
+  },
+  "installedBinarySHA256": "61bce6cc9c51d2e2e214892940ee8277fc1190770eaf92e9fe7aec09b08d5426",
+  "installation": "installation.json",
+  "originalStatsPreserved": {
+    "unchangedBaselineFiles": 31,
+    "intentionalAdditionalFiles": 2,
+    "receipt": "baseline-preservation.json"
+  },
+  "checks": {
+    "pythonAST": true,
+    "projectPlist": true,
+    "gitDiffCheck": true,
+    "installedSourceSHA256MatchesWorktreeCode": true,
+    "packageResolvedUnchanged": true
+  },
+  "remaining": [
+    "24–72 hour same-binary soak and Instruments",
+    "Full UI/audio/brightness/display/lock-screen/permission combination tests",
+    "Oldest supported macOS and Intel capability acceptance",
+    "Hosted CI Xcode 26.3 execution",
+    "Distribution signing and notarization"
+  ],
+  "boundaries": {
+    "contentDeletion": false,
+    "claudeCLIInvoked": false,
+    "commit": false,
+    "push": false,
+    "installedOnlyAfterExplicitUserRequest": true
+  },
+  "firstInstalledQuitFailure": "first-installed-quit-failure.json",
+  "installedFirstNormalQuitPassed": true,
+  "existingExtraSpaceTextPreserved": true,
+  "runningInstance": {
+    "bundlePath": "/Applications/Atoll.app",
+    "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "finishedLaunching": true,
+    "pid": 64683,
+    "terminated": false
+  },
+  "closedAt": "2026-10-10T20:41:39.182940-07:00",
+  "requirementsVerified": 17
+}

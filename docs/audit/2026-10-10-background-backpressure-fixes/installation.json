@@ -1,0 +1,74 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "stage": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/BackgroundBackpressure-20261010-215110-7ef755d6/Atoll.app",
+  "target": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/BackgroundBackpressure-20261010-215110-7ef755d6/OriginalAtoll.app",
+  "buildInfo": {
+    "build": "1637",
+    "commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+    "configuration": "Release",
+    "dirty": "true",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "8c2b6bb119509675e436f024e4808f631f2e64e58856639fdb7ea4131b7b18ad",
+    "version": "1.0.0",
+    "xcode": "2700"
+  },
+  "sourceMatchesCurrentCode": true,
+  "signingTeam": "BQYHJCCRMP",
+  "signatureVerified": true,
+  "unsignedSHA256": "162139b687e0ea6a0c41e16888d9fbc24f76c80f1705582fa3217ff3f38a2209",
+  "signedSHA256": "c057f99e60279990ee75d1a7f83d631a68f3b43d1d1dcf8bd673b15c90042eca",
+  "originalSHA256": "88c588b72fb12d79626a65c38b2f03fd218f5289d3ebe4a21ba718552dc62840",
+  "previousInstance": {
+    "action": "status",
+    "instances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 71861,
+        "terminated": false
+      }
+    ]
+  },
+  "prepared": true,
+  "quit": {
+    "method": "Atoll native Quit menu via CUA",
+    "normalExitConfirmed": true,
+    "forcedTermination": false
+  },
+  "extraSpaceAfterSaveSHA256": "5e268eaaa04119e9986c4fcf40d3bd55fcf776bb61de75a8e84621e47636abf5",
+  "installed": true,
+  "installedAt": "2026-10-10T21:54:39.088932-07:00",
+  "installedSHA256": "c057f99e60279990ee75d1a7f83d631a68f3b43d1d1dcf8bd673b15c90042eca",
+  "backupVerified": true,
+  "installedSignatureVerified": true,
+  "previousInstanceExitedNormally": true,
+  "forcedTermination": false,
+  "launchPending": false,
+  "extraSpaceUnchangedByInstallation": true,
+  "launch": {
+    "method": "CUA getApp /Applications/Atoll.app",
+    "instance": {
+      "bundlePath": "/Applications/Atoll.app",
+      "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+      "finishedLaunching": true,
+      "pid": 80956,
+      "terminated": false
+    }
+  },
+  "runningInstance": {
+    "bundlePath": "/Applications/Atoll.app",
+    "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "finishedLaunching": true,
+    "pid": 80956,
+    "terminated": false
+  },
+  "extraSpaceContentPreserved": true,
+  "sourceUnchangedSinceFinalTests": true,
+  "finalVerifiedAt": "2026-10-10T22:02:58.517875-07:00",
+  "finalRunningStateRechecked": true,
+  "finalRunningStateCheckMethod": "Fresh NSWorkspace status with system read access; PID 80956, finishedLaunching true, terminated false",
+  "installedSmokeSummary": "docs/audit/2026-10-10-background-backpressure-fixes/installed-smoke-summary.json"
+}

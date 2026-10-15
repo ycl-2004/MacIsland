@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "fixture": "event-during-drain-settlement",
+      "passed": true,
+      "forwarded": 2
+    },
+    {
+      "fixture": "critical-terminal-event-at-capacity",
+      "passed": true,
+      "forwarded": 33
+    },
+    {
+      "fixture": "bounded-coalescing-and-critical-order",
+      "passed": true,
+      "queued": 36
+    },
+    {
+      "fixture": "critical-overflow-exposes-uncertainty",
+      "passed": true,
+      "queued": 64
+    },
+    {
+      "fixture": "stalled-owned-child-is-killed",
+      "passed": true,
+      "kills": 2
+    },
+    {
+      "fixture": "broken-pipe-retains-child-ownership-until-close",
+      "passed": true,
+      "kills": 3
+    },
+    {
+      "fixture": "bounded-detached-payload",
+      "passed": true
+    }
+  ],
+  "real_children_spawned": 0
+}

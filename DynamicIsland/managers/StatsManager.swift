@@ -19,150 +19,123 @@
 import Foundation
 import Combine
 import Defaults
-import SwiftUI
-import IOKit
-import IOKit.ps
-import IOKit.graphics
-import Darwin
 import AppKit
-//import Network
+import Darwin
 
-class StatsManager: ObservableObject {
-    // MARK: - Properties
+@MainActor
+final class StatsManager: ObservableObject {
     static let shared = StatsManager()
-    
-    @Published var isMonitoring: Bool = false
-    @Published var cpuUsage: Double = 0.0
-    @Published var memoryUsage: Double = 0.0
-    @Published var gpuUsage: Double = 0.0
-    @Published var networkDownload: Double = 0.0 // MB/s
-    @Published var networkUpload: Double = 0.0   // MB/s
-    @Published var diskRead: Double = 0.0        // MB/s
-    @Published var diskWrite: Double = 0.0       // MB/s
-    @Published var lastUpdated: Date = .distantPast
-    @Published private(set) var cpuBreakdown: CPULoadBreakdown = .zero
-    @Published private(set) var cpuLoadAverage: LoadAverage = .zero
-    @Published private(set) var cpuCoreUsage: [CPUCoreUsage] = []
-    @Published private(set) var cpuUptime: TimeInterval = 0
+    @Published private(set) var isMonitoring = false
+    @Published private(set) var snapshot = StatsSnapshot()
     @Published private(set) var topCPUProcesses: [ProcessStats] = []
-    @Published private(set) var cpuTemperature: CPUTemperatureMetrics = CPUTemperatureMetrics(celsius: nil)
-    @Published private(set) var cpuFrequency: CPUFrequencyMetrics?
-    @Published private(set) var memoryBreakdown: MemoryBreakdown = .zero
-    @Published private(set) var gpuBreakdown: GPUBreakdown = .zero
-    @Published private(set) var gpuDevices: [GPUDeviceMetrics] = []
-    @Published private(set) var networkTotals: NetworkTotals = .zero
-    @Published private(set) var diskTotals: DiskTotals = .zero
-    @Published private(set) var networkInterfaces: [NetworkInterfaceMetrics] = []
     @Published private(set) var diskDevices: [DiskDeviceMetrics] = []
-    
-    // Historical data for graphs (last 30 data points)
-    @Published var cpuHistory: [Double] = []
-    @Published var memoryHistory: [Double] = []
-    @Published var gpuHistory: [Double] = []
-    @Published var networkDownloadHistory: [Double] = []
-    @Published var networkUploadHistory: [Double] = []
-    @Published var diskReadHistory: [Double] = []
-    @Published var diskWriteHistory: [Double] = []
-    
+
+    var cpuUsage: Double { snapshot.cpuUsage }
+    var memoryUsage: Double { snapshot.memoryUsage }
+    var gpuUsage: Double { snapshot.gpuUsage }
+    var networkDownload: Double { snapshot.networkDownload }
+    var networkUpload: Double { snapshot.networkUpload }
+    var diskRead: Double { snapshot.diskRead }
+    var diskWrite: Double { snapshot.diskWrite }
+    var lastUpdated: Date { snapshot.lastUpdated }
+    var cpuBreakdown: CPULoadBreakdown { snapshot.cpuBreakdown }
+    var cpuLoadAverage: LoadAverage { snapshot.cpuLoadAverage }
+    var cpuCoreUsage: [CPUCoreUsage] { snapshot.cpuCoreUsage }
+    var cpuUptime: TimeInterval { snapshot.cpuUptime }
+    var cpuTemperature: CPUTemperatureMetrics { snapshot.cpuTemperature }
+    var cpuFrequency: CPUFrequencyMetrics? { snapshot.cpuFrequency }
+    var memoryBreakdown: MemoryBreakdown { snapshot.memoryBreakdown }
+    var gpuBreakdown: GPUBreakdown { snapshot.gpuBreakdown }
+    var gpuDevices: [GPUDeviceMetrics] { snapshot.gpuDevices }
+    var networkTotals: NetworkTotals { snapshot.networkTotals }
+    var diskTotals: DiskTotals { snapshot.diskTotals }
+    var networkInterfaces: [NetworkInterfaceMetrics] { snapshot.networkInterfaces }
+    var cpuHistory: [Double] { snapshot.cpuHistory }
+    var memoryHistory: [Double] { snapshot.memoryHistory }
+    var gpuHistory: [Double] { snapshot.gpuHistory }
+    var networkDownloadHistory: [Double] { snapshot.networkDownloadHistory }
+    var networkUploadHistory: [Double] { snapshot.networkUploadHistory }
+    var diskReadHistory: [Double] { snapshot.diskReadHistory }
+    var diskWriteHistory: [Double] { snapshot.diskWriteHistory }
+
+    private let sampler: any StatsSampling
+    private var samplingTask: Task<Void, Never>?
+    private var sampleRequested = false
+    private var monitoringGeneration = UUID()
+    private var historyRevision: UInt64 = 0
+    private var detailSurfaces: [UUID: ProcessRankingType] = [:]
     private var monitoringTimer: Timer?
-    private let maxHistoryPoints = 30
-    /// Cached host port to avoid leaking Mach send rights.
-    /// Every call to `mach_host_self()` acquires a new send right that must be
-    /// explicitly deallocated; caching it once prevents port exhaustion over time.
-    private let hostPort: mach_port_t = mach_host_self()
-    private let totalPhysicalMemory: UInt64 = {
-        var stats = host_basic_info()
-        var count = mach_msg_type_number_t(MemoryLayout<host_basic_info_data_t>.size / MemoryLayout<integer_t>.size)
-        let initHostPort = mach_host_self()
-        let result = withUnsafeMutablePointer(to: &stats) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_info(initHostPort, HOST_BASIC_INFO, $0, &count)
-            }
-        }
-        mach_port_deallocate(mach_task_self_, initHostPort)
-        if result == KERN_SUCCESS {
-            return UInt64(stats.max_mem)
-        }
-        return UInt64(ProcessInfo.processInfo.physicalMemory)
-    }()
-    
-    // Keep the emitted policy: @Published subscribers run before the monitor
-    // assigns its new value. Sampling must not re-read that previous value.
+    private var scheduledInterval: TimeInterval?
     private var runtimePolicy = AtollRuntimePolicy()
     private var resumeBackgroundAfterUnlock = false
-    
-    // Network monitoring state
-    private var previousNetworkStats: (bytesIn: UInt64, bytesOut: UInt64) = (0, 0)
-    private var previousTimestamp: Date = Date()
-    
-    // Disk monitoring state  
-    private var previousDiskStats: (bytesRead: UInt64, bytesWritten: UInt64) = (0, 0)
-    private var previousCPULoadInfo: host_cpu_load_info?
-    private var previousCpuInfo: processor_info_array_t?
-    private var previousCpuInfoCount: mach_msg_type_number_t = 0
-    private var processorCount: natural_t = 0
-    private var previousInterfaceCounters: [String: (bytesIn: UInt64, bytesOut: UInt64)] = [:]
-    private var interfaceTotals: [String: NetworkTotals] = [:]
-    
-    // Per-process monitoring cache (updated via ps sampling)
+    private var cancellables = Set<AnyCancellable>()
     private var cachedProcessStats: [ProcessStats] = []
     private var lastProcessStatsUpdate: Date = .distantPast
-    private let processStatsUpdateInterval: TimeInterval = 2.0
-    private let maxProcessEntries: Int = 20
+    private let processStatsUpdateInterval: TimeInterval = 2
+    private let maxProcessEntries = 20
     private var processRefreshGeneration = UUID()
     private var processRefreshTask: Task<Void, Never>?
     private var isProcessRefreshInFlight = false
-    // Volume capacities change slowly, and reading them can take a while.
     private var lastDiskDevicesUpdate: Date = .distantPast
-    private let diskDevicesUpdateInterval: TimeInterval = 30.0
+    private let diskDevicesUpdateInterval: TimeInterval = 30
     private var isDiskDevicesRefreshInFlight = false
-    private let gpuCollector = GPUInfoCollector()
-    private let cpuSensorCollector = CPUSensorCollector()
-    private var cancellables = Set<AnyCancellable>()
-    private let minUpdateInterval: TimeInterval = 1.0
-    private let maxUpdateInterval: TimeInterval = 60.0
-    
-    // MARK: - Initialization
-    private init() {
-        // Initialize with empty history
-        cpuHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        memoryHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        gpuHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        networkDownloadHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        networkUploadHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        diskReadHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        diskWriteHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        
-        // Initialize baseline network stats
-        let initialStats = getNetworkStats()
-        previousNetworkStats = initialStats
-        previousTimestamp = Date()
-        
-        // Initialize baseline disk stats
-        let initialDiskStats = getDiskStats()
-        previousDiskStats = initialDiskStats
 
+    /// Dependency injection also lets lifecycle tests hold and release samples.
+    init(sampler: any StatsSampling = SystemStatsSampler(), observeRuntimePolicy: Bool = true) {
+        self.sampler = sampler
+        guard observeRuntimePolicy else { return }
+        // Keep the emitted value: @Published sends before the monitor assigns it.
         RuntimePolicyMonitor.shared.$state.removeDuplicates().sink { [weak self] policy in
             self?.applyRuntimePolicy(policy)
         }.store(in: &cancellables)
         Defaults.publisher(.enableStatsFeature, options: []).sink { [weak self] _ in
             self?.applyRuntimePolicy(RuntimePolicyMonitor.shared.state)
         }.store(in: &cancellables)
-
-        Defaults.publisher(.statsUpdateInterval, options: []).sink { [weak self] change in
-            self?.handleUpdateIntervalChange(change.newValue)
-        }.store(in: &cancellables)
-
         Defaults.publisher(.statsStopWhenNotchCloses, options: []).sink { [weak self] _ in
             self?.applyRuntimePolicy(RuntimePolicyMonitor.shared.state)
         }.store(in: &cancellables)
+        Defaults.publisher(.statsUpdateInterval, options: []).sink { [weak self] change in
+            self?.handleUpdateIntervalChange(change.newValue)
+        }.store(in: &cancellables)
+        for key in [Defaults.Keys.showCpuGraph, Defaults.Keys.showMemoryGraph, Defaults.Keys.showGpuGraph, Defaults.Keys.showNetworkGraph, Defaults.Keys.showDiskGraph] {
+            Defaults.publisher(key, options: []).sink { [weak self] _ in
+                Task { @MainActor in self?.refresh() }
+            }.store(in: &cancellables)
+        }
     }
-    
+
     deinit {
-        stopMonitoring()
+        monitoringTimer?.invalidate()
+        samplingTask?.cancel()
+        processRefreshTask?.cancel()
     }
-    
-    // MARK: - Smart Monitoring
+
+    var samplingDemand: StatsSamplingDemand {
+        let details = Set(detailSurfaces.values)
+        return StatsSamplingDemand(
+            cpu: Defaults[.showCpuGraph] || details.contains(.cpu),
+            memory: Defaults[.showMemoryGraph] || details.contains(.memory),
+            gpu: Defaults[.showGpuGraph] || details.contains(.gpu),
+            network: Defaults[.showNetworkGraph] || details.contains(.network),
+            disk: Defaults[.showDiskGraph] || details.contains(.disk),
+            cpuDetails: details.contains(.cpu),
+            networkDetails: details.contains(.network),
+            diskDetails: details.contains(.disk),
+            processes: !details.isDisjoint(with: [.cpu, .memory, .gpu]))
+    }
+
+    func setDetailSurface(_ id: UUID, kind: ProcessRankingType, visible: Bool) {
+        let previous = samplingDemand
+        if visible { detailSurfaces[id] = kind } else { detailSurfaces.removeValue(forKey: id) }
+        guard previous != samplingDemand else { return }
+        if !samplingDemand.processes {
+            processRefreshGeneration = UUID()
+            processRefreshTask?.cancel(); processRefreshTask = nil
+            isProcessRefreshInFlight = false
+        }
+        refresh()
+    }
+
     func updateMonitoringState(notchIsOpen: Bool, currentView: String) {
         RuntimePolicyMonitor.shared.setStatsSurface("legacy", visible: notchIsOpen && currentView == "stats")
     }
@@ -173,583 +146,134 @@ class StatsManager: ObservableObject {
         if policy.isLocked && isMonitoring { resumeBackgroundAfterUnlock = true }
         let wasSampling = isMonitoring || (!policy.isLocked && resumeBackgroundAfterUnlock)
         if !policy.isLocked { resumeBackgroundAfterUnlock = false }
-        let sample = policy.shouldSampleStats(enabled: Defaults[.enableStatsFeature],
-                                              keepInBackground: !Defaults[.statsStopWhenNotchCloses],
-                                              alreadySampling: wasSampling)
-        if sample {
+        if policy.shouldSampleStats(enabled: Defaults[.enableStatsFeature],
+                                    keepInBackground: !Defaults[.statsStopWhenNotchCloses],
+                                    alreadySampling: wasSampling) {
             if !isMonitoring { startMonitoring() }
             else { scheduleMonitoringTimer() }
         } else { stopMonitoring() }
     }
 
-    // MARK: - Public Monitoring Controls
     func startMonitoring() {
         guard !isMonitoring, runtimePolicy.shouldSampleStats(
             enabled: Defaults[.enableStatsFeature], keepInBackground: !Defaults[.statsStopWhenNotchCloses], alreadySampling: true
         ) else { return }
-        
-        debugLog("StatsManager: Starting monitoring...")
-        
-        // Reset baseline for accurate measurement
-        let initialStats = getNetworkStats()
-        previousNetworkStats = initialStats
-        
-        let initialDiskStats = getDiskStats()
-        previousDiskStats = initialDiskStats
-        
-        previousTimestamp = Date()
-        
+        monitoringGeneration = UUID()
         processRefreshGeneration = UUID()
+        snapshot.resetSession()
         isMonitoring = true
-        lastUpdated = Date()
-        networkTotals = .zero
-        diskTotals = .zero
-        
         scheduleMonitoringTimer()
-
-        Task { @MainActor in
-            self.updateSystemStats()
-        }
-        
-        debugLog("StatsManager: Monitoring started")
+        refresh()
     }
-    
+
     func stopMonitoring() {
         guard isMonitoring else { return }
-        
-        // Clean up all timers
-        monitoringTimer?.invalidate()
-        monitoringTimer = nil
-        
+        monitoringTimer?.invalidate(); monitoringTimer = nil; scheduledInterval = nil
+        monitoringGeneration = UUID()
+        samplingTask?.cancel(); samplingTask = nil; sampleRequested = false
         processRefreshGeneration = UUID()
         processRefreshTask?.cancel(); processRefreshTask = nil
         isMonitoring = false
-        debugLog("StatsManager: Monitoring stopped")
-        cachedProcessStats.removeAll()
-        lastProcessStatsUpdate = .distantPast
-        isProcessRefreshInFlight = false
-        lastDiskDevicesUpdate = .distantPast
-        previousCPULoadInfo = nil
-        if let previousCpuInfo {
-            let size = vm_size_t(previousCpuInfoCount) * vm_size_t(MemoryLayout<integer_t>.size)
-            vm_deallocate(mach_task_self_, vm_address_t(bitPattern: previousCpuInfo), size)
-        }
-        previousCpuInfo = nil
-        previousCpuInfoCount = 0
-        processorCount = 0
-        topCPUProcesses = []
-        cpuCoreUsage = []
-        networkInterfaces = []
-        diskDevices = []
-        previousInterfaceCounters.removeAll()
-        interfaceTotals.removeAll()
-        cpuTemperature = CPUTemperatureMetrics(celsius: nil)
-        cpuFrequency = nil
+        cachedProcessStats.removeAll(); topCPUProcesses = []
+        lastProcessStatsUpdate = .distantPast; isProcessRefreshInFlight = false
+        lastDiskDevicesUpdate = .distantPast; diskDevices = []
+        snapshot.resetSession()
     }
 
     private func scheduleMonitoringTimer() {
-        monitoringTimer?.invalidate()
-
-        let configuredInterval = Defaults[.statsUpdateInterval]
-        let validated = validatedUpdateInterval(configuredInterval)
+        let configured = Defaults[.statsUpdateInterval]
+        let validated = validatedUpdateInterval(configured)
+        if !configured.isFinite || abs(validated - configured) > 0.0001 { Defaults[.statsUpdateInterval] = validated }
         let interval = runtimePolicy.statsInterval(configured: validated)
-
-        if abs(validated - configuredInterval) > 0.0001 {
-            Defaults[.statsUpdateInterval] = validated
+        guard scheduledInterval != interval || monitoringTimer == nil else { return }
+        monitoringTimer?.invalidate()
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            // This timer is registered only on the main run loop. Request the
+            // work synchronously so nested tracking loops need not drain a Task.
+            MainActor.assumeIsolated { self?.refresh() }
         }
-
-        monitoringTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-
-            Task { @MainActor in
-                self.updateSystemStats()
-            }
-        }
+        // Continue requesting background work during Cocoa control tracking.
+        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+        RunLoop.main.add(timer, forMode: .common)
+        monitoringTimer = timer; scheduledInterval = interval
     }
 
     private func handleUpdateIntervalChange(_ newValue: Double) {
-        let interval = validatedUpdateInterval(newValue)
-
-        if abs(interval - newValue) > 0.0001 {
-            Defaults[.statsUpdateInterval] = interval
+        let validated = validatedUpdateInterval(newValue)
+        if !newValue.isFinite || abs(validated - newValue) > 0.0001 {
+            Defaults[.statsUpdateInterval] = validated
             return
         }
-
         guard isMonitoring else { return }
-
-        DispatchQueue.main.async { [weak self] in
-            self?.scheduleMonitoringTimer()
-        }
+        Task { @MainActor [weak self] in self?.scheduleMonitoringTimer() }
     }
 
     private func validatedUpdateInterval(_ value: Double) -> TimeInterval {
-        min(max(value, minUpdateInterval), maxUpdateInterval)
+        value.isFinite ? min(60, max(1, value)) : 1
     }
 
-    // MARK: - Private Methods
-    @MainActor
-    private func updateSystemStats() {
+    /// At most one sample is pending; extra requests become one follow-up.
+    func refresh() {
         guard isMonitoring else { return }
-        let cpuMetrics = getCPULoadBreakdown()
-        let newCpuUsage = cpuMetrics.activeUsage
-        let memorySnapshot = getMemorySnapshot()
-        let newMemoryUsage = memorySnapshot.usage
-        let gpuSnapshot = getGPUMetrics()
-        let newGpuUsage = gpuSnapshot.usage
-        let coreUsage = collectCPUCoreUsage()
-        
-        // Calculate network speeds
-        let currentNetworkStats = getNetworkStats()
-        let currentTime = Date()
-        let timeInterval = currentTime.timeIntervalSince(previousTimestamp)
-        
-        var downloadSpeed: Double = 0.0
-        var uploadSpeed: Double = 0.0
-        var bytesDownloaded: UInt64 = 0
-        var bytesUploaded: UInt64 = 0
-        
-        // Only calculate speeds if we have a reasonable time interval and this isn't the first run
-        if timeInterval > 0.1 && (previousNetworkStats.bytesIn > 0 || previousNetworkStats.bytesOut > 0) {
-            bytesDownloaded = currentNetworkStats.bytesIn > previousNetworkStats.bytesIn ? 
-                                currentNetworkStats.bytesIn - previousNetworkStats.bytesIn : 0
-            bytesUploaded = currentNetworkStats.bytesOut > previousNetworkStats.bytesOut ? 
-                               currentNetworkStats.bytesOut - previousNetworkStats.bytesOut : 0
-            
-            downloadSpeed = Double(bytesDownloaded) / timeInterval / 1_048_576 // Convert to MB/s
-            uploadSpeed = Double(bytesUploaded) / timeInterval / 1_048_576 // Convert to MB/s
-        }
-        
-        // Calculate disk speeds
-        let currentDiskStats = getDiskStats()
-        var readSpeed: Double = 0.0
-        var writeSpeed: Double = 0.0
-        var bytesRead: UInt64 = 0
-        var bytesWritten: UInt64 = 0
-        
-        // Only calculate speeds if we have a reasonable time interval and this isn't the first run
-        if timeInterval > 0.1 && (previousDiskStats.bytesRead > 0 || previousDiskStats.bytesWritten > 0) {
-            bytesRead = currentDiskStats.bytesRead > previousDiskStats.bytesRead ? 
-                           currentDiskStats.bytesRead - previousDiskStats.bytesRead : 0
-            bytesWritten = currentDiskStats.bytesWritten > previousDiskStats.bytesWritten ? 
-                              currentDiskStats.bytesWritten - previousDiskStats.bytesWritten : 0
-            
-            readSpeed = Double(bytesRead) / timeInterval / 1_048_576 // Convert to MB/s
-            writeSpeed = Double(bytesWritten) / timeInterval / 1_048_576 // Convert to MB/s
-        }
-        
-        // Update cumulative transfer totals
-        if bytesDownloaded > 0 {
-            var updatedTotals = networkTotals
-            updatedTotals.downloadedMB += Double(bytesDownloaded) / 1_048_576
-            networkTotals = updatedTotals
-        }
-        if bytesUploaded > 0 {
-            var updatedTotals = networkTotals
-            updatedTotals.uploadedMB += Double(bytesUploaded) / 1_048_576
-            networkTotals = updatedTotals
-        }
-        if bytesRead > 0 {
-            var updatedDiskTotals = diskTotals
-            updatedDiskTotals.readMB += Double(bytesRead) / 1_048_576
-            diskTotals = updatedDiskTotals
-        }
-        if bytesWritten > 0 {
-            var updatedDiskTotals = diskTotals
-            updatedDiskTotals.writtenMB += Double(bytesWritten) / 1_048_576
-            diskTotals = updatedDiskTotals
-        }
-        
-        // Update current values
-        cpuUsage = newCpuUsage
-        gpuUsage = newGpuUsage
-        memoryUsage = newMemoryUsage
-        networkDownload = max(0.0, downloadSpeed)
-        networkUpload = max(0.0, uploadSpeed)
-        diskRead = max(0.0, readSpeed)
-        diskWrite = max(0.0, writeSpeed)
-        lastUpdated = Date()
-        cpuBreakdown = cpuMetrics
-        memoryBreakdown = memorySnapshot.breakdown
-        cpuLoadAverage = getLoadAverage()
-        gpuBreakdown = gpuSnapshot.breakdown
-        if gpuDevices != gpuSnapshot.devices {
-            gpuDevices = gpuSnapshot.devices
-        }
-        if cpuCoreUsage != coreUsage {
-            cpuCoreUsage = coreUsage
-        }
-        cpuUptime = ProcessInfo.processInfo.systemUptime
-        cpuTemperature = cpuSensorCollector.readTemperature()
-        if let frequencyMetrics = cpuSensorCollector.readFrequency() {
-            cpuFrequency = frequencyMetrics
-        }
-        
-        // Update history arrays (sliding window)
-        updateHistory(value: newCpuUsage, history: &cpuHistory)
-        updateHistory(value: newMemoryUsage, history: &memoryHistory)
-        updateHistory(value: newGpuUsage, history: &gpuHistory)
-        updateHistory(value: downloadSpeed, history: &networkDownloadHistory)
-        updateHistory(value: uploadSpeed, history: &networkUploadHistory)
-        updateHistory(value: readSpeed, history: &diskReadHistory)
-        updateHistory(value: writeSpeed, history: &diskWriteHistory)
-        
-        // Update previous stats for next calculation
-        previousNetworkStats = currentNetworkStats
-        previousDiskStats = currentDiskStats
-        previousTimestamp = currentTime
-        networkInterfaces = collectNetworkInterfaces(deltaTime: timeInterval)
         refreshDiskDevicesIfNeeded()
         refreshProcessStatsIfNeeded()
-    }
-    
-    private func updateHistory(value: Double, history: inout [Double]) {
-        // Remove first element and append new value
-        if history.count >= maxHistoryPoints {
-            history.removeFirst()
-        }
-        history.append(value)
-    }
-    
-    // MARK: - System Monitoring Functions
-    
-    private func getCPULoadBreakdown() -> CPULoadBreakdown {
-        var info = host_cpu_load_info()
-        var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
-
-        let result = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics(hostPort, HOST_CPU_LOAD_INFO, $0, &count)
-            }
-        }
-
-        guard result == KERN_SUCCESS else {
-            return cpuBreakdown
-        }
-
-        let clamped: (Double) -> Double = { value in
-            return min(max(value, 0), 100)
-        }
-
-        let breakdown: CPULoadBreakdown
-
-        if let previous = previousCPULoadInfo {
-            let userDiff = Double(info.cpu_ticks.0 - previous.cpu_ticks.0)
-            let systemDiff = Double(info.cpu_ticks.1 - previous.cpu_ticks.1)
-            let idleDiff = Double(info.cpu_ticks.2 - previous.cpu_ticks.2)
-            let niceDiff = Double(info.cpu_ticks.3 - previous.cpu_ticks.3)
-            let total = userDiff + systemDiff + idleDiff + niceDiff
-
-            if total > 0 {
-                let userPercent = ((userDiff + niceDiff) / total) * 100
-                let systemPercent = (systemDiff / total) * 100
-                let idlePercent = (idleDiff / total) * 100
-                breakdown = CPULoadBreakdown(
-                    user: clamped(userPercent),
-                    system: clamped(systemPercent),
-                    idle: clamped(idlePercent)
-                )
-            } else {
-                breakdown = cpuBreakdown
-            }
-        } else {
-            let totalTicks = Double(info.cpu_ticks.0 + info.cpu_ticks.1 + info.cpu_ticks.2 + info.cpu_ticks.3)
-            if totalTicks > 0 {
-                let userPercent = ((Double(info.cpu_ticks.0) + Double(info.cpu_ticks.3)) / totalTicks) * 100
-                let systemPercent = (Double(info.cpu_ticks.1) / totalTicks) * 100
-                let idlePercent = (Double(info.cpu_ticks.2) / totalTicks) * 100
-                breakdown = CPULoadBreakdown(
-                    user: clamped(userPercent),
-                    system: clamped(systemPercent),
-                    idle: clamped(idlePercent)
-                )
-            } else {
-                breakdown = cpuBreakdown
-            }
-        }
-
-        previousCPULoadInfo = info
-        return breakdown
-    }
-
-    private func getLoadAverage() -> LoadAverage {
-        var loads = [Double](repeating: 0, count: 3)
-        let result = loads.withUnsafeMutableBufferPointer { buffer -> Int32 in
-            guard let baseAddress = buffer.baseAddress else { return 0 }
-            return getloadavg(baseAddress, 3)
-        }
-        guard result == 3 else {
-            return cpuLoadAverage
-        }
-        return LoadAverage(oneMinute: loads[0], fiveMinutes: loads[1], fifteenMinutes: loads[2])
-    }
-    
-    private func getMemorySnapshot() -> (usage: Double, breakdown: MemoryBreakdown) {
-        // Memory usage monitoring using host_statistics64
-        var vmStatistics = vm_statistics64()
-        var size = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
-        
-        let vmResult = withUnsafeMutablePointer(to: &vmStatistics) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(size)) {
-                host_statistics64(hostPort, HOST_VM_INFO64, $0, &size)
-            }
-        }
-        
-        guard vmResult == KERN_SUCCESS else {
-            return (memoryUsage, memoryBreakdown)
-        }
-        
-        let pageSize = UInt64(vm_kernel_page_size)
-        let freeBytes = UInt64(vmStatistics.free_count) * pageSize
-        let speculativeBytes = UInt64(vmStatistics.speculative_count) * pageSize
-        let activeBytes = UInt64(vmStatistics.active_count) * pageSize
-        let inactiveBytes = UInt64(vmStatistics.inactive_count) * pageSize
-        let wiredBytes = UInt64(vmStatistics.wire_count) * pageSize
-        let compressedBytes = UInt64(vmStatistics.compressor_page_count) * pageSize
-        let purgeableBytes = UInt64(vmStatistics.purgeable_count) * pageSize
-        let externalBytes = UInt64(vmStatistics.external_page_count) * pageSize
-        
-        let totalMemoryBytes: UInt64
-        if totalPhysicalMemory > 0 {
-            totalMemoryBytes = totalPhysicalMemory
-        } else {
-            totalMemoryBytes = freeBytes + speculativeBytes + activeBytes + inactiveBytes + wiredBytes + compressedBytes
-        }
-        guard totalMemoryBytes > 0 else {
-            return (0.0, .zero)
-        }
-        
-        let usedWithoutCache = activeBytes + inactiveBytes + speculativeBytes + wiredBytes + compressedBytes
-        let cacheBytes = purgeableBytes + externalBytes
-        let usedBytes = usedWithoutCache > cacheBytes ? usedWithoutCache - cacheBytes : 0
-        let clampedUsedBytes = min(usedBytes, totalMemoryBytes)
-        let freeComputedBytes = totalMemoryBytes > clampedUsedBytes ? totalMemoryBytes - clampedUsedBytes : 0
-        let nonAppBytes = wiredBytes + compressedBytes
-        let appBytes = clampedUsedBytes > nonAppBytes ? clampedUsedBytes - nonAppBytes : 0
-        
-        var pressureLevelRaw: Int32 = 0
-        var pressureSize = MemoryLayout<Int32>.size
-        sysctlbyname("kern.memorystatus_vm_pressure_level", &pressureLevelRaw, &pressureSize, nil, 0)
-        let pressureLevel: MemoryPressureLevel
-        switch pressureLevelRaw {
-        case 2:
-            pressureLevel = .warning
-        case 4:
-            pressureLevel = .critical
-        default:
-            pressureLevel = .normal
-        }
-        let pressure = MemoryPressure(rawValue: Int(pressureLevelRaw), level: pressureLevel)
-        
-        var swapUsage = xsw_usage()
-        var swapSize = MemoryLayout<xsw_usage>.size
-        sysctlbyname("vm.swapusage", &swapUsage, &swapSize, nil, 0)
-        let swapInfo = MemorySwap(
-            totalBytes: UInt64(swapUsage.xsu_total),
-            usedBytes: UInt64(swapUsage.xsu_used),
-            freeBytes: UInt64(swapUsage.xsu_avail)
-        )
-        
-        let usage = Double(clampedUsedBytes) / Double(totalMemoryBytes) * 100.0
-        let breakdown = MemoryBreakdown(
-            totalBytes: totalMemoryBytes,
-            usedBytes: clampedUsedBytes,
-            freeBytes: freeComputedBytes,
-            wiredBytes: wiredBytes,
-            activeBytes: activeBytes,
-            inactiveBytes: inactiveBytes,
-            compressedBytes: compressedBytes,
-            appBytes: appBytes,
-            cacheBytes: cacheBytes,
-            swap: swapInfo,
-            pressure: pressure
-        )
-        
-        return (min(100.0, max(0.0, usage)), breakdown)
-    }
-    
-    private func getGPUMetrics() -> GPUMetricsSnapshot {
-        let devices = gpuCollector.collectDevices()
-        guard !devices.isEmpty else {
-            return .zero
-        }
-        let utilizationValues = devices.compactMap { $0.utilization }
-        let usage: Double
-        if utilizationValues.isEmpty {
-            usage = 0
-        } else {
-            usage = utilizationValues.reduce(0, +) / Double(utilizationValues.count)
-        }
-        let breakdown = makeGPUBreakdown(from: devices)
-        return GPUMetricsSnapshot(usage: usage, breakdown: breakdown, devices: devices)
-    }
-    
-    private func makeGPUBreakdown(from devices: [GPUDeviceMetrics]) -> GPUBreakdown {
-        guard let primary = devices.first(where: { ($0.utilization ?? 0) > 0 || ($0.renderUtilization ?? 0) > 0 || ($0.tilerUtilization ?? 0) > 0 }) else {
-            return .zero
-        }
-        let fallbackTotal = max((primary.renderUtilization ?? 0) + (primary.tilerUtilization ?? 0), 0)
-        let total = max(primary.utilization ?? fallbackTotal, 0)
-        if total.isZero {
-            return GPUBreakdown(
-                render: primary.renderUtilization ?? 0,
-                compute: primary.tilerUtilization ?? 0,
-                video: 0,
-                other: 0
-            )
-        }
-        let render = min(primary.renderUtilization ?? 0, total)
-        let tiler = min(primary.tilerUtilization ?? 0, max(total - render, 0))
-        let remaining = max(total - render - tiler, 0)
-        let compute = remaining * 0.6
-        let video = remaining * 0.25
-        let other = max(remaining - compute - video, 0)
-        return GPUBreakdown(render: render, compute: compute, video: video, other: other)
-    }
-
-    private func collectCPUCoreUsage() -> [CPUCoreUsage] {
-        var cpuInfo: processor_info_array_t?
-        var numCpuInfo: mach_msg_type_number_t = 0
-        var numCPUsU: natural_t = 0
-        let result = host_processor_info(hostPort, PROCESSOR_CPU_LOAD_INFO, &numCPUsU, &cpuInfo, &numCpuInfo)
-        guard result == KERN_SUCCESS, let cpuInfo else {
-            return cpuCoreUsage
-        }
-        let cpuCount = Int(numCPUsU)
-        var usages: [CPUCoreUsage] = []
-        usages.reserveCapacity(cpuCount)
-        let cpuStateMax = Int(CPU_STATE_MAX)
-        if let previousCpuInfo {
-            for cpu in 0..<cpuCount {
-                let base = cpu * cpuStateMax
-                let user = cpuInfo[base + Int(CPU_STATE_USER)] - previousCpuInfo[base + Int(CPU_STATE_USER)]
-                let system = cpuInfo[base + Int(CPU_STATE_SYSTEM)] - previousCpuInfo[base + Int(CPU_STATE_SYSTEM)]
-                let nice = cpuInfo[base + Int(CPU_STATE_NICE)] - previousCpuInfo[base + Int(CPU_STATE_NICE)]
-                let idle = cpuInfo[base + Int(CPU_STATE_IDLE)] - previousCpuInfo[base + Int(CPU_STATE_IDLE)]
-                let inUse = user + system + nice
-                let total = inUse + idle
-                let percent = total > 0 ? Double(inUse) / Double(total) : 0
-                usages.append(CPUCoreUsage(id: cpu, usage: max(0, min(percent * 100, 100))))
-            }
-        } else {
-            for cpu in 0..<cpuCount {
-                let base = cpu * cpuStateMax
-                let user = cpuInfo[base + Int(CPU_STATE_USER)]
-                let system = cpuInfo[base + Int(CPU_STATE_SYSTEM)]
-                let nice = cpuInfo[base + Int(CPU_STATE_NICE)]
-                let idle = cpuInfo[base + Int(CPU_STATE_IDLE)]
-                let inUse = user + system + nice
-                let total = inUse + idle
-                let percent = total > 0 ? Double(inUse) / Double(total) : 0
-                usages.append(CPUCoreUsage(id: cpu, usage: max(0, min(percent * 100, 100))))
-            }
-        }
-        if let previousCpuInfo {
-            let size = vm_size_t(previousCpuInfoCount) * vm_size_t(MemoryLayout<integer_t>.size)
-            vm_deallocate(mach_task_self_, vm_address_t(bitPattern: previousCpuInfo), size)
-        }
-        previousCpuInfo = cpuInfo
-        previousCpuInfoCount = numCpuInfo
-        processorCount = numCPUsU
-        return usages
-    }
-
-    private func collectNetworkInterfaces(deltaTime: TimeInterval) -> [NetworkInterfaceMetrics] {
-        var interfacesPointer: UnsafeMutablePointer<ifaddrs>? = nil
-        guard getifaddrs(&interfacesPointer) == 0, let startPointer = interfacesPointer else {
-            return networkInterfaces
-        }
-        defer { freeifaddrs(startPointer) }
-        struct InterfaceAccumulator {
-            var name: String
-            var flags: UInt32
-            var bytesIn: UInt64
-            var bytesOut: UInt64
-            var ipv4: String?
-            var ipv6: String?
-        }
-        var accumulators: [String: InterfaceAccumulator] = [:]
-        var pointer: UnsafeMutablePointer<ifaddrs>? = startPointer
-        while let current = pointer {
-            let interface = current.pointee
-            let name = String(cString: interface.ifa_name)
-            var accumulator = accumulators[name] ?? InterfaceAccumulator(name: name, flags: interface.ifa_flags, bytesIn: 0, bytesOut: 0, ipv4: nil, ipv6: nil)
-            if let addr = interface.ifa_addr {
-                switch Int32(addr.pointee.sa_family) {
-                case AF_LINK:
-                    if let data = interface.ifa_data?.assumingMemoryBound(to: if_data.self) {
-                        accumulator.bytesIn = UInt64(data.pointee.ifi_ibytes)
-                        accumulator.bytesOut = UInt64(data.pointee.ifi_obytes)
-                    }
-                case AF_INET:
-                    accumulator.ipv4 = stringFromSockaddr(addr)
-                case AF_INET6:
-                    accumulator.ipv6 = stringFromSockaddr(addr)
-                default:
-                    break
-                }
-            }
-            accumulators[name] = accumulator
-            pointer = interface.ifa_next
-        }
-        var results: [NetworkInterfaceMetrics] = []
-        var updatedCounters: [String: (bytesIn: UInt64, bytesOut: UInt64)] = [:]
-        for accumulator in accumulators.values {
-            guard shouldIncludeInterface(name: accumulator.name) else { continue }
-            let previous = previousInterfaceCounters[accumulator.name] ?? (accumulator.bytesIn, accumulator.bytesOut)
-            let deltaIn = accumulator.bytesIn >= previous.bytesIn ? accumulator.bytesIn - previous.bytesIn : 0
-            let deltaOut = accumulator.bytesOut >= previous.bytesOut ? accumulator.bytesOut - previous.bytesOut : 0
-            let speedDivider = max(deltaTime, 0.001)
-            let downloadSpeed = Double(deltaIn) / speedDivider / 1_048_576
-            let uploadSpeed = Double(deltaOut) / speedDivider / 1_048_576
-            var totals = interfaceTotals[accumulator.name] ?? .zero
-            totals.downloadedMB += Double(deltaIn) / 1_048_576
-            totals.uploadedMB += Double(deltaOut) / 1_048_576
-            interfaceTotals[accumulator.name] = totals
-            let metrics = NetworkInterfaceMetrics(
-                name: accumulator.name,
-                displayName: interfaceDisplayName(for: accumulator.name),
-                type: interfaceType(for: accumulator.name),
-                ipv4: accumulator.ipv4,
-                ipv6: accumulator.ipv6,
-                isActive: interfaceIsActive(flags: accumulator.flags),
-                currentDownload: max(downloadSpeed, 0),
-                currentUpload: max(uploadSpeed, 0),
-                totalDownloaded: totals.downloadedMB,
-                totalUploaded: totals.uploadedMB
-            )
-            results.append(metrics)
-            updatedCounters[accumulator.name] = (accumulator.bytesIn, accumulator.bytesOut)
-        }
-        previousInterfaceCounters = updatedCounters
-        return results.sorted { lhs, rhs in
-            if lhs.type == rhs.type {
-                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-            }
-            return networkTypeSortOrder(lhs.type) < networkTypeSortOrder(rhs.type)
+        guard samplingTask == nil else { sampleRequested = true; return }
+        let generation = monitoringGeneration
+        let revision = historyRevision
+        let demand = samplingDemand
+        let sampler = self.sampler
+        samplingTask = Task.detached(priority: .utility) { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            let result = await sampler.sample(demand: demand, generation: generation, historyRevision: revision)
+            guard !Task.isCancelled else { return }
+            await self.finishSample(result, generation: generation, revision: revision, demand: demand)
         }
     }
 
-    /// Reads the volumes off the main thread, at most every `diskDevicesUpdateInterval`.
-    @MainActor
+    private func finishSample(_ result: StatsSnapshot?, generation: UUID, revision: UInt64,
+                              demand: StatsSamplingDemand) {
+        guard isMonitoring, monitoringGeneration == generation else { return }
+        samplingTask = nil
+        if demand == samplingDemand, revision == historyRevision, let result {
+            self.snapshot = result
+        } else if demand != samplingDemand || revision != historyRevision {
+            sampleRequested = true
+        }
+        if sampleRequested {
+            sampleRequested = false
+            refresh()
+        }
+    }
+
+    func clearHistory() {
+        historyRevision &+= 1
+        snapshot.clearHistory()
+        refresh()
+    }
+
     private func refreshDiskDevicesIfNeeded() {
-        guard Date().timeIntervalSince(lastDiskDevicesUpdate) >= diskDevicesUpdateInterval,
+        guard isMonitoring, samplingDemand.diskDetails,
+              Date().timeIntervalSince(lastDiskDevicesUpdate) >= diskDevicesUpdateInterval,
               !isDiskDevicesRefreshInFlight else { return }
         isDiskDevicesRefreshInFlight = true
-
+        let generation = monitoringGeneration
         Task.detached(priority: .utility) { [weak self] in
+            guard let owner = self else { return }
             let devices = StatsManager.collectDiskDevices()
             await MainActor.run {
-                guard let self else { return }
-                self.isDiskDevicesRefreshInFlight = false
-                self.lastDiskDevicesUpdate = Date()
-                guard self.isMonitoring, let devices, self.diskDevices != devices else { return }
-                self.diskDevices = devices
+                owner.isDiskDevicesRefreshInFlight = false
+                guard owner.isMonitoring, owner.monitoringGeneration == generation else {
+                    owner.refreshDiskDevicesIfNeeded()
+                    return
+                }
+                owner.lastDiskDevicesUpdate = Date()
+                guard owner.samplingDemand.diskDetails, let devices, owner.diskDevices != devices else { return }
+                owner.diskDevices = devices
             }
         }
     }
 
-    /// The mounted volumes, or nil when they cannot be listed.
-    private static func collectDiskDevices() -> [DiskDeviceMetrics]? {
+    nonisolated private static func collectDiskDevices() -> [DiskDeviceMetrics]? {
         // The plain available capacity is cheap; the important/opportunistic
         // figures make the system size purgeable space, so they are read only
         // for a volume that does not report the plain one.
@@ -758,14 +282,17 @@ class StatsManager: ObservableObject {
             .volumeTotalCapacityKey,
             .volumeAvailableCapacityKey,
             .volumeIsRootFileSystemKey,
-            .volumeIsRemovableKey
+            .volumeIsRemovableKey,
+            .volumeIsLocalKey
         ]
-        guard let urls = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) else {
+        guard let urls = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: [.volumeIsLocalKey], options: [.skipHiddenVolumes]) else {
             return nil
         }
         var devices: [DiskDeviceMetrics] = []
         for url in urls {
+            guard (try? url.resourceValues(forKeys: [.volumeIsLocalKey]))?.volumeIsLocal == true else { continue }
             guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+            guard values.volumeIsLocal == true else { continue }
             guard let totalCapacity = values.volumeTotalCapacity.flatMap({ Int64($0) }), totalCapacity > 0 else { continue }
             let name = values.volumeName ?? url.lastPathComponent
             let freeCapacityValue: Int64
@@ -800,191 +327,6 @@ class StatsManager: ObservableObject {
         }
     }
 
-    private func stringFromSockaddr(_ addressPointer: UnsafePointer<sockaddr>?) -> String? {
-        guard let addressPointer else { return nil }
-        let family = Int32(addressPointer.pointee.sa_family)
-        switch family {
-        case AF_INET:
-            var addr = addressPointer.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr }
-            var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-            guard inet_ntop(AF_INET, &addr, &buffer, socklen_t(INET_ADDRSTRLEN)) != nil else { return nil }
-            return String(cString: buffer)
-        case AF_INET6:
-            var addr = addressPointer.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee.sin6_addr }
-            var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
-            guard inet_ntop(AF_INET6, &addr, &buffer, socklen_t(INET6_ADDRSTRLEN)) != nil else { return nil }
-            return String(cString: buffer)
-        default:
-            return nil
-        }
-    }
-
-    private func shouldIncludeInterface(name: String) -> Bool {
-        guard !name.hasPrefix("lo"),
-              !name.hasPrefix("gif"),
-              !name.hasPrefix("stf"),
-              !name.hasPrefix("awdl"),
-              !name.hasPrefix("llw"),
-              !name.hasPrefix("utun"),
-              !name.hasPrefix("p2p") else {
-            return false
-        }
-        return true
-    }
-
-    private func interfaceIsActive(flags: UInt32) -> Bool {
-        let isUp = (flags & UInt32(IFF_UP)) == UInt32(IFF_UP)
-        let isRunning = (flags & UInt32(IFF_RUNNING)) == UInt32(IFF_RUNNING)
-        return isUp && isRunning
-    }
-
-    private func interfaceDisplayName(for name: String) -> String {
-        if name.hasPrefix("en") {
-            return name == "en0" ? "Wi-Fi" : "Ethernet"
-        }
-        if name.hasPrefix("bridge") {
-            return "Bridge"
-        }
-        if name.hasPrefix("pd") {
-            return "USB"
-        }
-        if name.hasPrefix("vmnet") {
-            return "Virtual"
-        }
-        if name.hasPrefix("ap") {
-            return "Hotspot"
-        }
-        if name.hasPrefix("awdl") {
-            return "AirDrop"
-        }
-        return name.uppercased()
-    }
-
-    private func interfaceType(for name: String) -> NetworkInterfaceType {
-        if name.hasPrefix("en") {
-            if name == "en0" {
-                return .wifi
-            }
-            return .ethernet
-        }
-        if name.hasPrefix("bridge") || name.hasPrefix("vmnet") {
-            return .ethernet
-        }
-        if name.hasPrefix("ap") {
-            return .wifi
-        }
-        if name.hasPrefix("pdp_ip") {
-            return .cellular
-        }
-        if name.hasPrefix("lo") {
-            return .loopback
-        }
-        return .other
-    }
-
-    private func networkTypeSortOrder(_ type: NetworkInterfaceType) -> Int {
-        switch type {
-        case .wifi:
-            return 0
-        case .ethernet:
-            return 1
-        case .cellular:
-            return 2
-        case .other:
-            return 3
-        case .loopback:
-            return 4
-        }
-    }
-    
-    private func getNetworkStats() -> (bytesIn: UInt64, bytesOut: UInt64) {
-        // Use BSD sockets to get network interface statistics
-        var totalBytesIn: UInt64 = 0
-        var totalBytesOut: UInt64 = 0
-        
-        var ifaddrs: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifaddrs) == 0 else {
-            return (totalBytesIn, totalBytesOut)
-        }
-        
-        defer { freeifaddrs(ifaddrs) }
-        
-        var ptr = ifaddrs
-        while ptr != nil {
-            defer { ptr = ptr?.pointee.ifa_next }
-            
-            guard let interface = ptr?.pointee,
-                  interface.ifa_addr.pointee.sa_family == UInt8(AF_LINK) else {
-                continue
-            }
-            
-            let name = String(cString: interface.ifa_name)
-            // Skip loopback and virtual interfaces, but include en0, en1, etc. and Wi-Fi interfaces
-            guard !name.hasPrefix("lo") && 
-                  !name.hasPrefix("gif") && 
-                  !name.hasPrefix("stf") && 
-                  !name.hasPrefix("bridge") &&
-                  !name.hasPrefix("utun") &&
-                  !name.hasPrefix("awdl") else {
-                continue
-            }
-            
-            // Only count active interfaces (en0, en1, etc.)
-            if name.hasPrefix("en") || name.contains("Wi-Fi") {
-                if let data = interface.ifa_data?.assumingMemoryBound(to: if_data.self) {
-                    totalBytesIn += UInt64(data.pointee.ifi_ibytes)
-                    totalBytesOut += UInt64(data.pointee.ifi_obytes)
-                }
-            }
-        }
-        
-        return (totalBytesIn, totalBytesOut)
-    }
-    
-    private func getDiskStats() -> (bytesRead: UInt64, bytesWritten: UInt64) {
-        // Use IOKit to get disk I/O statistics from IOStorage service
-        var totalBytesRead: UInt64 = 0
-        var totalBytesWritten: UInt64 = 0
-        
-        let matchingDict = IOServiceMatching("IOStorage")
-        var iterator: io_iterator_t = 0
-        let result = IOServiceGetMatchingServices(kIOMainPortDefault, matchingDict, &iterator)
-        
-        guard result == KERN_SUCCESS else {
-            return (totalBytesRead, totalBytesWritten)
-        }
-        
-        defer { IOObjectRelease(iterator) }
-        
-        var service: io_registry_entry_t = IOIteratorNext(iterator)
-        while service != 0 {
-            defer {
-                IOObjectRelease(service)
-                service = IOIteratorNext(iterator)
-            }
-            
-            var properties: Unmanaged<CFMutableDictionary>?
-            let propertiesResult = IORegistryEntryCreateCFProperties(service, &properties, kCFAllocatorDefault, 0)
-            
-            guard propertiesResult == KERN_SUCCESS,
-                  let props = properties?.takeRetainedValue() as? [String: Any],
-                  let statistics = props["Statistics"] as? [String: Any] else {
-                continue
-            }
-            
-            // Use the correct property names for APFS/modern filesystems
-            if let bytesRead = statistics["Bytes read from block device"] as? UInt64 {
-                totalBytesRead += bytesRead
-            }
-            
-            if let bytesWritten = statistics["Bytes written to block device"] as? UInt64 {
-                totalBytesWritten += bytesWritten
-            }
-        }
-        
-        return (totalBytesRead, totalBytesWritten)
-    }
-    
     // MARK: - Computed Properties for UI
     var cpuUsageString: String {
         return String(format: "%.1f%%", cpuUsage)
@@ -1044,17 +386,6 @@ class StatsManager: ObservableObject {
         return nonZeroValues.reduce(0, +) / Double(nonZeroValues.count)
     }
     
-    // MARK: - Clear History Method
-    func clearHistory() {
-        cpuHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        memoryHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        gpuHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        networkDownloadHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        networkUploadHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        diskReadHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-        diskWriteHistory = Array(repeating: 0.0, count: maxHistoryPoints)
-    }
-    
     // MARK: - Process Monitoring Methods
     @MainActor
     func getProcessesRankedByCPU() -> [ProcessStats] {
@@ -1077,6 +408,7 @@ class StatsManager: ObservableObject {
     
     @MainActor
     private func refreshProcessStatsIfNeeded() {
+        guard isMonitoring, samplingDemand.processes else { return }
         let now = Date()
         guard now.timeIntervalSince(lastProcessStatsUpdate) >= processStatsUpdateInterval else { return }
         guard !isProcessRefreshInFlight else { return }
@@ -1089,7 +421,7 @@ class StatsManager: ObservableObject {
             let processes = await StatsManager.collectTopProcesses(limit: limit)
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                guard self.processRefreshGeneration == generation, self.isMonitoring else { return }
+                guard self.processRefreshGeneration == generation, self.isMonitoring, self.samplingDemand.processes else { return }
                 self.processRefreshTask = nil
                 self.cachedProcessStats = processes
                 self.lastProcessStatsUpdate = Date()
@@ -1099,7 +431,7 @@ class StatsManager: ObservableObject {
         }
     }
 
-    private static func collectTopProcesses(limit: Int) async -> [ProcessStats] {
+    nonisolated private static func collectTopProcesses(limit: Int) async -> [ProcessStats] {
         guard limit > 0 else { return [] }
 
         let task = Process()
@@ -1136,7 +468,7 @@ class StatsManager: ObservableObject {
         return results
     }
 
-    private static func parseProcessLine(_ rawLine: String) -> (pid_t, Double, String)? {
+    nonisolated private static func parseProcessLine(_ rawLine: String) -> (pid_t, Double, String)? {
         let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return nil }
 
@@ -1157,7 +489,7 @@ class StatsManager: ObservableObject {
         return (pidValue, cpuValue, command.isEmpty ? "Unknown" : command)
     }
 
-    private static func runningApplicationInfo(for pid: pid_t, fallbackCommand: String) -> (String, NSImage?) {
+    nonisolated private static func runningApplicationInfo(for pid: pid_t, fallbackCommand: String) -> (String, NSImage?) {
         if let app = NSRunningApplication(processIdentifier: pid) {
             let name = app.localizedName?.trimmingCharacters(in: .whitespacesAndNewlines)
             return ((name?.isEmpty ?? true) ? fallbackCommand : name!, app.icon)
@@ -1165,7 +497,7 @@ class StatsManager: ObservableObject {
         return (fallbackCommand, nil)
     }
 
-    private static func residentMemory(for pid: pid_t) -> UInt64 {
+    nonisolated private static func residentMemory(for pid: pid_t) -> UInt64 {
         var taskInfo = proc_taskinfo()
         let result = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &taskInfo, Int32(MemoryLayout<proc_taskinfo>.size))
         guard result == MemoryLayout<proc_taskinfo>.size else { return 0 }

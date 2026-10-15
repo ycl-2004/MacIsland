@@ -1,0 +1,41 @@
+{
+  "devicesAndConfigurations": [
+    {
+      "device": {
+        "architecture": "arm64e",
+        "modelName": "MacBook Pro",
+        "osBuildNumber": "26A434",
+        "osVersion": "27.0.1",
+        "platform": "macOS"
+      },
+      "expectedFailures": 0,
+      "failedTests": 0,
+      "passedTests": 327,
+      "skippedTests": 0,
+      "testPlanConfiguration": {
+        "configurationId": "1",
+        "configurationName": "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription": "DynamicIsland · Built with macOS 27.0.1",
+  "expectedFailures": 0,
+  "failedTests": 0,
+  "finishTime": 1791674898.922,
+  "passedTests": 327,
+  "result": "Passed",
+  "runtimeWarnings": [],
+  "skippedTests": 0,
+  "startTime": 1791674866.408,
+  "statistics": [],
+  "testFailures": [],
+  "title": "Test - DynamicIsland",
+  "topInsights": [
+    {
+      "category": "Longest Test Runs",
+      "impact": "50% of duration",
+      "text": "2 longest test runs with outlier durations exceeding 2.15s (three standard deviations)"
+    }
+  ],
+  "totalTestCount": 327
+}

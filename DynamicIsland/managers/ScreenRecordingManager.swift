@@ -179,17 +179,28 @@ struct NativeScreenRecordingStopController: ScreenRecordingStopControlling {
     }
 }
 
+/// Elapsed recording time. Published apart from the recording state, so only
+/// the views that show the time redraw every second, not every manager observer.
+@MainActor
+final class RecordingClock: ObservableObject {
+    @Published fileprivate(set) var duration: TimeInterval = 0
+
+    var formatted: String {
+        let totalSeconds = Int(duration)
+        return String(format: "%d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+}
+
 @MainActor
 class ScreenRecordingManager: ObservableObject {
     static let shared = ScreenRecordingManager()
 
     @Published var isRecording: Bool = false
     @Published var isMonitoring: Bool = false
-    @Published var recordingDuration: TimeInterval = 0
+    let clock = RecordingClock()
     @Published var stopControlState: RecordingStopControlState = .unavailable
     @Published var isScreenSharingAppActive: Bool = false
 
-    private let coordinator = DynamicIslandViewCoordinator.shared
     private let stopController: ScreenRecordingStopControlling
     private var recordingStartTime: Date?
     private var durationTimer: Timer?
@@ -197,7 +208,7 @@ class ScreenRecordingManager: ObservableObject {
     private var stopFailureClearTask: Task<Void, Never>?
     private var workspaceObservers: [NSObjectProtocol] = []
 
-    private init(stopController: ScreenRecordingStopControlling = NativeScreenRecordingStopController()) {
+    init(stopController: ScreenRecordingStopControlling = NativeScreenRecordingStopController()) {
         self.stopController = stopController
     }
 
@@ -317,13 +328,9 @@ class ScreenRecordingManager: ObservableObject {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
             task.arguments = ["-x", processName]
-            task.standardOutput = Pipe()
-            task.standardError = Pipe()
-
             do {
-                try task.run()
-                task.waitUntilExit()
-                return task.terminationStatus == 0
+                let result = try await ProcessRunner.capture(task, timeout: 2, limit: 64 * 1024)
+                return result.outcome == .exited(0)
             } catch {
                 screenRecordingDebugLog("pgrep \(processName) failed: \(error)")
                 return false
@@ -358,12 +365,8 @@ class ScreenRecordingManager: ObservableObject {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
             task.arguments = arguments
-            task.standardOutput = Pipe()
-            task.standardError = Pipe()
-
             do {
-                try task.run()
-                task.waitUntilExit()
+                _ = try await ProcessRunner.capture(task, timeout: 2, limit: 64 * 1024)
             } catch {
                 screenRecordingDebugLog("killall \(arguments.joined(separator: " ")) failed: \(error)")
             }
@@ -428,14 +431,17 @@ class ScreenRecordingManager: ObservableObject {
     }
 
     func checkRecordingStatus() {
-        let currentRecordingState = CGSIsScreenWatcherPresent()
+        updateRecordingState(CGSIsScreenWatcherPresent())
+    }
+
+    /// Capture events publish a secondary status, never a main-HUD expansion.
+    func updateRecordingState(_ currentRecordingState: Bool) {
         guard currentRecordingState != isRecording else { return }
 
         if currentRecordingState {
             startDurationTracking()
             clearStopFailure()
             stopControlState = .ready
-            coordinator.toggleExpandingView(status: true, type: .recording)
             withAnimation(.smooth) {
                 isRecording = true
             }
@@ -446,7 +452,6 @@ class ScreenRecordingManager: ObservableObject {
             stopRequestTask = nil
             stopControlState = .unavailable
             clearStopFailure()
-            coordinator.toggleExpandingView(status: false, type: .recording)
             withAnimation(.smooth) {
                 isRecording = false
             }
@@ -456,7 +461,7 @@ class ScreenRecordingManager: ObservableObject {
 
     private func startDurationTracking() {
         recordingStartTime = Date()
-        recordingDuration = 0
+        clock.duration = 0
         durationTimer?.invalidate()
         durationTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -474,7 +479,7 @@ class ScreenRecordingManager: ObservableObject {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             guard let self, !self.isRecording, self.recordingStartTime == nil else { return }
-            self.recordingDuration = 0
+            self.clock.duration = 0
         }
 
         screenRecordingDebugLog("Stopped duration tracking")
@@ -482,7 +487,7 @@ class ScreenRecordingManager: ObservableObject {
 
     private func updateDuration() {
         guard let recordingStartTime else { return }
-        recordingDuration = Date().timeIntervalSince(recordingStartTime)
+        clock.duration = Date().timeIntervalSince(recordingStartTime)
     }
 
     private func clearStopFailure() {
@@ -539,12 +544,5 @@ extension ScreenRecordingManager {
 
     var stopFailureMessage: String? {
         stopControlState.failureMessage
-    }
-
-    var formattedDuration: String {
-        let totalSeconds = Int(recordingDuration)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, seconds)
     }
 }

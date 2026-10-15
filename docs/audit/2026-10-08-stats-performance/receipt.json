@@ -1,0 +1,123 @@
+{
+  "artifact_sha256": {
+    "docs/audit/2026-10-08-stats-performance/.gitignore": "ec0faa0842d00c23b5755e8903c4ee4adb00f1e17d2ff6e8ebb6289f7cf7a845",
+    "docs/audit/2026-10-08-stats-performance/README.md": "fbac59455fd30fb95ee7b5dd492f9099c6377171a14f0ac4f781b3fa02e041a1",
+    "docs/audit/2026-10-08-stats-performance/baseline-accessibility.log": "7d58c5096b3a0bb47ac586ed9bb8e74b224de0f4ac8ed5f4a3161e6d621a349e",
+    "docs/audit/2026-10-08-stats-performance/baseline-collector.txt": "65a5ec0f078b70ed0b9c38b9bfb4344c50553f7227ec39fb462158095d667040",
+    "docs/audit/2026-10-08-stats-performance/benchmark-main.swift": "50be47d0117a73b09faf506e7a2b3fd6c0c1e6fba14690ec8352612ca6592fe5",
+    "docs/audit/2026-10-08-stats-performance/benchmark-support.swift": "548c5943762643c26877b4943c0d40e37bdad5b359738e873c58fbf180c0b7e6",
+    "docs/audit/2026-10-08-stats-performance/build-receipts.txt": "daff134d5173c94a954da745817348a205111f7587ae584eb7f42c456eacbf6c",
+    "docs/audit/2026-10-08-stats-performance/measurements.json": "d967438520be93cc02055885415c8839cab729f8fbff3d3db14232c9cb199ad4",
+    "docs/audit/2026-10-08-stats-performance/native-tests.log": "189d22c731f2f0026a93ce92b0802f86a8619be5fee89df85e80f6c9df8d15d1",
+    "docs/audit/2026-10-08-stats-performance/prepare-benchmark.py": "b4df641067e9f2a4e9cb82f838b3d713e19313a4f8ed7fb7185acf3efa170a94",
+    "docs/audit/2026-10-08-stats-performance/revised-collector.txt": "412466fc3aaba9e0807cb57623262cdf1df57dd56b3212e7d2e9a8f1d4c1df17"
+  },
+  "baseline_commit": "b6a518d9ccf8ffc6f33fe6e6e1de0fab47c644e8",
+  "benchmark": {
+    "collection_includes_actor_scheduling": true,
+    "maximum_2ms_heartbeat_interval_ms": 31.605,
+    "notifications_per_sample": 1,
+    "samples_per_phase": 25,
+    "summaries": {
+      "CPU / memory / GPU overview": {
+        "collection_ms": {
+          "maximum_ms": 8.153709,
+          "mean_ms": 4.294116291666667
+        },
+        "enqueue_ms": {
+          "maximum_ms": 0.178125,
+          "mean_ms": 0.109525875
+        },
+        "publication_ms": {
+          "maximum_ms": 0.019125,
+          "mean_ms": 0.009406166666666667
+        }
+      },
+      "all graphs + CPU details": {
+        "collection_ms": {
+          "maximum_ms": 23.926,
+          "mean_ms": 18.35238025
+        },
+        "enqueue_ms": {
+          "maximum_ms": 0.183917,
+          "mean_ms": 0.12153129166666667
+        },
+        "publication_ms": {
+          "maximum_ms": 0.01575,
+          "mean_ms": 0.011085083333333334
+        }
+      }
+    },
+    "ui_rendering_measured": false,
+    "warm_samples_per_phase": 24
+  },
+  "benchmark_dependency_sha256": {
+    "DynamicIsland/components/Stats/StatsFormatting.swift": "a6ed970d2a312f16ba3b8bde4771acd33335d7f757494ba8e1f122e254e70e5c",
+    "DynamicIsland/helpers/AtollRuntimePolicy.swift": "858e06fd873b312ac47b621778c75569061136a4794c8f06f8226679ff9500c2",
+    "DynamicIsland/managers/Agents/ProcessRunner.swift": "97c266c87fced132c19d4af788a1437c3b5aadeafe94164a4fc29253bc662b50",
+    "DynamicIsland/models/CPUMetrics.swift": "26e0c96ce517f9aef2e78824f95e3db86a3bb4d40199f8f370a03a70b6d40053",
+    "DynamicIsland/models/StatsModels.swift": "0ebb75213400bcbbd8507d66579f4c3cd4bb4f7ffd65a1c84b7b17cb6d690ede",
+    "DynamicIsland/utils/AppleHardwareInfo.swift": "66105e3ebca84de026ae54afedffb709aed7698286c2637e2a0d05ca62dd0317",
+    "DynamicIsland/utils/GPUInfoCollector.swift": "775ef3660872f058bfc1030930d762474b4b57647219ffe3ae96534b1cdab3b2",
+    "DynamicIsland/utils/IOKitHelpers.swift": "2f72c82e0c4f49ee82dc37b3b203e1502a6bcef8ffd101cc4f880e529deba9a6",
+    "DynamicIsland/utils/IOReportBridging.swift": "2d9e4b47fd1d81f3f6c50d2f99e417e99f529a3ae1942fdabe3cfcdcf6de5476",
+    "DynamicIsland/utils/PipeReadWaiter.swift": "64d6048de4770d66267c5f028ea39dad0c1cba978b580ed30d19a06251b1b02e",
+    "DynamicIsland/utils/SMC.swift": "63a72eae827caf551ebcd5ab386a752d3c509f742f986879f8bc98c3624fdc49"
+  },
+  "binary_sha256": {
+    "/tmp/atoll-stats-probe/native/Debug/Atoll.app/Contents/MacOS/Atoll": "f9d1e36133f80c20f1251b6614c91c5b760e4c54a4009aa834e61db389bfaa06",
+    "Build/Debug/Atoll.app/Contents/MacOS/Atoll": "97afd21804a5b91394892af8030497335c18a336ffb3c4dde42bc695c18ec623",
+    "Build/Release/Atoll.app/Contents/MacOS/Atoll": "eb6e7d06aa564b6b128f2bd1188ea3742fbab32cecbcff374fc92aa860a4b77a"
+  },
+  "builds": [
+    {
+      "command": "xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration Debug -destination platform=macOS -derivedDataPath Build -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO build-for-testing",
+      "configuration": "Debug",
+      "log": "/tmp/atoll-stats-probe/build-debug-delivery.log",
+      "log_sha256": "cfddf90153990b3554d036454f682a52c4b5cc8927f2c3d9d6340f4f78c42d38",
+      "success": "** TEST BUILD SUCCEEDED **",
+      "warning_lines": 2
+    },
+    {
+      "command": "xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration Release -destination platform=macOS -derivedDataPath Build -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO build",
+      "configuration": "Release",
+      "log": "/tmp/atoll-stats-probe/build-release-delivery.log",
+      "log_sha256": "58faef8b6ca9b6ef739575fa9f263fecfccb546509ec221d816ecfc626c06b8f",
+      "success": "** BUILD SUCCEEDED **",
+      "warning_lines": 74
+    }
+  ],
+  "date": "2026-10-08",
+  "installed_executable_unchanged_sha256": "da526aa52368dc446b992f3e920132c4a8011fa3bacb76191dfb1b6a2cf2242d",
+  "native_tests": {
+    "baseline_exclusion_reproduced": true,
+    "command": "xcodebuild test-without-building -xctestrun /tmp/atoll-stats-probe/native/Stats.xctestrun -destination platform=macOS -parallel-testing-enabled NO -skip-testing:DynamicIslandTests/LightweightPolicyTests/testFeatureManagementDestinationRendersInTheSettingsWindow -resultBundlePath /tmp/atoll-stats-probe/native/StatsDelivery.xcresult",
+    "excluded": "LightweightPolicyTests/testFeatureManagementDestinationRendersInTheSettingsWindow",
+    "passed": 26,
+    "policy": 7,
+    "reliability": 10,
+    "result_bundle": "/tmp/atoll-stats-probe/native/StatsDelivery.xcresult",
+    "stats": 9
+  },
+  "post_verification_whitespace_cleanup": {
+    "built_and_benchmarked_sha256": "732e4ac7d144fc576ad60278b0abfaad016883fba735d344fa77de232c2fc4dc",
+    "change": "Only trailing whitespace removed; whitespace-separated token sequence unchanged. No behavior change or new runtime check required.",
+    "final_sha256": "34b12542c9efcb5b57694d6571a557fa22cda07fc09e490190ca8af82ebad2a3",
+    "path": "DynamicIsland/utils/SystemStatsSampler.swift"
+  },
+  "source_sha256": {
+    "DynamicIsland/ContentView.swift": "998dd70d6f6cc2034fd29ed126b245b2633ba02841a3f0967d87ca77527e54fd",
+    "DynamicIsland/components/Stats/CPUStatsDetailView.swift": "3c201834f510cc46b1ae453039fb1c7406c35141f262f27b8d9366760280eea5",
+    "DynamicIsland/components/Stats/DiskStatsDetailView.swift": "7344ad0d4d4d4d804ab37b1e507b693c9d8ea9b8bcb609a47ec5d10cc19dbdff",
+    "DynamicIsland/components/Stats/GPUStatsDetailView.swift": "9e9f5d0ef56374a9c76c57bc13806248f51a0b91d947fba85e569a09760634d5",
+    "DynamicIsland/components/Stats/MemoryStatsDetailView.swift": "ea157a558c034434db77c6599d127995f529015b40e44e1b8551732db5d57978",
+    "DynamicIsland/components/Stats/NetworkStatsDetailView.swift": "61670ef9a5f38d3dfd6326a9ecd015c9ff3553a478c55d6f6c7588742205b300",
+    "DynamicIsland/components/Stats/ProcessStats.swift": "5232f131ab54a6e359721d4187c115d5e68601d4db3a02a85d0e0d9d36686d8b",
+    "DynamicIsland/components/Stats/StatsDetailSampling.swift": "5e4d0c633981ae16b3e9c606f1f353e2bd51cb2824f33e2a126208ba642af8dd",
+    "DynamicIsland/managers/StatsManager.swift": "8c10a1c28ed9e8852efa8aad2992f2bd8071bb211cd633f448d9eab01b436a10",
+    "DynamicIsland/models/StatsSampling.swift": "4d214c0b9b06ad66db9e34014561655f7ba2f59498eb7c2c883c631e7b455b26",
+    "DynamicIsland/utils/CPUSensorCollector.swift": "b6504c9e19e2f67b259afc723d1777dad6cb7a7d90d060e9be0e8c22544fb976",
+    "DynamicIsland/utils/SystemStatsSampler.swift": "34b12542c9efcb5b57694d6571a557fa22cda07fc09e490190ca8af82ebad2a3",
+    "DynamicIslandTests/StatsPerformanceTests.swift": "7a8541f0d48d60e31a76760121cad1a005ccf6a7e26d132da03be5b88cb16174"
+  }
+}

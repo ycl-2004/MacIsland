@@ -1,0 +1,52 @@
+{
+  "devicesAndConfigurations" : [
+    {
+      "device" : {
+        "architecture" : "arm64e",
+        "deviceId" : "00008132-001A681436D3801C",
+        "deviceName" : "My Mac",
+        "modelName" : "MacBook Pro",
+        "osBuildNumber" : "26A434",
+        "osVersion" : "27.0.1",
+        "platform" : "macOS"
+      },
+      "expectedFailures" : 0,
+      "failedTests" : 1,
+      "passedTests" : 7,
+      "skippedTests" : 0,
+      "testPlanConfiguration" : {
+        "configurationId" : "1",
+        "configurationName" : "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription" : "DynamicIsland · Built with macOS 27.0.1",
+  "expectedFailures" : 0,
+  "failedTests" : 1,
+  "finishTime" : 1792047748.782,
+  "passedTests" : 7,
+  "result" : "Failed",
+  "runtimeWarnings" : [
+
+  ],
+  "skippedTests" : 0,
+  "startTime" : 1792047737.113,
+  "statistics" : [
+
+  ],
+  "testFailures" : [
+    {
+      "failureText" : "XCTAssertTrue failed - The destination must display Feature Management, not fall back to General. Labels: []",
+      "targetName" : "DynamicIslandTests",
+      "testIdentifier" : 3,
+      "testIdentifierString" : "LightweightPolicyTests/testFeatureManagementDestinationRendersInTheSettingsWindow()",
+      "testIdentifierURL" : "test://com.apple.xcode/DynamicIsland/DynamicIslandTests/LightweightPolicyTests/testFeatureManagementDestinationRendersInTheSettingsWindow",
+      "testName" : "testFeatureManagementDestinationRendersInTheSettingsWindow()"
+    }
+  ],
+  "title" : "Test - DynamicIsland",
+  "topInsights" : [
+
+  ],
+  "totalTestCount" : 8
+}

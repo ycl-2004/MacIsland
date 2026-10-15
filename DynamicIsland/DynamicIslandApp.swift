@@ -235,22 +235,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AtollTemporaryFiles.removeAll(except: [.shelf])
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !Self.isHostingUnitTests else { return .terminateNow }
+        return AppTerminationCoordinator.shared.shouldTerminate()
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         guard !Self.isHostingUnitTests else { return }
-        // Guarantee the native OSD is usable after we exit: if we were
-        // suppressing it, OSDUIHelper is SIGSTOP-frozen and the async restore in
-        // enableSystemHUD() would not finish before the process dies. Resume it
-        // synchronously here so it is never left frozen. (See issue #568.)
-        SystemOSDManager.resumeOSDUIHelperForTermination()
+        // Native HUDs remain owned by macOS; no system process needs restoring.
 
         // Cancel any pending window size updates
         windowSizeUpdateWorkItem?.cancel()
         NotificationCenter.default.removeObserver(self)
         AgentBridge.shared.stop()
         AgentConversationService.shared.stop()
-        AgentSessionStore.shared.flushPendingSave()
-        ShelfStateViewModel.shared.flushPendingSave()
-        ExtraSpaceStore.shared.flushPendingSave()
+        // The asynchronous save gate completed before AppKit approved Quit.
+        // Do not write again after a replacement instance has started.
         networkConnectivityManager.stopMonitoring()
         removeTemporaryFiles()
         
@@ -445,8 +445,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// more room than the open notch still gets it.
     private func calculateRequiredNotchSize() -> CGSize {
         let standard = standardWindowSize()
-        guard let hud = closedHUDWindowSize() else { return standard }
-        return CGSize(width: max(hud.width, standard.width), height: max(hud.height, standard.height))
+        let hud = closedHUDWindowSize() ?? .zero
+        // Keep room for the side indicator even when idle, so recording does
+        // not resize the window underneath an in-flight hover/open animation.
+        return CGSize(
+            width: max(hud.width, standard.width) + RecordingHUDLayout.maximumExtraWidth,
+            height: max(hud.height, standard.height)
+        )
     }
 
     /// The room a closed-notch HUD needs, when one is showing.
@@ -478,13 +483,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             sneakPeek: coordinator.sneakPeek
         ) != nil {
             return CGSize(width: InlineSneakPeekMetrics.titleStripWidth, height: vm.effectiveClosedNotchHeight)
-        }
-
-        if let recordingHUDSize = recordingHUDLayoutForSizing().size(
-            closedNotchSize: vm.closedNotchSize,
-            effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
-        ) {
-            return addShadowPadding(to: recordingHUDSize)
         }
 
         // Battery HUD expansion, at the size the HUD draws.
@@ -532,39 +530,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return result
     }
 
-    private func recordingHUDLayoutForSizing() -> RecordingHUDLayout {
-        makeRecordingHUDLayout(
-            notchState: vm.notchState,
-            screenRecordingDetectionEnabled: Defaults[.enableScreenRecordingDetection],
-            showRecordingIndicator: Defaults[.showRecordingIndicator],
-            hideOnClosed: vm.hideOnClosed,
-            isRecording: ScreenRecordingManager.shared.isRecording,
-            closedMusicPairingEligible: closedMusicPairingEligibleForSizing(),
-            recordingControlMode: Defaults[.recordingControlMode],
-            canStopFromHUD: ScreenRecordingManager.shared.shouldShowStopControlsInHUD,
-            recordingHoverStyle: Defaults[.recordingHoverStyle],
-            suppressHoverExpansion: ScreenRecordingManager.shared.isScreenSharingAppActive,
-            expanded: true
-        )
-    }
-
-    private func closedMusicPairingEligibleForSizing() -> Bool {
-        let musicManager = MusicManager.shared
-        let hasMusicMetadata = !musicManager.songTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !musicManager.artistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let hasActiveMusicSnapshot = musicManager.isPlaying || (!musicManager.isPlayerIdle && hasMusicMetadata)
-
-        return isClosedMusicPairingEligible(
-            notchState: vm.notchState,
-            hasActiveMusicSnapshot: hasActiveMusicSnapshot,
-            musicLiveActivityEnabled: coordinator.musicLiveActivityEnabled,
-            closedMusicContentEnabled: Defaults[.showStandardMediaControls],
-            hideOnClosed: vm.hideOnClosed,
-            isLocked: LockScreenManager.shared.isLocked,
-            isDeferredAfterUnlock: LockScreenManager.shared.shouldDelayPostUnlockMusicHUD
-        )
-    }
-
     /// Adds Dynamic Island shadow/top insets on non-notch screens, or top bleed on physical-notch screens.
     private func adjustedSizeForScreen(_ baseSize: CGSize, screen: NSScreen) -> CGSize {
         var adjusted = baseSize
@@ -578,7 +543,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func ensureWindowSize(_ size: CGSize, animated: Bool, force: Bool = false) {
-        resizeWindows(to: size, animated: animated, force: force)
+        let reservedSize = CGSize(width: size.width + RecordingHUDLayout.maximumExtraWidth, height: size.height)
+        resizeWindows(to: reservedSize, animated: animated, force: force)
     }
 
     private func resizeWindows(to size: CGSize, animated: Bool, force: Bool) {
@@ -679,11 +645,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             networkConnectivityManager.startMonitoring()
         }
 
-        // Setup Real-time Audio Waveform capture if enabled
+        // Real-time waveform: capture starts when a waveform view starts drawing
+        // (AudioTap.setDisplaying); these observers rebuild the tap when players change.
         if Defaults[.enableRealTimeWaveform] {
-            Task {
-                await AudioTap.shared.startCapture()
-            }
             setupAudioTapMusicObservers()
         }
         
@@ -692,9 +656,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] change in
                 if change.newValue {
-                    Task {
-                        await AudioTap.shared.startCapture()
-                    }
                     self?.setupAudioTapMusicObservers()
                 } else {
                     AudioTap.shared.stopCapture()
@@ -1161,38 +1122,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task.detached(priority: .utility) {
                 do {
                     let tempDir = AtollTemporaryFiles.directory(.logs).appendingPathComponent(UUID().uuidString)
-                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    try PrivateContentFile.prepareDirectory(tempDir)
                     defer { try? FileManager.default.removeItem(at: tempDir) }
                     
                     let logsFile = tempDir.appendingPathComponent("app_logs.txt")
                     let logProcess = Process()
                     logProcess.executableURL = URL(fileURLWithPath: "/usr/bin/log")
-                    logProcess.arguments = ["show", "--predicate", "subsystem == 'com.Ebullioscopic.Atoll' OR subsystem == 'com.Ebullioscopic.Atoll.dev'", "--info", "--debug", "--last", "2d"]
+                    logProcess.arguments = ["show", "--predicate", AtollDiagnostics.exportPredicate, "--info", "--debug", "--last", "2d"]
                     
                     let logs = try await ProcessRunner.capture(logProcess, timeout: 60, limit: 32 * 1024 * 1024)
                     guard logs.outcome == .exited(0), !logs.truncated else { throw CocoaError(.fileReadTooLarge) }
                     let logData = logs.output
                     try logData.write(to: logsFile)
+                    let states = await MainActor.run { [
+                        "stats": StatsManager.shared.isMonitoring ? "sampling" : "stopped",
+                        "agentBridge": AgentBridge.shared.status,
+                        "codex": AgentConversationService.shared.isLive ? "connected" : "disconnected",
+                        "extraSpace": ExtraSpaceStore.shared.isDirty ? "unsaved" : "saved",
+                        "timer": TimerManager.shared.isTimerActive ? "active" : "idle",
+                        "cameraPermission": String(FeaturePermissionSnapshot.read().camera.rawValue),
+                        "systemHUD": SystemOSDManager.policy
+                    ] }
+                    try AtollDiagnostics.snapshotData(states: states).write(to: tempDir.appendingPathComponent("diagnostics.json"), options: .atomic)
                     
-                    let diagDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Logs/DiagnosticReports")
-                    let allFiles = (try? FileManager.default.contentsOfDirectory(at: diagDir, includingPropertiesForKeys: nil)) ?? []
-                    for file in allFiles where file.lastPathComponent.contains("Atoll") {
-                        try? FileManager.default.copyItem(at: file, to: tempDir.appendingPathComponent(file.lastPathComponent))
-                    }
-                    
-                    let sysDiagDir = URL(fileURLWithPath: "/Library/Logs/DiagnosticReports")
-                    let sysFiles = (try? FileManager.default.contentsOfDirectory(at: sysDiagDir, includingPropertiesForKeys: nil)) ?? []
-                    for file in sysFiles where file.lastPathComponent.contains("Atoll") {
-                        try? FileManager.default.copyItem(at: file, to: tempDir.appendingPathComponent(file.lastPathComponent))
-                    }
-                    
+                    try AtollDiagnostics.copyRecentCrashReports(from: [
+                        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/DiagnosticReports"),
+                        URL(fileURLWithPath: "/Library/Logs/DiagnosticReports")
+                    ], to: tempDir)
+
                     let zipProcess = Process()
                     zipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
                     zipProcess.currentDirectoryURL = tempDir
                     let items = (try? FileManager.default.contentsOfDirectory(atPath: tempDir.path)) ?? []
-                    zipProcess.arguments = ["-r", url.path] + items
-                    
-                    guard try await ProcessRunner.run(zipProcess, timeout: 60) == .exited(0) else { throw CocoaError(.fileWriteUnknown) }
+                    let archive = tempDir.appendingPathComponent("support.zip")
+                    zipProcess.arguments = ["-q", "-r", archive.path] + items
+                    let zipped = try await ProcessRunner.capture(zipProcess, timeout: 60, limit: 64 * 1024)
+                    guard zipped.outcome == .exited(0) else { throw CocoaError(.fileWriteUnknown) }
+                    // Write a fresh archive atomically; zip's update mode would keep stale entries.
+                    try Data(contentsOf: archive, options: .mappedIfSafe).write(to: url, options: .atomic)
                     
                     
                     DispatchQueue.main.async {

@@ -1,0 +1,6 @@
+# Keep this review's raw evidence versionable despite repository log/text rules.
+!baseline-accessibility.log
+!native-tests.log
+!baseline-collector.txt
+!revised-collector.txt
+!build-receipts.txt

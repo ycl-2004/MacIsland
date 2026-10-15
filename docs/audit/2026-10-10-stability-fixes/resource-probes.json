@@ -1,0 +1,20 @@
+{
+  "json_lines_exact_source": {
+    "stdout": "WHOLE_UTF8=[\"你好🐳\"]; SPLIT_UTF8=[\"你好🐳\"]\nCANCEL_AND_CLOSE_COMPLETED=true",
+    "stderr": ""
+  },
+  "agent_store_exact_source": {
+    "stdout": "SESSIONS=1 BYTES=67346 SAVE_MAIN_THREAD_MS=0.015974044799804688 RELOADED=1\nSESSIONS=14 BYTES=942465 SAVE_MAIN_THREAD_MS=0.032901763916015625 RELOADED=14\nSESSIONS=60 BYTES=4039091 SAVE_MAIN_THREAD_MS=0.0680685043334961 RELOADED=60",
+    "stderr": ""
+  },
+  "combine_lifetime_control": {
+    "stdout": "DISCARDED_SINK_EVENTS=0 RETAINED_SINK_EVENTS=1",
+    "stderr": ""
+  },
+  "pipe_order_control": {
+    "wait_before_drain_blocked": true,
+    "drained_bytes": 1048576,
+    "exit": 0,
+    "elapsed_seconds": 0.515
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "devicesAndConfigurations": [
+    {
+      "device": {
+        "architecture": "arm64e",
+        "modelName": "MacBook Pro",
+        "osBuildNumber": "26A434",
+        "osVersion": "27.0.1",
+        "platform": "macOS"
+      },
+      "expectedFailures": 0,
+      "failedTests": 0,
+      "passedTests": 326,
+      "skippedTests": 0,
+      "testPlanConfiguration": {
+        "configurationId": "1",
+        "configurationName": "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription": "DynamicIsland · Built with macOS 27.0.1",
+  "expectedFailures": 0,
+  "failedTests": 0,
+  "finishTime": 1791673817.876,
+  "passedTests": 326,
+  "result": "Passed",
+  "runtimeWarnings": [
+    {
+      "issueType": "Runtime Warning",
+      "message": "[Internal] Thread running at User-initiated quality-of-service class waiting on a lower QoS thread running at Default quality-of-service class. Investigate ways to avoid priority inversions"
+    }
+  ],
+  "skippedTests": 0,
+  "startTime": 1791673780.432,
+  "statistics": [],
+  "testFailures": [],
+  "title": "Test - DynamicIsland",
+  "topInsights": [
+    {
+      "category": "Longest Test Runs",
+      "impact": "55% of duration",
+      "text": "3 longest test runs with outlier durations exceeding 2.03s (three standard deviations)"
+    }
+  ],
+  "totalTestCount": 326
+}

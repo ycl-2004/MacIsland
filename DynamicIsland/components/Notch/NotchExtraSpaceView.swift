@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct NotchExtraSpaceView: View {
     @EnvironmentObject private var vm: DynamicIslandViewModel
     @ObservedObject private var store: ExtraSpaceStore
@@ -13,8 +14,8 @@ struct NotchExtraSpaceView: View {
     @State private var exportToken = UUID()
     @State private var exportError: String?
 
-    init(store: ExtraSpaceStore = .shared) {
-        self.store = store
+    init(store: ExtraSpaceStore? = nil) {
+        self.store = store ?? .shared
     }
 
     var body: some View {

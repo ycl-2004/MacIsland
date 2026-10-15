@@ -27,12 +27,7 @@ import Defaults
 import simd
 import os.log
 
-private let audioTapLog = OSLog(subsystem: "com.atoll.dynamicisland", category: "AudioTap")
-
-// Debug: track callback invocations
-#if DEBUG
-private var callbackCount: Int = 0
-#endif
+private let audioTapLog = OSLog(subsystem: AtollDiagnostics.subsystem, category: "AudioTap")
 
 // CoreAudio fires this on a high-priority background real-time thread.
 let audioIOProc: AudioDeviceIOProc = {
@@ -40,8 +35,6 @@ let audioIOProc: AudioDeviceIOProc = {
 
     guard let clientData = clientData else { return noErr }
     let scanner = Unmanaged<AudioTap>.fromOpaque(clientData).takeUnretainedValue()
-
-    if scanner.isPaused { return noErr }
 
     let mutableInputData = UnsafeMutablePointer(mutating: inInputData)
     let bufferList = UnsafeMutableAudioBufferListPointer(mutableInputData)
@@ -55,19 +48,7 @@ let audioIOProc: AudioDeviceIOProc = {
         // Pass the mono array directly to C++
         scanner.bridge.processBuffer(floatData, count: floatCount)
         
-#if DEBUG
-        // Debug: log periodically with audio level info
-        callbackCount += 1
-        if callbackCount % 1000 == 0 {
-            // Calculate max absolute value in buffer to check if audio is present
-            var maxVal: Float = 0.0
-            for sampleIndex in 0..<Int(floatCount) {
-                let absVal = abs(floatData[sampleIndex])
-                if absVal > maxVal { maxVal = absVal }
-            }
-            os_log(.debug, log: audioTapLog, "🔊 Audio callback fired %d times, buffer size: %d, max amplitude: %f", callbackCount, floatCount, maxVal)
-        }
-#endif
+
     }
 
     return noErr
@@ -109,23 +90,61 @@ enum AudioTapTargetMatcher {
     }
 }
 
+/// Runs capture only while a view draws the waveform. The last view to stop
+/// ends it after a short grace, so a notch transition that swaps views does
+/// not tear the tap down and rebuild it. Everything runs on `queue`.
+final class WaveformDemand: @unchecked Sendable {
+    private let queue: DispatchQueue
+    private let grace: TimeInterval
+    private let start: () -> Void
+    private let stop: () -> Void
+    private var displays = Set<UUID>()
+    private var pendingStop: DispatchWorkItem?
+
+    init(queue: DispatchQueue, grace: TimeInterval, start: @escaping () -> Void, stop: @escaping () -> Void) {
+        self.queue = queue; self.grace = grace; self.start = start; self.stop = stop
+    }
+
+    /// Read on `queue`.
+    var isWanted: Bool { !displays.isEmpty }
+
+    func setDisplaying(_ displaying: Bool, id: UUID) {
+        queue.async { [self] in
+            let wasWanted = isWanted
+            if displaying { displays.insert(id) } else { displays.remove(id) }
+            guard wasWanted != isWanted else { return }
+            pendingStop?.cancel(); pendingStop = nil
+            guard !isWanted else { return start() }
+            let work = DispatchWorkItem { [weak self] in
+                guard let self, !self.isWanted else { return }
+                self.stop()
+            }
+            pendingStop = work
+            queue.asyncAfter(deadline: .now() + grace, execute: work)
+        }
+    }
+}
+
 /// Singleton class for real-time audio capture from music apps
-class AudioTap: NSObject {
+// Hardware state and restart work belong to audioQueue. UI magnitudes/timer
+// belong to MainActor. The realtime callback touches only the immutable bridge,
+// whose C++ processor publishes levels atomically.
+final class AudioTap: NSObject, @unchecked Sendable {
     static let shared = AudioTap()
     
     let bridge = AudioBridge()
-    var isPaused: Bool = false
-    private var displayMagnitudes: [Float] = Array(repeating: 0, count: 6)
+    @MainActor private var displayMagnitudes: [Float] = Array(repeating: 0, count: 6)
 
     // CoreAudio stuff
     private var tapID: AudioObjectID = kAudioObjectUnknown
     private var aggregateDeviceID: AudioObjectID = kAudioObjectUnknown
     private var ioProcID: AudioDeviceIOProcID? = nil
     private var captureIsRunning = false
-    private var updateTimer: Timer?
+    @MainActor private var updateTimer: Timer?
     
     // Serial queue to prevent race conditions
-    private let audioQueue = DispatchQueue(label: "com.atoll.audiotap", qos: .userInitiated)
+    private let audioQueue: DispatchQueue
+    private let demand: WaveformDemand
     
     // Debounce restart requests
     private var pendingRestartWorkItem: DispatchWorkItem?
@@ -145,10 +164,21 @@ class AudioTap: NSObject {
     ]
 
     private override init() {
+        let queue = DispatchQueue(label: "com.atoll.audiotap", qos: .userInitiated)
+        audioQueue = queue
+        demand = WaveformDemand(queue: queue, grace: 5,
+                                start: { AudioTap.shared.startCaptureSync() },
+                                stop: { AudioTap.shared.stopCaptureSync() })
         super.init()
     }
 
-    @objc private func updateSmoothedMagnitudes() {
+    /// A view that draws the waveform says when it starts and stops drawing;
+    /// a paused, hidden or closed waveform keeps no tap or timer running.
+    func setDisplaying(_ displaying: Bool, id: UUID) {
+        demand.setDisplaying(displaying, id: id)
+    }
+
+    @MainActor @objc private func updateSmoothedMagnitudes() {
         let nsMagnitudes = bridge.getSmoothedMagnitudes()
         let targetLevels = nsMagnitudes.map { $0.floatValue }
         
@@ -160,20 +190,14 @@ class AudioTap: NSObject {
         }
     }
 
-    func getSmoothedMagnitudes() -> [Float] {
+    @MainActor func getSmoothedMagnitudes() -> [Float] {
         return displayMagnitudes
     }
 
-    func startCapture() async {
-        await withCheckedContinuation { continuation in
-            audioQueue.async { [weak self] in
-                self?.startCaptureSync()
-                continuation.resume()
-            }
-        }
-    }
-    
     private func startCaptureSync() {
+        // A delayed restart can reach the queue after the user switched off the
+        // waveform or the last view stopped drawing. Check at the hardware boundary.
+        guard Defaults[.enableRealTimeWaveform], demand.isWanted else { return }
         guard !captureIsRunning else {
             debugLog("⚠️ [AudioTap] Capture already running, skipping start")
             return
@@ -277,9 +301,6 @@ class AudioTap: NSObject {
         }
 
         captureIsRunning = true
-#if DEBUG
-        callbackCount = 0
-#endif
         
         DispatchQueue.main.async { [weak self] in
             self?.updateTimer?.invalidate()
@@ -374,41 +395,28 @@ class AudioTap: NSObject {
     }
 
     func restartCapture() {
-        // Cancel any pending restart
-        pendingRestartWorkItem?.cancel()
-        
-        // Debounce: wait 500ms before actually restarting
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.audioQueue.async {
-                debugLog("🔄 [AudioTap] Restarting capture...")
-                self?.stopCaptureSync()
-                // Small delay to let CoreAudio fully release resources
-                Thread.sleep(forTimeInterval: 0.1)
-                // Re-read the setting instead of trusting the state at scheduling time: the
-                // waveform can be switched off during the debounce window, and a stale
-                // restart must not bring capture back up behind the user's back.
-                guard Defaults[.enableRealTimeWaveform] else {
-                    debugLog("⏹️ [AudioTap] Waveform disabled during restart, staying stopped")
-                    return
-                }
-                self?.startCaptureSync()
+        audioQueue.async { [self] in
+            pendingRestartWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.stopCaptureSync()
+                guard Defaults[.enableRealTimeWaveform] else { return }
+                self.startCaptureSync()
             }
+            pendingRestartWorkItem = work
+            audioQueue.asyncAfter(deadline: .now() + 0.5, execute: work)
         }
-        pendingRestartWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
 
     func stopCapture() {
-        // Drop a queued restart first, otherwise a debounced route/app change can resurrect
-        // capture right after the caller asked us to stop.
-        pendingRestartWorkItem?.cancel()
-        pendingRestartWorkItem = nil
-
-        audioQueue.sync { [weak self] in
-            self?.stopCaptureSync()
+        // Never wait for a stalled CoreAudio driver on the main thread.
+        audioQueue.async { [self] in
+            pendingRestartWorkItem?.cancel()
+            pendingRestartWorkItem = nil
+            stopCaptureSync()
         }
     }
-    
+
     private func stopCaptureSync() {
         guard captureIsRunning else { return }
 
@@ -442,13 +450,7 @@ class AudioTap: NSObject {
         debugLog("🔴 [AudioTap] CoreAudio CATap capture stopped")
     }
     
-    var isCapturing: Bool {
-        captureIsRunning
-    }
 
-    deinit {
-        stopCaptureSync()
-    }
 }
 
 // Helper to convert OSStatus to readable string

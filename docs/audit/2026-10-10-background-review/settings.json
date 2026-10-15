@@ -1,0 +1,16 @@
+{
+  "enableRealTimeWaveform": null,
+  "enableStatsFeature": "1",
+  "statsStopWhenNotchCloses": null,
+  "enableLyrics": "1",
+  "showMirror": "0",
+  "enableAgentsFeature": "1",
+  "enablePerAppVolume": "0",
+  "mirrorSystemTimer": "0",
+  "enableScreenRecordingDetection": "1",
+  "showRecordingIndicator": null,
+  "showBluetoothDeviceConnections": null,
+  "enableLockScreenWeatherWidget": null,
+  "showAirPodsListeningModeChanges": null,
+  "enableDoNotDisturbDetection": "1"
+}

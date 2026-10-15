@@ -17,17 +17,37 @@
  */
 
 import SwiftUI
+import Defaults
 
-/// The header's recording light: the same render-server `PulsingDot` the
-/// closed-notch recording indicators use, rather than a SwiftUI repeating
-/// animation with a blurred glow that redrew every frame while it showed.
+/// A small status light. Stop controls are available only on the open header's
+/// context menu, leaving hover and primary clicks to the notch itself.
 struct RecordingIndicator: View {
     @ObservedObject var recordingManager = ScreenRecordingManager.shared
+    /// Only this view follows the per-second time, for its tooltip and VoiceOver value.
+    @ObservedObject private var clock = ScreenRecordingManager.shared.clock
+    @Default(.recordingControlMode) private var recordingControlMode
+    var showsControls = true
 
     var body: some View {
         Group {
             if recordingManager.isRecording {
-                PulsingDot(color: .systemRed, diameter: 6)
+                PulsingDot(color: .systemRed, diameter: RecordingHUDLayout.dotDiameter)
+                    .frame(width: showsControls ? 16 : RecordingHUDLayout.dotDiameter, height: 16)
+                    .contentShape(Rectangle())
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(String(localized: "Screen Recording"))
+                    .accessibilityValue(clock.formatted)
+                    .accessibilityIdentifier("RecordingIndicator")
+                    .help(recordingManager.stopFailureMessage ?? "\(String(localized: "Screen Recording")) · \(clock.formatted)")
+                    .contextMenu {
+                        if showsControls && recordingControlMode == .withStopButton
+                            && !recordingManager.isScreenSharingAppActive {
+                            Button(String(localized: "Stop recording")) {
+                                recordingManager.stopActiveRecording()
+                            }
+                            .disabled(!recordingManager.canStopFromHUD)
+                        }
+                    }
                     .transition(.scale.combined(with: .opacity))
             }
         }

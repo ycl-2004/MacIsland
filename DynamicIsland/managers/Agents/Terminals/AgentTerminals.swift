@@ -68,19 +68,17 @@ enum TerminalCommandRunner {
                 process.arguments = command.arguments
             }
         }
-        let output = Pipe(), errors = Pipe()
         process.standardInput = FileHandle.nullDevice
-        process.standardOutput = output
-        process.standardError = errors
-        // Both commands print a line or two, well within a pipe's buffer.
-        guard case .exited(let status) = try await ProcessRunner.run(process, timeout: timeout) else {
+        let result = try await ProcessRunner.capture(process, timeout: timeout, limit: 1024 * 1024)
+        guard case .exited(let status) = result.outcome else {
             throw TerminalCommandFailure(errorDescription: String(localized: "no answer in \(Int(timeout)) seconds"))
         }
         guard status == 0 else {
-            let message = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            let message = String(decoding: result.errors, as: UTF8.self)
             throw TerminalCommandFailure(errorDescription: message.nonBlank.map { String($0.suffix(300)) } ?? String(localized: "exit status \(status)"))
         }
-        return String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        guard !result.truncated else { throw TerminalCommandFailure(errorDescription: "Terminal response exceeded its size limit") }
+        return String(decoding: result.output, as: UTF8.self)
     }
 
     /// A file only this user can read, removed once the command ran.

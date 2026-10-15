@@ -100,7 +100,7 @@ final class LockScreenDisplayContextProvider {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refresh(reason: "screen-parameters")
+            _ = MainActor.assumeIsolated { self?.refresh(reason: "screen-parameters") }
         }
 
         let workspaceCenter = NSWorkspace.shared.notificationCenter
@@ -109,7 +109,7 @@ final class LockScreenDisplayContextProvider {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refresh(reason: "screens-did-wake")
+            _ = MainActor.assumeIsolated { self?.refresh(reason: "screens-did-wake") }
         }
 
         let spaceObserver = workspaceCenter.addObserver(
@@ -117,7 +117,7 @@ final class LockScreenDisplayContextProvider {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refresh(reason: "space-changed")
+            _ = MainActor.assumeIsolated { self?.refresh(reason: "space-changed") }
         }
 
         workspaceObservers = [wakeObserver, spaceObserver]

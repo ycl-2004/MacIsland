@@ -41,7 +41,7 @@ final class ReminderLiveActivityManager: ObservableObject {
     @Published private(set) var upcomingEntries: [ReminderEntry] = []
     @Published private(set) var lockScreenSnapshot: LockScreenReminderWidgetSnapshot?
 
-    private let logger: os.Logger = os.Logger(subsystem: "com.ebullioscopic.Atoll", category: "ReminderLiveActivity")
+    private let logger: os.Logger = os.Logger(subsystem: AtollDiagnostics.subsystem, category: "ReminderLiveActivity")
 
     private var nextReminder: ReminderEntry?
     private var cancellables = Set<AnyCancellable>()
@@ -352,7 +352,7 @@ final class ReminderLiveActivityManager: ObservableObject {
             return
         }
 
-        logger.debug("[Reminder] Next reminder ‘\(first.event.title, privacy: .public)’ (reason=\(reason, privacy: .public))")
+        logger.debug("[Reminder] Next reminder ‘\(first.event.title, privacy: .private)’ (reason=\(reason, privacy: .public))")
         handleEntrySelection(first, referenceDate: referenceDate)
     }
 

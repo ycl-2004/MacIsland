@@ -1,0 +1,14 @@
+[
+  {
+    "mode": "parent_sigkill",
+    "passed": true
+  },
+  {
+    "mode": "supervisor_sigterm",
+    "passed": true
+  },
+  {
+    "mode": "child_exit",
+    "passed": true
+  }
+]

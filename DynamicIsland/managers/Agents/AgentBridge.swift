@@ -27,6 +27,12 @@ final class AgentBridge {
     let directory: URL
     private weak var receiver: AgentHookReceiver?
     private var server: AgentEventServer?
+    private var generation = UUID()
+    private var enabled = false
+    private var retryTask: Task<Void, Never>?
+    private var retryPolicy = ServiceRetryPolicy()
+    private var lease: BridgeDiscoveryLease?
+    private(set) var status = "stopped"
 
     private var scriptPath: String { directory.appendingPathComponent("agent-hook.sh").path }
     private var portFile: URL { directory.appendingPathComponent("port") }
@@ -37,7 +43,7 @@ final class AgentBridge {
         self.receiver = receiver
     }
 
-    var isRunning: Bool { server != nil }
+    var isRunning: Bool { status == "ready" }
 
     // MARK: Hooks
 
@@ -63,41 +69,74 @@ final class AgentBridge {
     // MARK: Server
 
     func start() {
-        guard server == nil else { return }
+        guard !enabled else { return }
+        enabled = true
+        retryPolicy.reset()
+        launch()
+    }
+
+    private func launch() {
+        guard enabled else { return }
+        let epoch = UUID()
+        generation = epoch
+        status = "starting"
         do {
             try prepareDirectory()
             let token = Self.makeToken()
-            // The token goes to curl as a header file so it never shows up in `ps`.
-            try write("Authorization: Bearer \(token)\n", to: authHeaderFile)
+            let lease = BridgeDiscoveryLease(directory: directory, owner: epoch.uuidString)
+            self.lease = lease
 
             let server = AgentEventServer(token: token) { [weak self] request, reply in
                 Task { @MainActor in
-                    guard let self else { return reply.send(nil) }
+                    guard let self, self.enabled, self.generation == epoch else { return reply.send(nil) }
                     self.route(request, reply: reply)
                 }
             }
             server.start(
                 onReady: { [weak self] port in
                     Task { @MainActor in
-                        guard let self else { return }
-                        try? self.write("\(port)", to: self.portFile)
+                        guard let self, self.enabled, self.generation == epoch else { return }
+                        do {
+                            try lease.publish(port: port, token: token)
+                            self.status = "ready"
+                            self.retryPolicy.ready()
+                        } catch { self.failed(epoch: epoch) }
                     }
                 },
-                onFailure: { error in
-                    Task { @MainActor in Logger.log("Agent bridge failed: \(error.localizedDescription)", category: .agents) }
+                onFailure: { [weak self] _ in
+                    Task { @MainActor in self?.failed(epoch: epoch) }
                 }
             )
             self.server = server
         } catch {
-            Logger.log("Agent bridge could not start: \(error.localizedDescription)", category: .agents)
+            failed(epoch: epoch)
+        }
+    }
+
+    private func failed(epoch: UUID) {
+        guard enabled, generation == epoch else { return }
+        generation = UUID()
+        server?.stop(); server = nil
+        try? lease?.release(); lease = nil
+        Logger.log("Agent bridge unavailable; retrying within its recovery budget", category: .error)
+        guard let delay = retryPolicy.nextDelay() else { status = "failed"; return }
+        status = "retrying"
+        retryTask?.cancel()
+        retryTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self, self.enabled else { return }
+            self.launch()
         }
     }
 
     func stop() {
+        enabled = false
+        generation = UUID()
+        retryTask?.cancel(); retryTask = nil
+        status = "stopped"
         server?.stop()
         server = nil
-        // With no port file the hook script exits without trying to connect.
-        try? FileManager.default.removeItem(at: portFile)
+        try? lease?.release(); lease = nil
     }
 
     private func route(_ request: AgentEventServer.Request, reply: AgentEventServer.Reply) {

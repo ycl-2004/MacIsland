@@ -22,7 +22,7 @@ import CoreAudio
 import Foundation
 import os.log
 
-private let volumeTapLog = OSLog(subsystem: "com.atoll.dynamicisland", category: "PerAppVolume")
+private let volumeTapLog = OSLog(subsystem: AtollDiagnostics.subsystem, category: "PerAppVolume")
 
 /// Re-routes one app's audio through Atoll so its level can be changed
 /// independently of the system volume.
@@ -174,7 +174,7 @@ final class AppVolumeTap {
             do {
                 try self.start(ioProcID)
             } catch {
-                os_log(.error, log: volumeTapLog, "Could not start %{public}@ once alive: %{public}@",
+                os_log(.error, log: volumeTapLog, "Could not start %{private}@ once alive: %{private}@",
                        self.bundleIdentifier, String(describing: error))
             }
         }
@@ -183,7 +183,7 @@ final class AppVolumeTap {
             // Without the listener nothing else will start the IOProc, so fall
             // back to starting now: silent buffers are recoverable on the next
             // reconciliation, a permanently stopped tap is not.
-            os_log(.error, log: volumeTapLog, "Could not observe readiness for %{public}@ (%d)",
+            os_log(.error, log: volumeTapLog, "Could not observe readiness for %{private}@ (%d)",
                    bundleIdentifier, status)
             if let ioProcID { try? start(ioProcID) }
             return

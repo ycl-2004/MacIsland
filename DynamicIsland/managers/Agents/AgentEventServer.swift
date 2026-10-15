@@ -9,7 +9,8 @@ import Network
 /// every request must carry the bearer token only the hook script can read.
 /// A request stays open until it is answered, which lets a hook wait for a
 /// message typed in Atoll.
-final class AgentEventServer {
+// All mutable server and connection state is confined to queue. Replies hop to that queue.
+final class AgentEventServer: @unchecked Sendable {
     struct Request {
         let path: String
         let query: [String: String]
@@ -106,11 +107,17 @@ final class AgentEventServer {
         params.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
         do {
             let listener = try NWListener(using: params)
-            listener.stateUpdateHandler = { [weak listener] state in
+            listener.stateUpdateHandler = { [weak self, weak listener] state in
+                guard let self, self.running, self.listener === listener else { return }
                 switch state {
                 case .ready:
                     if let port = listener?.port?.rawValue { onReady(port) }
                 case .failed(let error):
+                    self.running = false
+                    listener?.cancel()
+                    self.listener = nil
+                    for reply in Array(self.waiting.values) { reply.sendNow(nil) }
+                    for incoming in Array(self.incoming.values) { self.release(incoming.connection, cancel: true) }
                     onFailure(error)
                 default:
                     break

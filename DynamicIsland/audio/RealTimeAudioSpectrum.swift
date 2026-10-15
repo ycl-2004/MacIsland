@@ -30,6 +30,7 @@ class RealTimeAudioSpectrum: NSView {
     private var barLayers: [CAShapeLayer] = []
     private var isPlaying: Bool = true
     private var animationTimer: Timer?
+    private let displayID = UUID()
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -83,6 +84,7 @@ class RealTimeAudioSpectrum: NSView {
 
     private func startAnimating() {
         guard animationTimer == nil else { return }
+        AudioTap.shared.setDisplaying(true, id: displayID)
         // Use a timer at ~30fps for smooth animation
         animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/30.0, repeats: true) { [weak self] _ in
             self?.updateBarsFromAudio()
@@ -92,6 +94,7 @@ class RealTimeAudioSpectrum: NSView {
     private func stopAnimating() {
         animationTimer?.invalidate()
         animationTimer = nil
+        AudioTap.shared.setDisplaying(false, id: displayID)
         resetBars()
     }
     

@@ -54,7 +54,14 @@ final class AgentConversationService: ObservableObject {
     @Published private(set) var streaming: [String: String] = [:]
     @Published private(set) var approvals: [AgentApproval] = []
     @Published private(set) var uncertainIDs: Set<String>
-    @Published var drafts: [String: String] = [:]
+    @Published private(set) var drafts: [String: String] = [:] { didSet { scheduleDraftSave() } }
+    @Published private(set) var draftPersistenceError: String?
+    private var draftFile: RecoveryFile<[String: String]>?
+    private var draftLoad: Task<Void, Never>?
+    private var draftSave: Task<Void, Never>?
+    private var draftsLoaded = false
+    private var draftRevision = 0
+    private var editedDraftIDs = Set<String>()
     @Published var requestedSessionID: String?
     @Published var selectedID: String? { didSet { store.viewedSessionID = selectedID } }
 
@@ -87,12 +94,19 @@ final class AgentConversationService: ObservableObject {
 
     init(store: AgentSessionStore? = nil, defaults: UserDefaults = .standard,
          client: CodexConversationClient? = nil, terminals: AgentTerminals? = nil,
+         draftURL: URL? = nil,
          executablePath: @escaping () -> String? = { AgentExecutableLocator.path(for: "codex") }) {
         self.store = store ?? .shared
         self.terminals = terminals ?? .shared
         self.defaults = defaults
         self.client = client ?? CodexRPCClient()
         self.executablePath = executablePath
+        if let draftURL {
+            draftFile = RecoveryFile(url: draftURL, limit: 2 * 1024 * 1024, validate: { Self.validDrafts($0) })
+        } else if store == nil {
+            draftFile = RecoveryFile(url: AppRuntimeEnvironment.contentURL(
+                AgentBridge.defaultDirectory.appendingPathComponent("drafts.json"), testPath: "AgentBridge/drafts.json"), limit: 2 * 1024 * 1024, validate: { Self.validDrafts($0) })
+        }
         uncertainIDs = Set(defaults.stringArray(forKey: Self.receiptKey) ?? [])
         self.client.onEvent = { [weak self] in self?.handleEvent($0, $1) }
         self.client.onRequest = { [weak self] in self?.handleRequest($0, $1, $2) }
@@ -100,16 +114,83 @@ final class AgentConversationService: ObservableObject {
         storeSubscription = self.store.$sessions.sink { [weak self] sessions in
             self?.pruneSidecarState(retaining: Set(sessions.map(\.id)))
         }
+        draftLoad = Task { [weak self] in
+            await self?.mergeSavedDrafts()
+            self?.draftsLoaded = true
+            self?.scheduleDraftSave()
+        }
+    }
+
+    /// Adds the saved drafts under edits made here since launch. A failed read
+    /// keeps the file untouched; `awaitInitialLoad` reads it again before saving.
+    private func mergeSavedDrafts() async {
+        guard let draftFile else { return }
+        do {
+            let saved = try await draftFile.load() ?? [:]
+            var merged = drafts
+            for (id, text) in saved where !text.isEmpty && !editedDraftIDs.contains(id) { merged[id] = text }
+            if merged != drafts { drafts = merged }
+        } catch { draftPersistenceError = "Draft recovery failed. The original file has been kept." }
     }
 
     func setDraft(_ text: String, for id: String) {
         let others = drafts.filter { $0.key != id }
-        guard text.utf8.count <= 64 * 1024, others.count < 64,
+        guard id.utf8.count <= 4225, text.utf8.count <= 64 * 1024, others.count < 64,
               others.values.reduce(0, { $0 + $1.utf8.count }) + text.utf8.count <= 1024 * 1024 else {
             errors[id] = "Draft storage is full. Keep each draft under 64 KB and clear old drafts before adding more."
             return
         }
-        drafts[id] = text
+        editedDraftIDs.insert(id)
+        drafts[id] = text.isEmpty ? nil : text
+    }
+
+    /// A delivered draft frees its slot, unless it was edited while sending.
+    /// Empty drafts are never kept, so the budget counts only unsent text.
+    private func clearDraft(_ id: String, sent prompt: String) {
+        if drafts[id]?.trimmingCharacters(in: .whitespacesAndNewlines) == prompt { drafts[id] = nil }
+    }
+
+    nonisolated private static func validDrafts(_ drafts: [String: String]) -> Bool {
+        drafts.count <= 64 && drafts.allSatisfy { $0.key.utf8.count <= 4225 && $0.value.utf8.count <= 64 * 1024 }
+            && drafts.values.reduce(0, { $0 + $1.utf8.count }) <= 1024 * 1024
+    }
+
+    private func scheduleDraftSave() {
+        draftRevision += 1
+        guard draftsLoaded, draftFile != nil else { return }
+        draftSave?.cancel()
+        draftSave = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+            await self?.awaitInitialLoad()
+            // A repaired file merged just now schedules its own save.
+            guard !Task.isCancelled else { return }
+            _ = await self?.saveDrafts()
+        }
+    }
+
+    private func saveDrafts() async -> String? {
+        guard let draftFile else { return nil }
+        let snapshot = drafts.filter { !$0.value.isEmpty }
+        do {
+            try await draftFile.save(snapshot)
+            draftPersistenceError = nil
+        } catch { draftPersistenceError = "Agent drafts could not be saved. Keep this window open and copy unsent text before resolving the storage problem." }
+        return draftPersistenceError
+    }
+
+    /// Waits for the saved drafts. A read that failed is tried again, so a file
+    /// repaired since launch is merged before anything is saved over it.
+    func awaitInitialLoad() async {
+        await draftLoad?.value
+        if await draftFile?.readFailed == true { await mergeSavedDrafts() }
+    }
+
+    func saveForTermination() async -> String? {
+        await awaitInitialLoad()
+        draftSave?.cancel()
+        let revision = draftRevision
+        if let error = await saveDrafts() { return error }
+        return revision == draftRevision ? nil : "An Agent draft changed while saving. Please try again."
     }
 
     private func pruneSidecarState(retaining ids: Set<String>) {
@@ -409,7 +490,7 @@ final class AgentConversationService: ObservableObject {
             defer { sending.remove(id); sendingTasks[id] = nil }
             do {
                 try await terminals.type(prompt, into: session)
-                if drafts[id]?.trimmingCharacters(in: .whitespacesAndNewlines) == prompt { drafts[id] = "" }
+                clearDraft(id, sent: prompt)
                 let agent = session.source?.displayName ?? String(localized: "The agent")
                 notices[id] = String(localized: "Typed into \(terminal). It appears here once \(agent) takes it.")
             } catch {
@@ -460,7 +541,7 @@ final class AgentConversationService: ObservableObject {
                     if activeTurns[threadID] == nil { activeTurns[threadID] = turnID }
                 }
                 // Only acknowledgement clears the draft; keep edits made while it was in flight.
-                if drafts[id]?.trimmingCharacters(in: .whitespacesAndNewlines) == prompt { drafts[id] = "" }
+                clearDraft(id, sent: prompt)
                 // Show the message until Codex echoes it as an item, which replaces it.
                 if canOwnTurn, var current = store.session(id: id), current.currentTurnID != turnID {
                     current.beginTurn(turnID)
@@ -600,7 +681,7 @@ final class AgentConversationService: ObservableObject {
         handedOff[id] = nil
         sending.remove(id)
         sendingTasks.removeValue(forKey: id)?.cancel()
-        if drafts[id]?.trimmingCharacters(in: .whitespacesAndNewlines) == pending.text { drafts[id] = "" }
+        clearDraft(id, sent: pending.text)
         guard showMessage, var session = store.session(id: id) else { return }
         session.upsertMessage(AgentMessage(id: pending.commandID, role: .user, text: pending.text))
         session.lastPrompt = pending.text

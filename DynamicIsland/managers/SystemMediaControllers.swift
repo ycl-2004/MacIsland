@@ -570,7 +570,7 @@ final class SystemVolumeController {
         }
     }
 
-    private func getData<T>(selector: AudioObjectPropertySelector, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
+    private func getData<T: BitwiseCopyable>(selector: AudioObjectPropertySelector, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
         let target = deviceID ?? currentDeviceID
         var lastStatus: OSStatus = kAudioHardwareUnspecifiedError
         for element in preferredElements(for: selector) {
@@ -586,7 +586,7 @@ final class SystemVolumeController {
         return lastStatus
     }
 
-    private func setData<T>(selector: AudioObjectPropertySelector, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
+    private func setData<T: BitwiseCopyable>(selector: AudioObjectPropertySelector, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
         let target = deviceID ?? currentDeviceID
         var lastStatus: OSStatus = kAudioHardwareUnspecifiedError
         for element in preferredElements(for: selector) {
@@ -602,7 +602,7 @@ final class SystemVolumeController {
         return lastStatus
     }
 
-    private func getData<T>(selector: AudioObjectPropertySelector, element: AudioObjectPropertyElement, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
+    private func getData<T: BitwiseCopyable>(selector: AudioObjectPropertySelector, element: AudioObjectPropertyElement, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
         let target = deviceID ?? currentDeviceID
         var address = makeAddress(selector: selector, element: element)
         guard propertyExists(deviceID: target, address: &address) else {
@@ -612,7 +612,7 @@ final class SystemVolumeController {
         return AudioObjectGetPropertyData(target, &address, 0, nil, &size, &data)
     }
 
-    private func setData<T>(selector: AudioObjectPropertySelector, element: AudioObjectPropertyElement, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
+    private func setData<T: BitwiseCopyable>(selector: AudioObjectPropertySelector, element: AudioObjectPropertyElement, on deviceID: AudioDeviceID? = nil, data: inout T) -> OSStatus {
         let target = deviceID ?? currentDeviceID
         var address = makeAddress(selector: selector, element: element)
         guard propertyExists(deviceID: target, address: &address) else {

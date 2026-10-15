@@ -28,6 +28,17 @@ final class AgentSessionStore: ObservableObject {
     private let persistenceURL: URL?
     private var saveTask: Task<Void, Never>?
     private let persistenceQueue = DispatchQueue(label: "app.atoll.agents.persistence", qos: .utility)
+    private var saveRevision = 0
+    private struct SaveSnapshot { let revision: Int; let snapshot: Snapshot }
+    private struct SaveResult { let revision: Int; let error: String? }
+    private lazy var snapshotWriter = LatestSnapshotWriter<SaveSnapshot, SaveResult>(
+        queue: persistenceQueue,
+        write: { [persistenceURL] work in
+            SaveResult(revision: work.revision, error: persistenceURL.flatMap { Self.persist(work.snapshot, to: $0) })
+        },
+        didWrite: { [weak self] result in
+            DispatchQueue.main.async { self?.didSave(result) }
+        })
     @Published private(set) var isLoaded = false
     @Published private(set) var persistenceError: String?
     nonisolated static let maximumSnapshotBytes = 8 * 1024 * 1024
@@ -277,20 +288,38 @@ final class AgentSessionStore: ObservableObject {
 
     func save() {
         saveTask?.cancel(); saveTask = nil
-        guard isLoaded, let persistenceURL else { return }
-        let snapshot = Snapshot(sessions: sessions.filter { $0.sessionKey != "screen-question" }, hiddenIDs: hiddenIDs)
-        persistenceQueue.async { [weak self] in
-            let error = Self.persist(snapshot, to: persistenceURL)
-            DispatchQueue.main.async { self?.persistenceError = error }
+        guard isLoaded, persistenceURL != nil else { return }
+        saveRevision += 1
+        snapshotWriter.submit(SaveSnapshot(revision: saveRevision, snapshot: Snapshot(
+            sessions: sessions.filter { $0.sessionKey != "screen-question" }, hiddenIDs: hiddenIDs)))
+    }
+
+    private func didSave(_ result: SaveResult) {
+        guard result.revision == saveRevision else { return }
+        persistenceError = result.error
+    }
+
+    /// Legacy synchronous barrier for explicit callers and fixture tests.
+    func flushPendingSave() {
+        save()
+        guard isLoaded, persistenceURL != nil, let result = snapshotWriter.flushSynchronously() else { return }
+        didSave(result)
+    }
+
+    func awaitInitialLoad() async {
+        await withCheckedContinuation { continuation in
+            persistenceQueue.async {
+                DispatchQueue.main.async { continuation.resume() }
+            }
         }
     }
 
-    /// The only synchronous write barrier: normal application termination.
-    func flushPendingSave() {
-        saveTask?.cancel(); saveTask = nil
-        guard isLoaded, let persistenceURL else { return }
-        let snapshot = Snapshot(sessions: sessions.filter { $0.sessionKey != "screen-question" }, hiddenIDs: hiddenIDs)
-        persistenceError = persistenceQueue.sync { Self.persist(snapshot, to: persistenceURL) }
+    func saveForTermination() async -> String? {
+        if !isLoaded { await awaitInitialLoad() }
+        save()
+        guard isLoaded, persistenceURL != nil, let result = await snapshotWriter.flush() else { return nil }
+        didSave(result)
+        return result.error
     }
 
     private func commitSessions(_ incoming: [AgentSession]) {

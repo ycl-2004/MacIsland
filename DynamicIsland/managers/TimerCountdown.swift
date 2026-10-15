@@ -24,7 +24,7 @@ import Foundation
 /// fires -- the Mac asleep, the main thread busy -- and the timer then ends
 /// late by exactly that much. Reading the time left off the end date cannot
 /// drift, and a timer that ran out during sleep is simply over on wake.
-struct TimerCountdown {
+struct TimerCountdown: Codable, Sendable {
     /// When the time runs out; nil while paused.
     private var endDate: Date?
     /// The exact time left when paused, so a pause neither gains nor loses

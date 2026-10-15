@@ -18,61 +18,74 @@
 
 import Foundation
 
+/// All public state is main-queue owned; sensor work is serialized and coalesced.
 final class SystemKeyboardBacklightController {
     static let shared = SystemKeyboardBacklightController()
-
     var onBacklightChange: ((Float) -> Void)?
-
     private let workerQueue = DispatchQueue(label: "com.atoll.keyboardBacklight", qos: .userInitiated)
     private var isRunning = false
+    private var generation = UUID()
+    private var inFlight = false
+    private var needsRead = false
+    private var pendingLevel: Float?
+    private(set) var currentLevel: Float = 0
 
     private init() {}
 
     func start() {
+        dispatchPrecondition(condition: .onQueue(.main))
         guard !isRunning else { return }
         isRunning = true
-        notifyCurrentLevel()
+        generation = UUID()
+        needsRead = true
+        drain()
     }
 
     func stop() {
-        guard isRunning else { return }
+        dispatchPrecondition(condition: .onQueue(.main))
         isRunning = false
+        generation = UUID()
+        pendingLevel = nil
+        needsRead = false
     }
 
-    func adjust(by delta: Float) {
-        let target = currentLevel + delta
-        setLevel(target)
-    }
+    func adjust(by delta: Float) { setLevel((pendingLevel ?? currentLevel) + delta) }
 
     func setLevel(_ value: Float) {
-        let clamped = max(0, min(1, value))
-        workerQueue.async {
-            do {
-                try KeyboardBrightnessSensor.setLevel(clamped)
-                let level = (try? KeyboardBrightnessSensor.currentLevel()) ?? clamped
-                self.emitChange(level: level)
-            } catch {
-                NSLog("⚠️ Failed to set keyboard backlight: \(error)")
-            }
-        }
-    }
-
-    var currentLevel: Float {
-        (try? KeyboardBrightnessSensor.currentLevel()) ?? 0
-    }
-
-    private func notifyCurrentLevel() {
-        workerQueue.async {
-            let level = (try? KeyboardBrightnessSensor.currentLevel()) ?? 0
-            self.emitChange(level: level)
-        }
-    }
-
-    private func emitChange(level: Float) {
+        dispatchPrecondition(condition: .onQueue(.main))
         guard isRunning else { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.isRunning else { return }
-            self.onBacklightChange?(level)
+        pendingLevel = max(0, min(1, value))
+        // Reflect repeated key steps without synchronously querying hardware.
+        currentLevel = pendingLevel!
+        drain()
+    }
+
+    private func drain() {
+        guard isRunning, !inFlight, needsRead || pendingLevel != nil else { return }
+        inFlight = true
+        needsRead = false
+        let target = pendingLevel
+        pendingLevel = nil
+        let expected = generation
+        workerQueue.async { [weak self] in
+            let result: Result<Float, Error> = Result {
+                if let target { try KeyboardBrightnessSensor.setLevel(target) }
+                return try KeyboardBrightnessSensor.currentLevel()
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.inFlight = false
+                if self.isRunning, self.generation == expected {
+                    switch result {
+                    case .success(let level):
+                        if self.pendingLevel == nil { self.currentLevel = level }
+                        self.onBacklightChange?(level)
+                    case .failure:
+                        Logger.log("Keyboard backlight is unavailable", category: .warning)
+                    }
+                }
+                self.drain()
+            }
         }
     }
 }

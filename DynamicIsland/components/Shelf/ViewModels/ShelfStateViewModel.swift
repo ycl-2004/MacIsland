@@ -144,6 +144,30 @@ final class ShelfStateViewModel: ObservableObject {
         }
     }
 
+    func awaitInitialLoad() async {
+        await withCheckedContinuation { continuation in
+            persistenceQueue.async {
+                DispatchQueue.main.async { continuation.resume() }
+            }
+        }
+    }
+
+    func saveForTermination() async -> String? {
+        await awaitInitialLoad()
+        guard isLoaded else { return nil }
+        pendingSave?.cancel(); pendingSave = nil
+        let snapshot = items, persistence = persistence
+        let success: Bool = await withCheckedContinuation { continuation in
+            persistenceQueue.async { continuation.resume(returning: persistence.save(snapshot)) }
+        }
+        if !success {
+            let error = persistence.lastError ?? "Shelf changes could not be saved."
+            report(error, persistent: true)
+            return error
+        }
+        return items == snapshot ? nil : "Shelf changed while saving. Please try again."
+    }
+
     /// Resolves `cachedPath` for items persisted before the path cache existed,
     /// off the main actor. Once this lands, `identityKey` and `resolvedFileURL`
     /// never touch the disk on the main actor — which is what keeps an

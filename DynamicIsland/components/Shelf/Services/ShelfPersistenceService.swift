@@ -31,7 +31,8 @@ import Foundation
 /// An empty shelf leaves nothing on disk: the file and its folder are removed
 /// as the last item goes (or when an empty list is found at launch) and come
 /// back with the next save that has something in it.
-final class ShelfPersistenceService {
+// Mutable decoder/encoder and recovery state are protected by lock.
+final class ShelfPersistenceService: @unchecked Sendable {
     static let shared = ShelfPersistenceService()
 
     let directory: URL

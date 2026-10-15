@@ -1,0 +1,95 @@
+# Final worktree status
+
+No commit, push or destructive Git operation was performed. The status includes preserved prior Stats work.
+
+```text
+ M .github/workflows/ci.yml
+ M .gitignore
+ M DynamicIsland.xcodeproj/project.pbxproj
+ M DynamicIsland/ContentView.swift
+ M DynamicIsland/DynamicIslandApp.swift
+ M DynamicIsland/MediaControllers/NowPlayingController.swift
+ M DynamicIsland/audio/AudioTap.swift
+ M DynamicIsland/audio/PerAppVolume/AppVolumeTap.swift
+ M DynamicIsland/components/Agents/NotchAgentsView.swift
+ M DynamicIsland/components/ExtraSpace/ExtraSpaceExport.swift
+ M DynamicIsland/components/Music/RealTimeWaveformScrubberView.swift
+ M DynamicIsland/components/Notch/NotchExtraSpaceView.swift
+ M DynamicIsland/components/Settings/SettingsView.swift
+ M DynamicIsland/components/Shelf/Services/ShelfPersistenceService.swift
+ M DynamicIsland/components/Shelf/ViewModels/ShelfItemViewModel.swift
+ M DynamicIsland/components/Shelf/ViewModels/ShelfStateViewModel.swift
+ M DynamicIsland/components/Stats/CPUStatsDetailView.swift
+ M DynamicIsland/components/Stats/DiskStatsDetailView.swift
+ M DynamicIsland/components/Stats/GPUStatsDetailView.swift
+ M DynamicIsland/components/Stats/MemoryStatsDetailView.swift
+ M DynamicIsland/components/Stats/NetworkStatsDetailView.swift
+ M DynamicIsland/components/Stats/ProcessStats.swift
+ M DynamicIsland/components/Timer/TimerPopover.swift
+ M DynamicIsland/managers/Agents/AgentBridge.swift
+ M DynamicIsland/managers/Agents/AgentConversationService.swift
+ M DynamicIsland/managers/Agents/AgentEventServer.swift
+ M DynamicIsland/managers/Agents/AgentSessionStore.swift
+ M DynamicIsland/managers/Agents/ProcessRunner.swift
+ M DynamicIsland/managers/Agents/Terminals/AgentTerminals.swift
+ M DynamicIsland/managers/AudioRouteManager.swift
+ M DynamicIsland/managers/BluetoothAudioManager.swift
+ M DynamicIsland/managers/CalendarManager.swift
+ M DynamicIsland/managers/DoNotDisturbManager.swift
+ M DynamicIsland/managers/ExtraSpaceStore.swift
+ M DynamicIsland/managers/KeyboardBrightnessSensor.swift
+ M DynamicIsland/managers/LockScreenDisplayContextProvider.swift
+ M DynamicIsland/managers/LockScreenLiveActivityWindowManager.swift
+ M DynamicIsland/managers/LockScreenReminderWidgetPanelManager.swift
+ M DynamicIsland/managers/LockScreenTimerWidgetManager.swift
+ M DynamicIsland/managers/LockScreenWeatherPanelManager.swift
+ M DynamicIsland/managers/MemoryUsageMonitor.swift
+ M DynamicIsland/managers/MusicManager.swift
+ M DynamicIsland/managers/NetEaseLyrics.swift
+ M DynamicIsland/managers/NetworkConnectivityManager.swift
+ M DynamicIsland/managers/PerAppVolumeManager.swift
+ M DynamicIsland/managers/ReminderLiveActivityManager.swift
+ M DynamicIsland/managers/ScreenRecordingManager.swift
+ M DynamicIsland/managers/SiriVisibilityMonitor.swift
+ M DynamicIsland/managers/StatsManager.swift
+ M DynamicIsland/managers/SystemHUDManager.swift
+ M DynamicIsland/managers/SystemKeyboardBacklightController.swift
+ M DynamicIsland/managers/SystemMediaControllers.swift
+ M DynamicIsland/managers/SystemOSDManager.swift
+ M DynamicIsland/managers/SystemTimerBridge.swift
+ M DynamicIsland/managers/TimerCountdown.swift
+ M DynamicIsland/managers/TimerManager.swift
+ M DynamicIsland/models/Constants.swift
+ M DynamicIsland/models/DynamicIslandViewModel.swift
+ M DynamicIsland/utils/AtollTemporaryFiles.swift
+ M DynamicIsland/utils/CPUSensorCollector.swift
+ M DynamicIsland/utils/Logger.swift
+ M DynamicIslandTests/ExtraSpaceTests.swift
+ M docs/architecture.md
+ M docs/decisions/001-system-hud-recovery.md
+ M tests/AgentConversationRegression.swift
+?? DynamicIsland/components/Stats/StatsDetailSampling.swift
+?? DynamicIsland/managers/Agents/BridgeDiscoveryLease.swift
+?? DynamicIsland/managers/Agents/RecoveryFile.swift
+?? DynamicIsland/managers/Agents/ServiceRetryPolicy.swift
+?? DynamicIsland/managers/AppTerminationCoordinator.swift
+?? DynamicIsland/managers/TimerRecovery.swift
+?? DynamicIsland/models/StatsSampling.swift
+?? DynamicIsland/utils/AtollDiagnostics.swift
+?? DynamicIsland/utils/BoundedHTTP.swift
+?? DynamicIsland/utils/SystemStatsSampler.swift
+?? DynamicIslandTests/StabilityHardeningTests.swift
+?? DynamicIslandTests/StatsPerformanceTests.swift
+?? Tools/AtollProcessSupervisor.c
+?? Tools/build-provenance.py
+?? Tools/monitor-stability.py
+?? Tools/verify-stability.py
+?? docs/audit/2026-10-08-stats-performance/
+?? docs/audit/2026-10-10-stability-fixes/
+?? docs/audit/2026-10-10-stability/
+?? docs/decisions/002-stability-boundaries.md
+?? docs/stability-fixes-2026-10-10.md
+?? docs/stability-review-2026-10-10.md
+?? docs/stats-performance-2026-10-08.md
+?? tests/ProcessSupervisorRegression.py
+```

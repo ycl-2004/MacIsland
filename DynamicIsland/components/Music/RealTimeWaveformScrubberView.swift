@@ -8,6 +8,7 @@ struct RealTimeWaveformScrubberView: View {
     let minHeight: CGFloat
     
     @State private var timer: Timer? = nil
+    @State private var displayID = UUID()
     @State private var magnitudes: [Float] = Array(repeating: 0.1, count: 6)
 
     var body: some View {
@@ -41,7 +42,9 @@ struct RealTimeWaveformScrubberView: View {
     
     private func startTimer() {
         timer?.invalidate()
+        AudioTap.shared.setDisplaying(true, id: displayID)
         let newTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
+            MainActor.assumeIsolated {
             let tapMagnitudes = AudioTap.shared.getSmoothedMagnitudes()
             let barCount = Defaults[.visualizerBarCount]
             var newMags: [Float] = []
@@ -64,6 +67,7 @@ struct RealTimeWaveformScrubberView: View {
             withAnimation(.linear(duration: 1.0 / 60.0)) {
                 magnitudes = smoothedMags
             }
+            }
         }
         RunLoop.main.add(newTimer, forMode: .common)
         timer = newTimer
@@ -72,6 +76,7 @@ struct RealTimeWaveformScrubberView: View {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+        AudioTap.shared.setDisplaying(false, id: displayID)
     }
 }
 
