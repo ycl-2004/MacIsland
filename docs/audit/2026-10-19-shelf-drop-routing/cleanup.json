@@ -1,0 +1,8 @@
+{
+  "removed": [
+    "NotchClearance-20261019-113030-4ab1166a",
+    "InstallStaging/ShelfDropRouting-20261019-163855-09aa874f",
+    "DiagnosticReports/ShelfFix-app-lifecycle-*.ips (4 reports from the install helper's quit timeout)"
+  ],
+  "kept": "ShelfDropRouting-20261019-163855-09aa874f"
+}
