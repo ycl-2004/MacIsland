@@ -117,11 +117,20 @@ func maxAllowedNotchWidth() -> CGFloat {
 /// Counts the same available tabs used by navigation and the header.
 func enabledStandardTabCount() -> Int { NotchTabAvailability.current.tabs.count }
 
-/// Returns the recommended minimum notch width for the given tab count.
+/// The narrowest open notch that keeps every tab left of the camera housing.
+///
+/// The housing has no pixels, so a tab drawn there can be neither seen nor
+/// clicked. The header gives the tab row half of what remains beside the
+/// housing gap, less its inset, so the row's widest possible extent sets the
+/// width. Each tab is budgeted at the widest glyph rather than measured, which
+/// keeps the width stable while tabs are reordered.
 func recommendedMinimumNotchWidth(forTabCount count: Int) -> CGFloat {
-    if count >= 8 { return 770 }
-    if count >= 7 { return 690 }
-    return 640
+    let gap = min(getClosedNotchSize().width, DynamicIslandHeader.maximumHousingGap)
+    let slot = TabButton.maximumGlyphWidth + 2 * TabButton.horizontalPadding + TabButton.rowSpacing
+    let row = max(0, CGFloat(count) * slot - TabButton.rowSpacing)
+    // A few points of margin against rounding where the two sides meet the gap.
+    let side = row + 2 * DynamicIslandHeader.tabRowInset + 4
+    return max(640, (gap + 2 * side).rounded(.up))
 }
 
 /// Returns the recommended minimum notch width for the current tab configuration.

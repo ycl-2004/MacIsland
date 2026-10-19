@@ -37,6 +37,11 @@ struct DynamicIslandHeader: View {
     @Default(.showPerAppVolumeIcon) var showPerAppVolumeIcon
     @Default(.showBatteryIndicator) var showBatteryIndicator
     @Default(.notchHeaderButtonOrder) private var buttonOrder
+
+    /// The black gap left for the camera housing, at most this wide.
+    static let maximumHousingGap: CGFloat = 300
+    /// Inset around the tab row, on the left of the gap.
+    static let tabRowInset: CGFloat = 8
     
     /// Point size per symbol, so the row reads as one size.
     ///
@@ -176,10 +181,10 @@ struct DynamicIslandHeader: View {
             .blur(radius: vm.notchState == .closed ? 20 : 0)
             .animation(.smooth.delay(0.1), value: vm.notchState)
             .zIndex(2)
-            .padding(8)
+            .padding(Self.tabRowInset)
 
             if vm.notchState == .open {
-                let spacerWidth = min(vm.closedNotchSize.width, 300)
+                let spacerWidth = min(vm.closedNotchSize.width, Self.maximumHousingGap)
                 Rectangle()
                     .fill(NSScreen.screens
                         .first(where: { $0.localizedName == coordinator.selectedScreen })?.safeAreaInsets.top ?? 0 > 0 ? .black : .clear)

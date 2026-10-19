@@ -64,7 +64,7 @@ struct TabSelectionView: View {
         }
     }
     var body: some View {
-        ReorderableRow(items: tabs, spacing: 24 - 2 * TabButton.horizontalPadding, onReorder: { reordered in
+        ReorderableRow(items: tabs, spacing: TabButton.rowSpacing, onReorder: { reordered in
             tabOrder = SavedRowOrder.merging(reordered.map(\.orderKey), into: tabOrder)
         }) { tab in
             let isSelected = isSelected(tab)

@@ -64,6 +64,10 @@ struct TabButton: View {
     }
 
     static let horizontalPadding: CGFloat = 5
+    /// Gap between tabs; with the padding on both sides, glyphs sit 24pt apart.
+    static let rowSpacing: CGFloat = 24 - 2 * horizontalPadding
+    /// Widest tab glyph at the row's 13pt size (house.fill measures 19pt).
+    static let maximumGlyphWidth: CGFloat = 20
 }
 
 #Preview {
