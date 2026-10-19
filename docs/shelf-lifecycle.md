@@ -15,6 +15,7 @@ Updated 2026-10-17. The shelf stages references and small previews for an app th
 | File cleanup | A serial utility queue and one wake at the next expiry. No recurring sweep. |
 | Clipboard | Releases through pasteboard ownership callbacks, without polling. |
 | Hover fallback | Runs only for hidden-edge activation or an active hover interaction. |
+| Drag approach | A click in another app starts a 30 Hz check that ends with the press. It reads the drag pasteboard only while the pointer is near the closed notch, and opens the notch once per press for a file drag. Nothing runs while the button is up. |
 | App memory monitor | Evaluates on startup and on system memory-pressure events; no eight-second poll. Memory pressure also clears Shelf's cache and pending thumbnails. |
 
 The high-memory restart prompt is checked at startup and during system memory pressure; it no longer acts as a periodic per-process limit detector.

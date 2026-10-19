@@ -177,6 +177,7 @@ struct ContentView: View {
     @State private var hoverClickMonitor: Any?
     @State private var hoverClickLocalMonitor: Any?
     @State private var hiddenEdgeHoverPollingTask: Task<Void, Never>?
+    @State private var dragApproach: DragApproachMonitor?
     @State private var isHoveringClosedMusicWaveformControl: Bool = false
 
     @State private var gestureProgress: CGFloat = .zero
@@ -848,6 +849,7 @@ struct ContentView: View {
                 }
                 enqueueMusicControlWindowSync(forceRefresh: true)
                 if needsHoverPolling { startHiddenEdgeHoverPolling() }
+                syncDragApproachMonitor()
                 // Deterministic teardown for borderless panels (`.onDisappear` is
                 // unreliable); the window-cleanup path calls this before closing.
                 vm.onViewTeardown = { performViewTeardown() }
@@ -856,6 +858,7 @@ struct ContentView: View {
                 if needed { startHiddenEdgeHoverPolling() }
                 else { stopHiddenEdgeHoverPolling() }
             }
+            .onChange(of: shelfEnabled || fileConvertEnabled) { _, _ in syncDragApproachMonitor() }
             .onChange(of: vm.notchState) { _, state in
                 if state == .open {
                     suppressMusicControlWindowUpdates()
@@ -1665,6 +1668,34 @@ struct ContentView: View {
 
     var hasShelfActivity: Bool { shelfEnabled && !shelfState.isEmpty }
 
+    /// Runs only while a tab takes dropped files.
+    private func syncDragApproachMonitor() {
+        guard shelfEnabled || fileConvertEnabled else {
+            dragApproach?.stop()
+            dragApproach = nil
+            return
+        }
+        guard dragApproach == nil else { return }
+        let monitor = DragApproachMonitor(pointerIsNear: { dragApproachZoneContainsMouse() },
+                                          onApproach: { vm.revealDropTarget() })
+        monitor.start()
+        dragApproach = monitor
+    }
+
+    /// The closed notch widened and deepened by `DragApproachMonitor.reach`.
+    private func dragApproachZoneContainsMouse(_ location: NSPoint = NSEvent.mouseLocation) -> Bool {
+        guard vm.notchState == .closed, !vm.hideOnClosed, interactionsEnabled,
+              let screen = NSScreen.screens.first(where: { $0.localizedName == currentScreenName }) else {
+            return false
+        }
+        let reach = DragApproachMonitor.reach
+        let width = vm.closedNotchSize.width + reach.width * 2
+        let height = vm.effectiveClosedNotchHeight + reach.height
+        let zone = CGRect(x: screen.frame.midX - width / 2 + notchCenterShift, y: screen.frame.maxY - height,
+                          width: width, height: height)
+        return frameContainsPointIncludingTopEdge(zone, location)
+    }
+
     // MARK: - Private Methods
     private func openNotch() {
         vm.open()
@@ -1733,6 +1764,8 @@ struct ContentView: View {
         hoverTask?.cancel()
         stopHoverClickMonitor()
         stopHiddenEdgeHoverPolling()
+        dragApproach?.stop()
+        dragApproach = nil
         cancelMusicControlWindowSync()
         hideMusicControlWindow()
         cancelMusicControlVisibilityTimer()

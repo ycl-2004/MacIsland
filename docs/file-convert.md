@@ -19,6 +19,10 @@ Getting files to the tab while dragging:
   spring-loaded folders work. Dropping straight onto the Convert icon also works.
 - A file dragged onto a closed notch opens Convert, whichever tab was selected
   last. Text and links still open Shelf, and so do files while Convert is off.
+- A file drag opens the notch as soon as it comes within about 48 pt below the
+  closed notch or 60 pt to either side, so the pointer never has to reach the
+  top edge. Pushing into that edge opens Mission Control's Spaces bar, and the
+  "Drag windows to top of screen" setting only covers windows, not files.
 - An open Convert, Shelf or Extra Space tab keeps its own drops.
 
 ## Where results go
