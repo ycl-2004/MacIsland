@@ -1,0 +1,8 @@
+{
+  "removed": [
+    "ShelfDropRouting-20261019-163855-09aa874f",
+    "InstallStaging/DragApproach-20261019-165723-177872c9",
+    "DiagnosticReports/ShelfFix-app-lifecycle-2026-10-19-165758.ips"
+  ],
+  "kept": "DragApproach-20261019-165723-177872c9"
+}

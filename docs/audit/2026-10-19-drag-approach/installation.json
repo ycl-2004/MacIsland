@@ -1,0 +1,54 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "stage": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/DragApproach-20261019-165723-177872c9/Atoll.app",
+  "target": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/DragApproach-20261019-165723-177872c9/OriginalAtoll.app",
+  "buildInfo": {
+    "build": "1637",
+    "commit": "f14f88839bccf674f2bfc493d1380b8682c30c2f",
+    "configuration": "Release",
+    "dirty": "false",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "0aca13bd92ea3678e7ea1fb65a7e8c37f40a35e89785908d73ca9be76d10fe0a",
+    "version": "1.0.0",
+    "xcode": "2710"
+  },
+  "sourceMatchesCurrentCode": true,
+  "signingTeam": "BQYHJCCRMP",
+  "signatureVerified": true,
+  "unsignedSHA256": "6be5c9755e01f2c7d6b26344e19cfefbbf9abe7bdac7394741742309352174d8",
+  "signedSHA256": "334ec83a324db4da1829a6c1ab64f5eaa0658c53ed7875e9f722fdf616ee7fd3",
+  "originalSHA256": "3655cbea97e292e268500343404b5acf61018476de6abe51ae7134d74b21f71b",
+  "previousInstance": {
+    "action": "status",
+    "instances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 34898,
+        "terminated": false
+      }
+    ]
+  },
+  "prepared": true,
+  "quit": {
+    "method": "NSRunningApplication.terminate()",
+    "normalExitConfirmed": true,
+    "forcedTermination": false,
+    "confirmation": "Fresh lifecycle status listed no instances and pgrep -x Atoll found no process; no new Atoll crash report.",
+    "initialMonitorTimedOut": true,
+    "initialMonitorError": "The helper's NSRunningApplication observer timed out, as in earlier installations; the exit was confirmed independently."
+  },
+  "extraSpaceAfterSaveSHA256": "bb203b5a262ba3f1f166a6622bb47b38c665fa2c8f381f71a9b72b21867384e9",
+  "installed": true,
+  "installedAt": "2026-10-19T16:58:02.496792-07:00",
+  "installedSHA256": "334ec83a324db4da1829a6c1ab64f5eaa0658c53ed7875e9f722fdf616ee7fd3",
+  "backupVerified": true,
+  "installedSignatureVerified": true,
+  "previousInstanceExitedNormally": true,
+  "forcedTermination": false,
+  "launchPending": true,
+  "extraSpaceUnchangedByInstallation": true
+}
