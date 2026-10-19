@@ -227,6 +227,28 @@ final class ShelfReliabilityTests: XCTestCase {
         XCTAssertEqual(ShelfRowLayout.hits(first, ids: ids, in: bounds, rightToLeft: true), [ids[199]])
     }
 
+    func testCardInATabStillSlidingInCountsAsShowing() {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 120),
+                              styleMask: .borderless, backing: .buffered, defer: true)
+        // The tab-switch transition starts the tab beside the window.
+        let tab = NSView(frame: NSRect(x: 400, y: 0, width: 400, height: 120))
+        let scroll = NSScrollView(frame: tab.bounds)
+        let row = NSView(frame: NSRect(x: 0, y: 0, width: 10 * 123, height: 120))
+        scroll.documentView = row
+        tab.addSubview(scroll)
+        window.contentView?.addSubview(tab)
+        let first = NSView(frame: ShelfRowLayout.frame(at: 0, in: row.bounds))
+        let scrolledOut = NSView(frame: ShelfRowLayout.frame(at: 6, in: row.bounds))
+        row.addSubview(first)
+        row.addSubview(scrolledOut)
+
+        XCTAssertTrue(first.visibleRect.isEmpty, "The window can't see the card yet")
+        XCTAssertTrue(ShelfRowLayout.isShowing(first))
+        XCTAssertFalse(ShelfRowLayout.isShowing(scrolledOut))
+        first.isHidden = true
+        XCTAssertFalse(ShelfRowLayout.isShowing(first))
+    }
+
     func testDisabledShelfDoesNotSupplyClosedActivityAndKeepsItems() async throws {
         let shelf = ShelfStateViewModel.shared
         await shelf.awaitInitialLoad()

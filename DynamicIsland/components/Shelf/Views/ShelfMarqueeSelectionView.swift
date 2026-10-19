@@ -43,6 +43,16 @@ enum ShelfRowLayout {
             frame(at: index, in: bounds, rightToLeft: rightToLeft).intersects(rect) ? id : nil
         })
     }
+
+    /// Whether a card shows in the row's viewport. Measured against the scroll
+    /// view rather than the window: a tab slides in from off-window by moving an
+    /// ancestor, which never re-runs the card's layout, so a window check would
+    /// stay false and the card would never load its thumbnail.
+    @MainActor static func isShowing(_ card: NSView) -> Bool {
+        guard card.window != nil, !card.isHiddenOrHasHiddenAncestor else { return false }
+        guard let viewport = card.enclosingScrollView?.contentView else { return !card.visibleRect.isEmpty }
+        return viewport.bounds.intersects(card.convert(card.bounds, to: viewport))
+    }
 }
 
 @MainActor

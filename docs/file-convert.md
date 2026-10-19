@@ -17,8 +17,9 @@ Getting files to the tab while dragging:
 
 - Resting a drag on a tab icon for a moment opens that tab, the way Finder's
   spring-loaded folders work. Dropping straight onto the Convert icon also works.
-- On a closed notch a drag opens Shelf, as before. With Shelf off, it opens Convert.
-- An open Convert tab keeps its own drops, as Extra Space does.
+- A file dragged onto a closed notch opens Convert, whichever tab was selected
+  last. Text and links still open Shelf, and so do files while Convert is off.
+- An open Convert, Shelf or Extra Space tab keeps its own drops.
 
 ## Where results go
 

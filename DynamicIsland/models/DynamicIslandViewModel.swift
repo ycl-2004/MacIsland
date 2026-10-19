@@ -19,6 +19,7 @@
 import Combine
 import Defaults
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 class DynamicIslandViewModel: NSObject, ObservableObject {
@@ -291,8 +292,8 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         return false
     }
 
-    /// Open tabs that accept their own drops. Switching to Shelf as the drag
-    /// crosses the notch would take that target away.
+    /// Open tabs other than Shelf that accept their own drops. Switching away
+    /// as the drag crosses the notch would take that target away.
     static let tabsWithOwnDrops: Set<NotchViews> = [.extraSpace, .fileConvert]
     /// Tabs a drag can switch to by resting on their icon.
     static let springLoadedTabs: Set<NotchViews> = [.shelf, .fileConvert, .extraSpace]
@@ -326,20 +327,35 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         return true
     }
 
-    /// A drag over the notch opens Shelf, or File Convert while Shelf is off.
-    /// An open tab with its own drops keeps them.
-    func revealDropTarget() {
-        if Defaults[.dynamicShelf] { return revealShelfForDrop() }
-        guard Defaults[.enableFileConvertFeature], !ShelfSelectionModel.shared.isDragging,
-              notchState == .closed || !Self.tabsWithOwnDrops.contains(coordinator.currentView) else { return }
-        coordinator.currentView = .fileConvert
+    /// Where a drag over the notch lands, whichever tab was last selected:
+    /// files go to File Convert, anything else (or files while Convert is off)
+    /// to Shelf. An open tab that takes drops, Shelf included, keeps them.
+    func notchDropTarget(carriesFiles: Bool) -> NotchViews? {
+        guard !ShelfSelectionModel.shared.isDragging, !ShelfSelectionModel.shared.isMarqueeSelecting else { return nil }
+        if notchState == .open, coordinator.currentView == .shelf || Self.tabsWithOwnDrops.contains(coordinator.currentView) {
+            return coordinator.currentView
+        }
+        if carriesFiles, Defaults[.enableFileConvertFeature] { return .fileConvert }
+        return Defaults[.dynamicShelf] ? .shelf : nil
+    }
+
+    /// Opens the drop target as a drag crosses the notch. The drag pasteboard
+    /// already holds the dragged items, so files can be told from text here.
+    func revealDropTarget(from pasteboard: NSPasteboard = NSPasteboard(name: .drag)) {
+        let files = pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+        guard let target = notchDropTarget(carriesFiles: files) else { return }
+        if coordinator.currentView != target { coordinator.currentView = target }
         if notchState == .closed { open() }
     }
 
     /// The notch's background drop area, behind every tab.
     func receiveNotchDrop(_ providers: [NSItemProvider], convertModel: FileConvertModel? = nil) -> Bool {
-        if notchState == .open, coordinator.currentView == .fileConvert { return receiveConvertDrop(providers, model: convertModel) }
-        return Defaults[.dynamicShelf] ? receiveShelfDrop(providers) : receiveConvertDrop(providers, model: convertModel)
+        let files = providers.contains { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        switch notchDropTarget(carriesFiles: files) {
+        case .fileConvert: return receiveConvertDrop(providers, model: convertModel)
+        case .shelf: return receiveShelfDrop(providers)
+        default: return false
+        }
     }
 
     /// Like Finder's spring-loaded folders: resting a drag on a tab opens it.

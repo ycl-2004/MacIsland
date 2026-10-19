@@ -242,7 +242,7 @@ final class FileConvertTests: XCTestCase {
         XCTAssertEqual(try names(in: staging), [])
     }
 
-    func testOpenConvertTabKeepsItsDropsAndAClosedNotchOpensItWhenShelfIsOff() async throws {
+    func testFileDragsOpenConvertWhicheverTabWasLastAndOpenTabsKeepTheirDrops() async throws {
         let dir = try folder()
         let png = dir.appendingPathComponent("a.png")
         try writeImage(transparentPixels: 4, as: .png, to: png)
@@ -250,26 +250,49 @@ final class FileConvertTests: XCTestCase {
         let saved = (Defaults[.dynamicShelf], Defaults[.enableFileConvertFeature])
         Defaults[.dynamicShelf] = true
         Defaults[.enableFileConvertFeature] = true
+        let drag = NSPasteboard.withUniqueName()
         defer {
             Defaults[.dynamicShelf] = saved.0
             Defaults[.enableFileConvertFeature] = saved.1
+            drag.releaseGlobally()
             vm.destroy()
         }
         let model = FileConvertModel(enabledKey: Defaults.Key<Bool>("file-convert-on-\(UUID())", default: true))
+        func dragging(_ object: NSPasteboardWriting) {
+            drag.clearContents()
+            drag.writeObjects([object])
+        }
 
-        coordinator.currentView = .fileConvert
-        vm.open()
-        vm.revealDropTarget()
-        XCTAssertEqual(coordinator.currentView, .fileConvert)
+        dragging(png as NSURL)
+        coordinator.currentView = .shelf
+        vm.revealDropTarget(from: drag)
+        XCTAssertEqual(coordinator.currentView, .fileConvert, "Shelf was last selected, but files go to Convert")
+        XCTAssertEqual(vm.notchState, .open)
         XCTAssertFalse(vm.receiveShelfDrop([NSItemProvider(object: "text" as NSString)]))
         XCTAssertTrue(vm.receiveNotchDrop([NSItemProvider(object: png as NSURL)], convertModel: model))
         try await waitUntil { model.items.count == 1 }
 
         vm.close()
+        dragging("text" as NSString)
+        vm.revealDropTarget(from: drag)
+        XCTAssertEqual(coordinator.currentView, .shelf, "Text has nothing to convert")
+        dragging(png as NSURL)
+        vm.revealDropTarget(from: drag)
+        XCTAssertEqual(coordinator.currentView, .shelf, "An open Shelf keeps its drops")
+
+        vm.close()
+        Defaults[.enableFileConvertFeature] = false
+        vm.revealDropTarget(from: drag)
+        XCTAssertEqual(coordinator.currentView, .shelf)
+
+        vm.close()
+        Defaults[.enableFileConvertFeature] = true
         Defaults[.dynamicShelf] = false
-        vm.revealDropTarget()
-        XCTAssertEqual(coordinator.currentView, .fileConvert)
-        XCTAssertEqual(vm.notchState, .open)
+        coordinator.currentView = .home
+        dragging("text" as NSString)
+        vm.revealDropTarget(from: drag)
+        XCTAssertEqual(vm.notchState, .closed, "Without Shelf, text has nowhere to go")
+        XCTAssertNil(vm.notchDropTarget(carriesFiles: false))
     }
 
     func testRestingADragOnATabSwitchesToIt() async throws {

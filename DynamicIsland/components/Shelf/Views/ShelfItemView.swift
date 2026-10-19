@@ -263,7 +263,7 @@ private struct DraggableClickHandler: NSViewRepresentable {
         }
 
         private func updateVisibility() {
-            let visible = window != nil && !isHiddenOrHasHiddenAncestor && !visibleRect.isEmpty
+            let visible = ShelfRowLayout.isShowing(self)
             guard visible != lastVisible else { return }
             lastVisible = visible
             DispatchQueue.main.async { [weak self] in

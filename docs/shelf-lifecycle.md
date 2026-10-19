@@ -86,6 +86,8 @@ does not discard the saved list; explicit clear uses a separate content generati
 
 The notch entry area and Shelf panel use the same accepting callback. An accepted drop
 has actually been queued; an already-open Home or Timer view switches to Shelf.
+Since 2026-10-19, files dragged onto the notch open File Convert when it is on;
+text, links, and files while Convert is off still open Shelf, and an open Shelf keeps its drops.
 An open Extra Space editor keeps its own text and file drops; its margins reject Shelf drops.
 Disabled Shelf, self-drags, marquee selection, empty drops and queue overflow are rejected.
 The importer keeps the existing 50-per-drop, 100-outstanding, 200-stored and text limits.
