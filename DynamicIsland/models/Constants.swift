@@ -678,6 +678,11 @@ extension Defaults.Keys {
     // MARK: Extra Space
     static let enableExtraSpaceFeature = Key<Bool>("enableExtraSpaceFeature", default: false)
 
+    // MARK: File Convert
+    static let enableFileConvertFeature = Key<Bool>("enableFileConvertFeature", default: false)
+    /// Off: a successful conversion moves the original to the Trash.
+    static let fileConvertKeepOriginal = Key<Bool>("fileConvertKeepOriginal", default: true)
+
     // MARK: Stats Feature
     static let enableStatsFeature = Key<Bool>("enableStatsFeature", default: false)
     static let statsStopWhenNotchCloses = Key<Bool>("statsStopWhenNotchCloses", default: true)

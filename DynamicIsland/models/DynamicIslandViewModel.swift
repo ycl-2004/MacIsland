@@ -34,6 +34,10 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
     @Published var dragDetectorTargeting: Bool = false
     @Published var shelfEntryTargeting: Bool = false
     @Published var dropZoneTargeting: Bool = false
+    /// File Convert's own drop area.
+    @Published var convertDropTargeting: Bool = false
+    /// A drag resting on a tab icon, which switches to that tab.
+    @Published var tabDropTargeting: Bool = false
     @Published var dropEvent: Bool = false
     @Published var anyDropZoneTargeting: Bool = false
     var cancellables: Set<AnyCancellable> = []
@@ -146,9 +150,12 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         notchSize = getClosedNotchSize(screen: screen)
         closedNotchSize = notchSize
 
+        // Every drop area counts: moving between two of them must not read as
+        // the drag leaving the notch, which closes it.
         Publishers.CombineLatest3($dropZoneTargeting, $dragDetectorTargeting, $shelfEntryTargeting)
-            .map { value1, value2, value3 in
-                value1 || value2 || value3
+            .combineLatest($convertDropTargeting, $tabDropTargeting)
+            .map { areas, convert, tab in
+                areas.0 || areas.1 || areas.2 || convert || tab
             }
             .removeDuplicates()
             .assign(to: \.anyDropZoneTargeting, on: self)
@@ -284,10 +291,15 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         return false
     }
 
-    /// An open Extra Space editor accepts its own text and file drops; switching
-    /// to Shelf as the drag crosses the notch would take that target away.
+    /// Open tabs that accept their own drops. Switching to Shelf as the drag
+    /// crosses the notch would take that target away.
+    static let tabsWithOwnDrops: Set<NotchViews> = [.extraSpace, .fileConvert]
+    /// Tabs a drag can switch to by resting on their icon.
+    static let springLoadedTabs: Set<NotchViews> = [.shelf, .fileConvert, .extraSpace]
+    private var springLoad: DispatchWorkItem?
+
     private var routesDropsToShelf: Bool {
-        Defaults[.dynamicShelf] && (notchState == .closed || coordinator.currentView != .extraSpace)
+        Defaults[.dynamicShelf] && (notchState == .closed || !Self.tabsWithOwnDrops.contains(coordinator.currentView))
             && !ShelfSelectionModel.shared.isDragging && !ShelfSelectionModel.shared.isMarqueeSelecting
     }
 
@@ -304,6 +316,44 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         dropEvent = true
         revealShelfForDrop()
         return true
+    }
+
+    func receiveConvertDrop(_ providers: [NSItemProvider], model: FileConvertModel? = nil) -> Bool {
+        guard !ShelfSelectionModel.shared.isDragging, (model ?? .shared).receive(providers) else { return false }
+        dropEvent = true
+        coordinator.currentView = .fileConvert
+        if notchState == .closed { open() }
+        return true
+    }
+
+    /// A drag over the notch opens Shelf, or File Convert while Shelf is off.
+    /// An open tab with its own drops keeps them.
+    func revealDropTarget() {
+        if Defaults[.dynamicShelf] { return revealShelfForDrop() }
+        guard Defaults[.enableFileConvertFeature], !ShelfSelectionModel.shared.isDragging,
+              notchState == .closed || !Self.tabsWithOwnDrops.contains(coordinator.currentView) else { return }
+        coordinator.currentView = .fileConvert
+        if notchState == .closed { open() }
+    }
+
+    /// The notch's background drop area, behind every tab.
+    func receiveNotchDrop(_ providers: [NSItemProvider], convertModel: FileConvertModel? = nil) -> Bool {
+        if notchState == .open, coordinator.currentView == .fileConvert { return receiveConvertDrop(providers, model: convertModel) }
+        return Defaults[.dynamicShelf] ? receiveShelfDrop(providers) : receiveConvertDrop(providers, model: convertModel)
+    }
+
+    /// Like Finder's spring-loaded folders: resting a drag on a tab opens it.
+    func beginSpringLoad(_ view: NotchViews, after delay: TimeInterval = 0.35) {
+        springLoad?.cancel()
+        guard Self.springLoadedTabs.contains(view), coordinator.currentView != view else { return }
+        let work = DispatchWorkItem { [weak self] in self?.coordinator.currentView = view }
+        springLoad = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    func cancelSpringLoad() {
+        springLoad?.cancel()
+        springLoad = nil
     }
 
     func open() {

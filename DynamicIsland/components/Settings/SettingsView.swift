@@ -61,6 +61,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case extraSpace
     case downloads
     case shelf
+    case fileConvert
     case shortcuts
     case about
 
@@ -73,7 +74,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
         case .timer, .calendar:                                              return .productivity
-        case .colorPicker, .extraSpace, .shelf,
+        case .colorPicker, .extraSpace, .shelf, .fileConvert,
              .downloads, .shortcuts:                                         return .utilities
         case .stats:                                                         return .developer
         case .agents:                                                        return .integrations
@@ -100,6 +101,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .extraSpace: return String(localized: "Extra Space")
         case .downloads: return String(localized: "Downloads")
         case .shelf: return String(localized: "Shelf")
+        case .fileConvert: return String(localized: "File Convert")
         case .shortcuts: return String(localized: "Shortcuts")
         case .about: return String(localized: "About")
         }
@@ -124,6 +126,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .extraSpace: return "text.alignleft"
         case .downloads: return "square.and.arrow.down"
         case .shelf: return "books.vertical"
+        case .fileConvert: return "arrow.triangle.2.circlepath"
         case .shortcuts: return "keyboard"
         case .about: return "info.circle"
         }
@@ -148,6 +151,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .extraSpace: return .teal
         case .downloads: return .gray
         case .shelf: return .brown
+        case .fileConvert: return .indigo
         case .shortcuts: return .orange
         case .about: return .secondary
         }
@@ -211,6 +215,8 @@ enum LockScreenSettingsSection: String, CaseIterable, Identifiable {
 
 private enum SettingsSearchIndex {
     static let entries: [SettingsSearchEntry] = [
+        SettingsSearchEntry(tab: .fileConvert, title: "Enable File Convert", keywords: ["convert", "format", "pdf", "word", "jpg", "heic", "mp3", "转换", "格式", "轉換"], highlightID: SettingsTab.fileConvert.highlightID(for: "Enable File Convert")),
+        SettingsSearchEntry(tab: .fileConvert, title: "Keep original file", keywords: ["replace", "trash", "original", "保留原文件", "原始檔案"], highlightID: SettingsTab.fileConvert.highlightID(for: "Keep original file")),
         SettingsSearchEntry(tab: .extraSpace, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: SettingsTab.extraSpace.highlightID(for: "Enable Extra Space")),
         // General
         SettingsSearchEntry(tab: .features, title: "Feature Management", keywords: ["features", "lightweight", "performance", "功能管理", "轻量"], highlightID: nil),
@@ -726,6 +732,7 @@ struct SettingsView: View {
             .colorPicker,
             .extraSpace,
             .shelf,
+            .fileConvert,
             .downloads,
             .shortcuts,
             // Developer
@@ -994,6 +1001,10 @@ struct SettingsView: View {
         case .shelf:
             SettingsForm(tab: .shelf) {
                 Shelf()
+            }
+        case .fileConvert:
+            SettingsForm(tab: .fileConvert) {
+                FileConvertSettings()
             }
         case .shortcuts:
             SettingsForm(tab: .shortcuts) {

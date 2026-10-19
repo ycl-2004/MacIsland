@@ -44,8 +44,10 @@ final class AppTerminationCoordinator {
     private var prepared = false
     private var restartPending = false
     private lazy var gate = TerminationSaveGate {
-        await Self.saveContent(extraSpace: .shared, shelf: .shared, sessions: .shared,
-                               conversation: .shared, timer: .shared)
+        // A LibreOffice or FFmpeg child would otherwise keep running after quit.
+        await FileConvertModel.shared.stopForTermination()
+        return await Self.saveContent(extraSpace: .shared, shelf: .shared, sessions: .shared,
+                                      conversation: .shared, timer: .shared)
     }
 
     static func saveContent(extraSpace: ExtraSpaceStore, shelf: ShelfStateViewModel,

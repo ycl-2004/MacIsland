@@ -7,8 +7,8 @@ struct NotchTabAvailability {
     let colorPickerEnabled: Bool
 
     init(home: Bool, shelf: Bool, timer: Bool, stats: Bool, agents: Bool,
-         extraSpace: Bool, colorPicker: Bool, order: [String] = []) {
-        let candidates: [(NotchViews, Bool)] = [(.home, home), (.shelf, shelf),
+         extraSpace: Bool, colorPicker: Bool, fileConvert: Bool = false, order: [String] = []) {
+        let candidates: [(NotchViews, Bool)] = [(.home, home), (.shelf, shelf), (.fileConvert, fileConvert),
             (.timer, timer), (.stats, stats), (.agents, agents), (.extraSpace, extraSpace)]
         tabs = SavedRowOrder.apply(order, to: candidates.filter { $0.1 }.map { $0.0 }, key: { String(describing: $0) })
         colorPickerEnabled = colorPicker
@@ -28,6 +28,6 @@ struct NotchTabAvailability {
              timer: Defaults[.enableTimerFeature] && Defaults[.timerDisplayMode] == .tab,
              stats: Defaults[.enableStatsFeature], agents: Defaults[.enableAgentsFeature],
              extraSpace: Defaults[.enableExtraSpaceFeature], colorPicker: Defaults[.enableColorPickerFeature],
-             order: Defaults[.notchTabOrder])
+             fileConvert: Defaults[.enableFileConvertFeature], order: Defaults[.notchTabOrder])
     }
 }

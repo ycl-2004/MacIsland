@@ -13,6 +13,8 @@ enum AtollTemporaryFiles {
         case shelf = "Shelf"
         /// Logs gathered for an export.
         case logs = "Logs"
+        /// File Convert's staging folders and LibreOffice's private profile.
+        case fileConvert = "FileConvert"
     }
 
     static let root = AppRuntimeEnvironment.contentURL(FileManager.default.temporaryDirectory.appendingPathComponent("Atoll", isDirectory: true), testPath: "Temporary")

@@ -57,6 +57,7 @@ struct ContentView: View {
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
     @Default(.dynamicShelf) private var shelfEnabled
+    @Default(.enableFileConvertFeature) private var fileConvertEnabled
     @ObservedObject private var agentStore = AgentSessionStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Default(.showCalendar) private var showCalendar
@@ -1179,6 +1180,8 @@ struct ContentView: View {
                     NotchHomeView(albumArtNamespace: albumArtNamespace)
                 case .shelf:
                     NotchShelfView()
+                case .fileConvert:
+                    NotchFileConvertView()
                 case .timer:
                     NotchTimerView()
                 case .stats:
@@ -1633,16 +1636,16 @@ struct ContentView: View {
     var dragDetector: some View {
         if lockScreenManager.isLocked {
             EmptyView()
-        } else if shelfEnabled {
+        } else if shelfEnabled || fileConvertEnabled {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], isTargeted: $vm.shelfEntryTargeting) { providers in
-                    vm.receiveShelfDrop(providers)
+                    vm.receiveNotchDrop(providers)
                 }
                 .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
                     if isTargeted {
-                        vm.revealShelfForDrop()
+                        vm.revealDropTarget()
                     } else if !isTargeted {
                         if vm.dropEvent {
                             vm.dropEvent = false

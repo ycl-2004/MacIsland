@@ -90,6 +90,10 @@ def main():
     testfile = hostroot / 'DynamicIsland.xctestrun'
     testfile.write_bytes(plistlib.dumps(configuration))
     resultpath = receipt / 'native.xcresult'
+    # Test content goes to AtollTests-<pid>-<uuid> in the user's temporary folder
+    # (AppRuntimeEnvironment.testDirectory); remove what this run creates.
+    user_temp = Path(subprocess.run(['getconf', 'DARWIN_USER_TEMP_DIR'], capture_output=True, text=True).stdout.strip())
+    earlier_test_content = set(user_temp.glob('AtollTests-*'))
     native_status = None
     try:
         native_status = run('native', ['xcodebuild', 'test-without-building', '-xctestrun', str(testfile),
@@ -106,9 +110,13 @@ def main():
         run('unregister-host', ['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', '-u', str(app)])
         if native_status == 0:
             shutil.rmtree(hostroot)
+        test_content = set(user_temp.glob('AtollTests-*')) - earlier_test_content
+        for folder in test_content:
+            shutil.rmtree(folder, ignore_errors=True)
         (receipt / 'host-cleanup.json').write_text(json.dumps({
             'identifier': identifier, 'app': str(app), 'unregistered': True,
-            'hostRemoved': not hostroot.exists(), 'resultsRetained': resultpath.exists()
+            'hostRemoved': not hostroot.exists(), 'resultsRetained': resultpath.exists(),
+            'testContentRemoved': sum(not folder.exists() for folder in test_content)
         }, indent=2) + '\n')
     run('native-summary', ['xcrun', 'xcresulttool', 'get', 'test-results', 'summary', '--path', str(resultpath), '--format', 'json'])
     if native_status:

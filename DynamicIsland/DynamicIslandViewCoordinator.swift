@@ -63,7 +63,7 @@ class DynamicIslandViewCoordinator: ObservableObject {
     private var hoverOpenSuppressedUntil: Date = .distantPast
     private let availabilityProvider: () -> NotchTabAvailability
     
-    private static let tabOrder: [NotchViews] = [.home, .shelf, .timer, .stats, .agents, .extraSpace, .colorPicker]
+    private static let tabOrder: [NotchViews] = [.home, .shelf, .fileConvert, .timer, .stats, .agents, .extraSpace, .colorPicker]
     
     /// Direction of the most recent tab switch (true = forward/right, false = backward/left)
     @Published var tabSwitchForward: Bool = true
@@ -170,6 +170,7 @@ class DynamicIslandViewCoordinator: ObservableObject {
             Defaults.publisher(.enableStatsFeature).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.enableAgentsFeature).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.enableExtraSpaceFeature).map { _ in () }.eraseToAnyPublisher(),
+            Defaults.publisher(.enableFileConvertFeature).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.enableColorPickerFeature).map { _ in () }.eraseToAnyPublisher(),
             Defaults.publisher(.notchTabOrder).map { _ in () }.eraseToAnyPublisher()
         )

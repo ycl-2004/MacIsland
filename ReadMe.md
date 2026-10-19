@@ -103,6 +103,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 - **Shelf dock**: Drag files, text, and links onto the notch to stage them. Turning Shelf off hides it and preserves its contents. Clear is a separate action; original files and active handoffs are protected. See [Shelf resource lifecycle](docs/shelf-lifecycle.md).
 - **Calendar glance**: Quick agenda view for upcoming calendar events.
 - **Extra Space**: Enable it in Settings → Utilities → Extra Space to add a main tab with one continuous, scrollable text area. Double-click the text area, or click Edit or Paste, to change text; Cmd+S or Save finishes editing. The close swipe saves and closes in reading mode. Cmd+F opens native find; Export saves a plain-text copy. Changes persist locally across restarts. Turning the feature off hides the tab and keeps its contents. See [Extra Space](docs/extra-space.md).
+- **File Convert**: Enable it in Settings → Utilities → File Convert to add a Convert tab. Drop files, pick a format, and the result is saved next to the original without replacing anything. A **Keep original** switch in the tab and in settings decides whether the original stays or moves to the Trash. Images, PDFs, documents, audio and video convert with built-in macOS frameworks; installed LibreOffice and FFmpeg add Office-to-PDF, MP3, WebM, WebP and GIF. See [File Convert](docs/file-convert.md).
 
 ---
 
@@ -203,6 +204,7 @@ The repository tracks source files, assets, test fixtures, and shared workspace 
 | `DynamicIsland/components/Agents/` | AI Agent session cards, stream viewer, and screen question card |
 | `DynamicIsland/managers/Agents/` | Agent session registry, transcript parsers, and local IPC bridge |
 | `DynamicIsland/components/LockScreen/` | Lock screen widgets (Music, Weather, Timer, Bluetooth) |
+| `DynamicIsland/components/FileConvert/` | File conversion: converter contract, built-in and optional-engine converters |
 | `DynamicIsland/components/Music/` | Audio player integrations, lyrics synchronizer, and waveform visualizer |
 | `DynamicIsland/components/Notch/` | Dynamic Island notch window, tabs, header, and animations |
 | `DynamicIsland/components/Settings/` | Preferences views, layout configuration, and shortcut recorders |

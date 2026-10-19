@@ -21,6 +21,7 @@
  */
 
 import SwiftUI
+import UniformTypeIdentifiers
 import Combine
 import Defaults
 import AppKit
@@ -36,6 +37,7 @@ struct TabModel: Identifiable, Hashable {
 
 struct TabSelectionView: View {
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
+    @EnvironmentObject private var vm: DynamicIslandViewModel
     @Default(.dynamicShelf) private var dynamicShelf
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableStatsFeature) var enableStatsFeature
@@ -54,6 +56,7 @@ struct TabSelectionView: View {
     private var tabs: [TabModel] {
         let labels: [NotchViews: (String, String)] = [
             .home: ("Home", "house.fill"), .shelf: ("Shelf", "tray.fill"),
+            .fileConvert: ("Convert", "arrow.triangle.2.circlepath"),
             .timer: ("Timer", "timer"), .stats: ("Stats", "chart.xyaxis.line"),
             .agents: ("Agents", "sparkles"), .extraSpace: ("Extra Space", "text.alignleft")]
         return NotchTabAvailability.current.tabs.compactMap { view in
@@ -69,6 +72,8 @@ struct TabSelectionView: View {
             TabButton(label: tab.label, icon: tab.icon, selected: isSelected, badge: badge(for: tab.view)) {
                 coordinator.currentView = tab.view
             }
+            .onDrop(of: DynamicIslandViewModel.springLoadedTabs.contains(tab.view) ? TabDropDelegate.types : [],
+                    delegate: TabDropDelegate(view: tab.view, vm: vm))
             .background {
                 if isSelected {
                     Capsule()
@@ -115,6 +120,43 @@ struct TabSelectionView: View {
         coordinator.currentView == tab.view
     }
 
+}
+
+/// Resting a drag on a tab icon opens that tab. Dropping on the Shelf or
+/// Convert icon hands the files straight to it.
+private struct TabDropDelegate: DropDelegate {
+    static let types: [UTType] = [.fileURL, .url, .utf8PlainText, .plainText, .data]
+    let view: NotchViews
+    let vm: DynamicIslandViewModel
+
+    func dropEntered(info: DropInfo) {
+        vm.tabDropTargeting = true
+        vm.beginSpringLoad(view)
+    }
+
+    func dropExited(info: DropInfo) {
+        vm.tabDropTargeting = false
+        vm.cancelSpringLoad()
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: view == .extraSpace ? .forbidden : .copy)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        vm.tabDropTargeting = false
+        vm.cancelSpringLoad()
+        let providers = info.itemProviders(for: Self.types)
+        switch view {
+        case .shelf:
+            vm.coordinator.currentView = .shelf
+            return vm.receiveShelfDrop(providers)
+        case .fileConvert:
+            return vm.receiveConvertDrop(providers)
+        default:
+            return false
+        }
+    }
 }
 
 #Preview {

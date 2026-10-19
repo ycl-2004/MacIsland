@@ -45,6 +45,7 @@ struct FeatureManagementSettings: View {
                 feature("Camera mirror", key: .showMirror, tab: "appearance", note: "A camera preview when you open it. Needs Camera permission.")
                 feature("Lock screen weather", key: .enableLockScreenWeatherWidget, tab: "lockScreen", note: "Refreshes the weather while your Mac is locked. Uses Location if you choose current location.")
                 feature("Downloads", key: .enableDownloadListener, tab: "downloads", note: "Shows progress for files saved to your Downloads folder.")
+                feature("File Convert", key: .enableFileConvertFeature, tab: "fileConvert", note: "A Convert tab in the notch. Drop a file and pick a format; the result is saved in the same folder.")
                 feature("Color Picker", key: .enableColorPickerFeature, tab: "colorPicker", note: "Picks colors from the screen. Needs Screen Recording permission.")
             } header: { Text("Optional tools") }
             Section {
@@ -113,6 +114,10 @@ struct FeatureManagementSettings: View {
         case "calendar": return permissions.canReadCalendar ? String(localized: "Read access available · refreshes when needed") : String(localized: "Waiting for read access · open Details")
         case "colorPicker": return permissions.screenRecording ? String(localized: "Screen access allowed · on demand") : String(localized: "Waiting for Screen Recording permission")
         case "downloads": return String(localized: "Enabled · folder access managed in Details")
+        case "fileConvert":
+            let found = ExternalConversionTool.allCases.filter { $0.executable != nil }.map(\.name)
+            return found.isEmpty ? String(localized: "Built-in formats · no optional engines found")
+                                 : String(localized: "Built-in formats · \(found.joined(separator: ", ")) found")
         case "lockScreen": return String(localized: "Enabled for lock screen · location options in Details")
         default:
             if key.name == Defaults.Keys.enableRealTimeWaveform.name { return String(localized: "Enabled · audio capture checked when used") }
