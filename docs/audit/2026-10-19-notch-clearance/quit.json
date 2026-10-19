@@ -1,0 +1,8 @@
+{
+  "method": "NSRunningApplication.terminate()",
+  "normalExitConfirmed": true,
+  "forcedTermination": false,
+  "confirmation": "Fresh lifecycle status listed no instances and pgrep -x Atoll found no process; no new Atoll crash report.",
+  "initialMonitorTimedOut": true,
+  "initialMonitorError": "The helper's NSRunningApplication observer timed out, as in earlier installations; the exit was confirmed independently."
+}

@@ -1,0 +1,67 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "stage": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/NotchClearance-20261019-113030-4ab1166a/Atoll.app",
+  "target": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/NotchClearance-20261019-113030-4ab1166a/OriginalAtoll.app",
+  "buildInfo": {
+    "build": "1637",
+    "commit": "d50f122f27c150ecdd65156c8d88ceddfbacd0cf",
+    "configuration": "Release",
+    "dirty": "false",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "32b721f22f53dbd3f2a6b084dd494de3eeea71204ae3ba1a4480d790f617dc31",
+    "version": "1.0.0",
+    "xcode": "2710"
+  },
+  "sourceMatchesCurrentCode": true,
+  "signingTeam": "BQYHJCCRMP",
+  "signatureVerified": true,
+  "unsignedSHA256": "f03e744deab2bbc6121710678671cf0021a0d6f88351131b2079b59de2e8e59f",
+  "signedSHA256": "bcfd1d75f25c13eaba996ed891ab61179f0a7f2e3e6fa9909a722e5715f087c1",
+  "originalSHA256": "187f85a1503c76d5680d3ad53f72f994ac04a1bf76e6e284db4c5aa0dc73930c",
+  "previousInstance": {
+    "action": "status",
+    "instances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 51519,
+        "terminated": false
+      }
+    ]
+  },
+  "prepared": true,
+  "quit": {
+    "method": "NSRunningApplication.terminate()",
+    "normalExitConfirmed": true,
+    "forcedTermination": false,
+    "confirmation": "Fresh lifecycle status listed no instances and pgrep -x Atoll found no process; no new Atoll crash report.",
+    "initialMonitorTimedOut": true,
+    "initialMonitorError": "The helper's NSRunningApplication observer timed out, as in earlier installations; the exit was confirmed independently."
+  },
+  "extraSpaceAfterSaveSHA256": "bb203b5a262ba3f1f166a6622bb47b38c665fa2c8f381f71a9b72b21867384e9",
+  "installed": true,
+  "installedAt": "2026-10-19T11:31:10.002029-07:00",
+  "installedSHA256": "bcfd1d75f25c13eaba996ed891ab61179f0a7f2e3e6fa9909a722e5715f087c1",
+  "backupVerified": true,
+  "installedSignatureVerified": true,
+  "previousInstanceExitedNormally": true,
+  "forcedTermination": false,
+  "launchPending": false,
+  "extraSpaceUnchangedByInstallation": true,
+  "launched": {
+    "bundlePath": "/Applications/Atoll.app",
+    "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "finishedLaunching": true,
+    "pid": 58402,
+    "terminated": false
+  },
+  "screenCheck": {
+    "openNotchWidthSetting": 729,
+    "lastTabRightEdgePt": 638,
+    "housingStartsPt": 663.5,
+    "method": "Opened with the existing toggle shortcut; screencapture of the top strip."
+  }
+}
