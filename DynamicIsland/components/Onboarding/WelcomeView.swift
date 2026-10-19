@@ -21,93 +21,110 @@
  */
 
 import SwiftUI
-import SwiftUIIntrospect
 
 struct WelcomeView: View {
     var onGetStarted: (() -> Void)? = nil
+    @State private var showDataUse = false
+
     var body: some View {
-        ZStack(alignment: .top) {
-            ZStack {
-                Image("spotlight")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .padding(.bottom)
-                    .blur(radius: 3)
-                    .offset(y: -5)
-                    .background(SparkleView().opacity(0.6))
-                VStack(spacing: 8) {
-                    Image("logo2")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 100, height: 100)
-                        .padding(.bottom, 8)
-                    Text("Atoll")
-                        .font(.system(.largeTitle, design: .default))
-                        .fontWeight(.semibold)
-                    Text("Welcome")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 30)
-                    if false {
-                        Text("PRO")
-                            .font(.system(size: 18, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 3)
-                            .background(
-                                Capsule()
-                                    .fill(LinearGradient(colors: [.white.opacity(0.7), .white.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .strokeBorder(LinearGradient(stops: [.init(color: .white.opacity(0.7), location: 0.3), .init(color: .clear, location: 0.6)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .blendMode(.overlay)
-                            )
-                            .padding(.bottom, 30)
-                    }
-
-
-                    Button {
-                        onGetStarted?()
-                    } label: {
-                        Text("Get started")
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 6)
-                    }
-                    .buttonStyle(BorderedProminentButtonStyle())
-                    
-                    // Privacy Policy Link
-                    Button(action: {
-                        if let url = URL(string: "https://ebullioscopic.github.io/DynamicIsland/privacy-policy") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Text("Privacy Policy")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 8)
-                }
-                .padding(.top)
+        VStack(spacing: 24) {
+            Spacer(minLength: 0)
+            IslandWelcomeMark()
+            VStack(spacing: 10) {
+                Text("Welcome to YC Island")
+                    .font(.system(size: 30, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Text("Your everyday tools, one island.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
             }
-            
-            Image("ebullioscopic")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(height: 22)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .padding()
-                .padding(.bottom, 36)
-                .blendMode(.overlay)
+            VStack(alignment: .leading, spacing: 18) {
+                OnboardingFeatureRow(icon: "playpause.fill", title: "Stay in your flow",
+                                     detail: "Music, timers and quick notes, right by the notch.")
+                OnboardingFeatureRow(icon: "tray.fill", title: "Keep things close",
+                                     detail: "Drop files, links and text onto Shelf for later.")
+                OnboardingFeatureRow(icon: "terminal.fill", title: "Follow your agents",
+                                     detail: "Check connected sessions and ask about your screen.")
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 16))
+            Spacer(minLength: 0)
+            VStack(spacing: 12) {
+                Button("Set up YC Island") { onGetStarted?() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                Button("Data & permissions") { showDataUse = true }
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .ignoresSafeArea()
-        .background {
-            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-                .ignoresSafeArea()
-        }
+        .padding(.horizontal, 36)
+        .padding(.bottom, 28)
+        .sheet(isPresented: $showDataUse) { OnboardingDataUseView() }
     }
 }
 
-#Preview {
-    WelcomeView()
+struct IslandWelcomeMark: View {
+    var body: some View {
+        HStack(spacing: 18) {
+            Image(systemName: "waveform").foregroundStyle(.mint)
+            Text("YC").font(.system(size: 24, weight: .semibold, design: .rounded))
+            Image(systemName: "terminal").foregroundStyle(.white.opacity(0.7))
+        }
+        .font(.system(size: 20))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 30)
+        .frame(height: 68)
+        .background(.black, in: Capsule())
+        .accessibilityHidden(true)
+    }
 }
+
+struct OnboardingFeatureRow: View {
+    let icon: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 19, weight: .medium))
+                .foregroundStyle(Color.effectiveAccent)
+                .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.headline)
+                Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct OnboardingDataUseView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Data & permissions").font(.title2.bold())
+            OnboardingFeatureRow(icon: "internaldrive", title: "Stored on your Mac",
+                                 detail: "Notes and Shelf data are saved locally. Camera previews and audio visualizers are processed live, without saving recordings.")
+            OnboardingFeatureRow(icon: "network", title: "When data leaves your Mac",
+                                 detail: "Weather and lyrics use online services. When you send a screen question, the selected image and question go to your chosen agent or provider.")
+            OnboardingFeatureRow(icon: "hand.raised", title: "You choose access",
+                                 detail: "Enable permissions for the features you use. You can review or revoke them in System Settings → Privacy & Security.")
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(28)
+        .frame(width: 470)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+#Preview { WelcomeView() }

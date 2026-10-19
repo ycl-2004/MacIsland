@@ -1,0 +1,22 @@
+[
+  {
+    "name": "build",
+    "exit": 0,
+    "seconds": 9.33
+  },
+  {
+    "name": "sign-host",
+    "exit": 0,
+    "seconds": 0.18
+  },
+  {
+    "name": "native",
+    "exit": 0,
+    "seconds": 11.74
+  },
+  {
+    "name": "native-summary",
+    "exit": 0,
+    "seconds": 0.12
+  }
+]

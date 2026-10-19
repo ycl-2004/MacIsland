@@ -1,0 +1,82 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "stage": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/Onboarding-20261017-202236-5967fc9d/Atoll.app",
+  "target": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/Onboarding-20261017-202236-5967fc9d/OriginalAtoll.app",
+  "buildInfo": {
+    "build": "1637",
+    "commit": "578a61ecf48ed7a108d97c9ed3ef85c449694f88",
+    "configuration": "Release",
+    "dirty": "true",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "565f204e13cd835c422836f32787671ceaaddf9f0757023029159bfd65d74908",
+    "version": "1.0.0",
+    "xcode": "2710"
+  },
+  "sourceMatchesCurrentCode": true,
+  "signingTeam": "BQYHJCCRMP",
+  "signatureVerified": true,
+  "unsignedSHA256": "77c5e356a216520c8db7b99df2e5d99bed362eb9fd8402111f2832c88dd150e1",
+  "signedSHA256": "91b07281b9d0c8b78cd3446639b0f17885a8ad256f7bd41537fffb7b6b1fa3d0",
+  "originalSHA256": "f26b0546cf682ddd8a371a5ebc1d67509a4b6c27b98719b297265ae71e0a7de6",
+  "previousInstance": {
+    "action": "status",
+    "instances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 5158,
+        "terminated": false
+      }
+    ]
+  },
+  "prepared": true,
+  "quit": {
+    "method": "NSRunningApplication.terminate()",
+    "normalExitConfirmed": true,
+    "forcedTermination": false,
+    "confirmation": "Fresh NSWorkspace runningApplications list was empty; pgrep -x Atoll found no process.",
+    "initialMonitorTimedOut": true,
+    "initialMonitorError": "The original NSRunningApplication observer timed out. A fresh independent check confirmed the application had exited; no forced termination was used."
+  },
+  "extraSpaceAfterSaveSHA256": "bb203b5a262ba3f1f166a6622bb47b38c665fa2c8f381f71a9b72b21867384e9",
+  "installed": true,
+  "installedAt": "2026-10-17T20:23:51.005713-07:00",
+  "installedSHA256": "91b07281b9d0c8b78cd3446639b0f17885a8ad256f7bd41537fffb7b6b1fa3d0",
+  "backupVerified": true,
+  "installedSignatureVerified": true,
+  "previousInstanceExitedNormally": true,
+  "forcedTermination": false,
+  "launchPending": false,
+  "extraSpaceUnchangedByInstallation": true,
+  "launch": {
+    "action": "launch",
+    "instance": {
+      "bundlePath": "/Applications/Atoll.app",
+      "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+      "finishedLaunching": true,
+      "pid": 15841,
+      "terminated": false
+    }
+  },
+  "runningInstance": {
+    "bundlePath": "/Applications/Atoll.app",
+    "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "finishedLaunching": true,
+    "pid": 15841,
+    "terminated": false
+  },
+  "sourceUnchangedSinceFinalTests": true,
+  "finalVerifiedAt": "2026-10-17T20:24:31.023889-07:00",
+  "finalVerification": {
+    "signatureVerified": true,
+    "installedBinaryMatchesSignedBuild": true,
+    "backupMatchesOriginal": true,
+    "sourceMatchesVerifiedRelease": true,
+    "launchCompleted": true,
+    "displayName": "YC Island",
+    "bundleIdentifier": "com.Ebullioscopic.Atoll"
+  }
+}

@@ -25,64 +25,45 @@ import SwiftUI
 struct OnboardingFinishView: View {
     let onFinish: () -> Void
     let onOpenSettings: () -> Void
+    var onBack: () -> Void = {}
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-
-            Image(systemName: "sparkles")
-                .font(.system(size: 60))
-                .foregroundColor(.accentColor)
-                .padding()
-
-            Text("You're All Set!")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-
-            Text("You can now enjoy the app. If you want to tweak things further, you can always visit the settings.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
-            Spacer()
-            Spacer()
-
-            VStack(spacing: 12) {
-                Button(action: onOpenSettings) {
-                    Label("Customize in Settings", systemImage: "gear")
-                        .controlSize(.large)
-                }
-                .controlSize(.large)
-
-                Button("Finish", action: onFinish)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
-                
-                // Privacy Policy Link
-                Button(action: {
-                    if let url = URL(string: "https://ebullioscopic.github.io/DynamicIsland/privacy-policy") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }) {
-                    Text("Privacy Policy")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
+        VStack(spacing: 24) {
+            Spacer(minLength: 0)
+            IslandWelcomeMark()
+            VStack(spacing: 10) {
+                Text("Your island is ready")
+                    .font(.system(size: 30, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Text("Move your pointer to the notch to open YC Island.")
+                    .font(.title3).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            VStack(alignment: .leading, spacing: 18) {
+                OnboardingFeatureRow(icon: "cursorarrow", title: "Open the island",
+                                     detail: "Use the menu bar icon to reach Settings at any time.")
+                OnboardingFeatureRow(icon: "slider.horizontal.3", title: "Make it yours",
+                                     detail: "Choose your tools in Feature Management. Permissions stay optional.")
+                OnboardingFeatureRow(icon: "arrow.uturn.backward", title: "Come back anytime",
+                                     detail: "Reopen this guide from the YC Island menu. Your settings stay as you left them.")
             }
             .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 16))
+            Spacer(minLength: 0)
+            HStack {
+                Button("Back", action: onBack)
+                Spacer()
+                Button("Customize in Settings", action: onOpenSettings)
+                Button("Start using YC Island", action: onFinish)
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+            .controlSize(.large)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            VisualEffectView(material: .underWindowBackground, blendingMode: .behindWindow)
-                .ignoresSafeArea()
-        )
+        .padding(.horizontal, 36)
+        .padding(.bottom, 28)
     }
 }
 
-#Preview {
-    OnboardingFinishView(onFinish: { }, onOpenSettings: { })
-}
+#Preview { OnboardingFinishView(onFinish: {}, onOpenSettings: {}) }

@@ -56,6 +56,7 @@ struct ContentView: View {
     @ObservedObject var capsLockManager = CapsLockManager.shared
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
+    @Default(.dynamicShelf) private var shelfEnabled
     @ObservedObject private var agentStore = AgentSessionStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Default(.showCalendar) private var showCalendar
@@ -1080,7 +1081,7 @@ struct ContentView: View {
                   Defaults[.enableCameraDetection] || Defaults[.enableMicrophoneDetection],
                   !vm.hideOnClosed {
             PrivacyLiveActivity()
-        } else if !coordinator.expandingView.show && vm.notchState == .closed && !shelfState.isEmpty && !vm.hideOnClosed && !lockScreenManager.isLocked {
+        } else if !coordinator.expandingView.show && vm.notchState == .closed && hasShelfActivity && !vm.hideOnClosed && !lockScreenManager.isLocked {
             ShelfInlineLiveActivity()
                 .transition(.opacity.animation(.smooth(duration: 0.25)))
         } else if vm.notchState == .open {
@@ -1393,7 +1394,7 @@ struct ContentView: View {
         }
 
         // Shelf: show file count as lowest-priority secondary
-        if !shelfState.isEmpty && !lockScreenManager.isLocked {
+        if hasShelfActivity && !lockScreenManager.isLocked {
             return .shelf(count: shelfState.items.count)
         }
 
@@ -1632,15 +1633,16 @@ struct ContentView: View {
     var dragDetector: some View {
         if lockScreenManager.isLocked {
             EmptyView()
-        } else if Defaults[.dynamicShelf] {
+        } else if shelfEnabled {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
-                .onDrop(of: [.data], isTargeted: $vm.dragDetectorTargeting) { _ in true }
+                .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], isTargeted: $vm.shelfEntryTargeting) { providers in
+                    vm.receiveShelfDrop(providers)
+                }
                 .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
-                    if isTargeted, vm.notchState == .closed {
-                        coordinator.currentView = .shelf
-                        openNotch()
+                    if isTargeted {
+                        vm.revealShelfForDrop()
                     } else if !isTargeted {
                         if vm.dropEvent {
                             vm.dropEvent = false
@@ -1657,6 +1659,8 @@ struct ContentView: View {
             EmptyView()
         }
     }
+
+    var hasShelfActivity: Bool { shelfEnabled && !shelfState.isEmpty }
 
     // MARK: - Private Methods
     private func openNotch() {

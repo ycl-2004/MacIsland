@@ -36,7 +36,7 @@ struct DragPreviewView: View {
                 .frame(width: 56, height: 56)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            Text(displayName)
+            Text(ShelfDisplayText.summary(displayName))
                 .font(.notch(.footnote, weight: .medium))
                 .foregroundColor(.white)
                 .lineLimit(2)

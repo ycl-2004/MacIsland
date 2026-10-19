@@ -32,6 +32,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
     @Published private(set) var notchState: NotchState = .closed
 
     @Published var dragDetectorTargeting: Bool = false
+    @Published var shelfEntryTargeting: Bool = false
     @Published var dropZoneTargeting: Bool = false
     @Published var dropEvent: Bool = false
     @Published var anyDropZoneTargeting: Bool = false
@@ -145,10 +146,11 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         notchSize = getClosedNotchSize(screen: screen)
         closedNotchSize = notchSize
 
-        Publishers.CombineLatest($dropZoneTargeting, $dragDetectorTargeting)
-            .map { value1, value2 in
-                value1 || value2
+        Publishers.CombineLatest3($dropZoneTargeting, $dragDetectorTargeting, $shelfEntryTargeting)
+            .map { value1, value2, value3 in
+                value1 || value2 || value3
             }
+            .removeDuplicates()
             .assign(to: \.anyDropZoneTargeting, on: self)
             .store(in: &cancellables)
         
@@ -280,6 +282,28 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         }
         
         return false
+    }
+
+    /// An open Extra Space editor accepts its own text and file drops; switching
+    /// to Shelf as the drag crosses the notch would take that target away.
+    private var routesDropsToShelf: Bool {
+        Defaults[.dynamicShelf] && (notchState == .closed || coordinator.currentView != .extraSpace)
+            && !ShelfSelectionModel.shared.isDragging && !ShelfSelectionModel.shared.isMarqueeSelecting
+    }
+
+    func revealShelfForDrop() {
+        guard routesDropsToShelf else { return }
+        coordinator.currentView = .shelf
+        if notchState == .closed { open() }
+    }
+
+    /// Both the entry area and the shelf itself acknowledge only queued imports.
+    func receiveShelfDrop(_ providers: [NSItemProvider], shelf: ShelfStateViewModel? = nil) -> Bool {
+        let shelf = shelf ?? .shared
+        guard routesDropsToShelf, shelf.load(providers) else { return false }
+        dropEvent = true
+        revealShelfForDrop()
+        return true
     }
 
     func open() {

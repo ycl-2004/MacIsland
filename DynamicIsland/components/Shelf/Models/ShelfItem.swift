@@ -23,6 +23,16 @@
 import AppKit
 import Foundation
 
+enum ShelfDisplayText {
+    /// Bound input before SwiftUI lays out a two-line label. The original payload stays intact.
+    static func summary(_ text: String) -> String {
+        let prefix = Array(text.unicodeScalars.prefix(257))
+        let label = String(String.UnicodeScalarView(prefix.prefix(256)))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return prefix.count > 256 ? label + "…" : label
+    }
+}
+
 enum ShelfItemKind: Codable, Equatable, Sendable {
     case file(bookmark: Data)
     case text(string: String)
@@ -109,7 +119,7 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
             }
             return ""
         case .text(let string):
-            return string.trimmingCharacters(in: .whitespacesAndNewlines)
+            return ShelfDisplayText.summary(string)
         case .link(let url):
             let s = url.absoluteString
             if s.hasPrefix("https://") {

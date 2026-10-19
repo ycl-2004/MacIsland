@@ -1,0 +1,21 @@
+{
+  "source_commit": "578a61ec",
+  "product_source_changed": false,
+  "os": "macOS 27.0.1 (26A434)",
+  "xcode": "27.1 (27A9275)",
+  "configuration": "Debug, isolated XCTest host",
+  "probe_sha256": "a0bff27bdb03e0b0f940a505b2e195548adf97b8045c9863cc6dd7fc2b7e3af7",
+  "probe_cases": 5,
+  "existing_shelf_cases": 26,
+  "passed_unique_cases": 31,
+  "physical_drag_fps_measured": false,
+  "runs": {
+    "baseline": "/tmp/atoll-shelf-assessment-20261017",
+    "regression": "/tmp/atoll-shelf-regression-20261017",
+    "final": "/tmp/atoll-shelf-assessment-layout-20261017"
+  },
+  "infrastructure": [
+    "Sandbox build denied writes to compiler/package caches; build succeeded with reviewed escalation.",
+    "Desktop test host stalled in dyld __open before app code. Sample archived; only this run was terminated. Same isolated test copy ran successfully from /tmp."
+  ]
+}

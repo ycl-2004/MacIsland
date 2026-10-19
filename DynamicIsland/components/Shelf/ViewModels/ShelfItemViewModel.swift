@@ -55,7 +55,7 @@ final class ShelfItemViewModel: ObservableObject {
             displayName = item.cachedDisplayName ?? item.cachedPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? String(localized: "File")
             icon = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
         case .text(let text):
-            displayName = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            displayName = ShelfDisplayText.summary(text)
             icon = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: nil)
         case .link(let url):
             displayName = url.absoluteString
@@ -110,7 +110,7 @@ final class ShelfItemViewModel: ObservableObject {
     }
 
     func handleDoubleClick() {
-    let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
+        let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
         for it in selected { ShelfActionService.open(it) }
     }
 
@@ -471,7 +471,7 @@ final class ShelfItemViewModel: ObservableObject {
 
             case "Remove":
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
-                for it in selected { ShelfActionService.remove(it) }
+                ShelfStateViewModel.shared.remove(selected)
 
             case "Compress":
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)

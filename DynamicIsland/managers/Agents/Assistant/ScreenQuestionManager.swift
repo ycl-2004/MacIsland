@@ -47,7 +47,7 @@ final class ScreenQuestionManager: ObservableObject {
         guard CGPreflightScreenCaptureAccess() else {
             // Shows the system prompt the first time; later the user has to go to System Settings.
             CGRequestScreenCaptureAccess()
-            phase = .failed(String(localized: "Allow Atoll under System Settings → Privacy & Security → Screen & System Audio Recording, then try again."))
+            phase = .failed(String(localized: "Allow YC Island under System Settings → Privacy & Security → Screen & System Audio Recording, then try again."))
             return true
         }
         let url = AtollTemporaryFiles.directory(.screenQuestion).appendingPathComponent("\(UUID().uuidString).png")

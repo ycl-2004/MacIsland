@@ -59,7 +59,8 @@ struct ShelfView: View {
     @State private var previewCloseToken = UUID()
     @State private var selectionTask: Task<Void, Never>?
     @State private var viewportSize: CGSize = .zero
-    private let spacing: CGFloat = 8
+    @Environment(\.layoutDirection) private var layoutDirection
+    private let spacing = ShelfRowLayout.spacing
 
     var body: some View {
         HStack(spacing: 12) {
@@ -93,10 +94,7 @@ struct ShelfView: View {
     }
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        guard !selection.isDragging, !selection.isMarqueeSelecting else { return false }
-        vm.dropEvent = true
-        ShelfStateViewModel.shared.load(providers)
-        return true
+        vm.receiveShelfDrop(providers)
     }
     
     private func updateQuickLookSelection() {
@@ -182,9 +180,7 @@ struct ShelfView: View {
                         .accessibilityLabel(feedback)
                 }
             }
-            .transaction { transaction in
-                transaction.animation = vm.animation
-            }
+            .animation(vm.animation, value: vm.dragDetectorTargeting)
             .contentShape(Rectangle())
     }
 
@@ -210,22 +206,26 @@ struct ShelfView: View {
                 .animation(.bouncy, value: vm.dragDetectorTargeting)
             } else {
                 ScrollView(.horizontal) {
-                    HStack(spacing: spacing) {
+                    // Include the gap in each cell's fixed extent. LazyHStack's
+                    // inter-item spacing can shift skipped cells after a long jump.
+                    LazyHStack(spacing: 0) {
                         ForEach(tvm.items) { item in
                             ShelfItemView(item: item)
                                 .environmentObject(quickLookService)
+                                .frame(width: ShelfRowLayout.width + spacing, alignment: .leading)
                         }
                     }
-                    // Stretch the content to at least the viewport so the
-                    // marquee overlay also covers the gap right of the last item
-                    // — that gap is where a rubber-band selection usually starts.
+                    // Fixed row geometry also describes offscreen cells, preserving
+                    // marquee selection while only visible cards are instantiated.
                     .frame(
-                        minWidth: viewportSize.width,
-                        minHeight: viewportSize.height,
+                        width: max(viewportSize.width, CGFloat(tvm.items.count) * (ShelfRowLayout.width + spacing)),
+                        height: max(viewportSize.height, ShelfRowLayout.height),
                         alignment: .leading
                     )
                     .overlay {
                         ShelfMarqueeSelectionView(
+                            itemIDs: tvm.items.map(\.id),
+                            rightToLeft: layoutDirection == .rightToLeft,
                             onBackgroundClick: {
                                 guard !selection.isDragging else { return }
                                 selection.clear()
@@ -246,9 +246,6 @@ struct ShelfView: View {
                     }
                 )
                 .onPreferenceChange(ShelfViewportSizeKey.self) { viewportSize = $0 }
-                .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], isTargeted: $vm.dragDetectorTargeting) { providers in
-                    handleDrop(providers: providers)
-                }
             }
         }
     }

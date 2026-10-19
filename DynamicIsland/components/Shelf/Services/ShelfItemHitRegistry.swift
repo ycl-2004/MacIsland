@@ -20,11 +20,9 @@ import AppKit
 
 /// Maps shelf item IDs to the live `NSView` backing each cell.
 ///
-/// Marquee selection needs each cell's geometry. Walking the view hierarchy
-/// isn't an option — the cell view is nested inside a `private` type in
-/// `ShelfItemView.swift`, so it can't be cast from another file. Reading frames
-/// straight off the AppKit views (rather than mirroring SwiftUI layout through
-/// preferences) means scroll offset and clipping come out right for free.
+/// Used to verify that native card frames agree with the fixed row geometry.
+/// Marquee selection uses ShelfRowLayout for both visible and offscreen cards;
+/// this registry intentionally contains only live views and holds them weakly.
 @MainActor
 final class ShelfItemHitRegistry {
     static let shared = ShelfItemHitRegistry()
@@ -37,7 +35,10 @@ final class ShelfItemHitRegistry {
 
     private var boxes: [UUID: Box] = [:]
 
+    /// Prunes here too: only tests call `frames(in:)`, and a cell released with
+    /// its window never sees `viewDidMoveToWindow(nil)` to unregister.
     func register(_ view: NSView, for id: UUID) {
+        boxes = boxes.filter { $0.value.view != nil }
         boxes[id] = Box(view)
     }
 

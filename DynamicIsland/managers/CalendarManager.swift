@@ -232,7 +232,7 @@ class CalendarManager: ObservableObject {
         applyRuntimePolicy(runtimePolicy)
 
         switch status {
-        case .notDetermined:
+        case .notDetermined, .writeOnly:
             let granted = await calendarService.requestAccess(to: .event)
             calendarAuthorizationStatus = granted ? .fullAccess : .denied
             applyRuntimePolicy(runtimePolicy)
@@ -247,8 +247,6 @@ class CalendarManager: ObservableObject {
             await reloadCalendarAndReminderLists()
             await updateEvents(force: true)
             await updateLockScreenEvents(force: true)
-        case .writeOnly:
-            NSLog("Calendar write only")
         @unknown default:
             NSLog("Unknown calendar authorization status")
         }

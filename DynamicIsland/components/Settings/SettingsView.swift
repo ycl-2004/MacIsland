@@ -2205,44 +2205,9 @@ struct CalendarSettings: View {
 
     var body: some View {
         Form {
-            if !calendarManager.hasCalendarAccess || !calendarManager.hasReminderAccess {
-                Text("Allow Calendar and Reminders access to show your events.")
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding()
+            CalendarPermissionControls()
 
-                HStack {
-                    Button("Request Access") {
-                        Task {
-                            await calendarManager.checkCalendarAuthorization()
-                            await calendarManager.checkReminderAuthorization()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button("Open System Settings") {
-                        if let settingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
-                            NSWorkspace.shared.open(settingsURL)
-                        }
-                    }
-                }
-            } else {
-                // Permissions status
-                Section(header: Text("Permissions")) {
-                    HStack {
-                        Text("Calendars")
-                        Spacer()
-                        Text(statusText(for: calendarManager.calendarAuthorizationStatus))
-                            .foregroundColor(color(for: calendarManager.calendarAuthorizationStatus))
-                    }
-                    HStack {
-                        Text("Reminders")
-                        Spacer()
-                        Text(statusText(for: calendarManager.reminderAuthorizationStatus))
-                            .foregroundColor(color(for: calendarManager.reminderAuthorizationStatus))
-                    }
-                }
-
+            if calendarManager.hasCalendarAccess || calendarManager.hasReminderAccess {
                 Defaults.Toggle(key: .showCalendar) {
                     SettingsInfoLabel("Show calendar", info: "When lyrics are on too, the two share the notch and lyrics move to one line under the artist name.")
                 }
@@ -2395,35 +2360,17 @@ struct CalendarSettings: View {
                 }
             }
         }
-        .onAppear {
-            Task {
-                await calendarManager.checkCalendarAuthorization()
-                await calendarManager.checkReminderAuthorization()
-            }
+        .task {
+            calendarManager.refreshAuthorizationSnapshot()
+            await calendarManager.reloadCalendarAndReminderLists()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            calendarManager.refreshAuthorizationSnapshot()
         }
         .navigationTitle("Calendar")
     }
 
-    private func statusText(for status: EKAuthorizationStatus) -> String {
-        switch status {
-        case .fullAccess, .authorized: return String(localized: "Full Access")
-        case .writeOnly: return String(localized: "Write Only")
-        case .denied: return String(localized: "Denied")
-        case .restricted: return String(localized: "Restricted")
-        case .notDetermined: return String(localized: "Not Determined")
-        @unknown default: return String(localized: "Unknown")
-        }
-    }
 
-    private func color(for status: EKAuthorizationStatus) -> Color {
-        switch status {
-        case .fullAccess, .authorized: return .green
-        case .writeOnly: return .yellow
-        case .denied, .restricted: return .red
-        case .notDetermined: return .secondary
-        @unknown default: return .secondary
-        }
-    }
 }
 
 struct About: View {
@@ -2618,43 +2565,14 @@ struct Shelf: View {
     @Default(.dynamicShelf) private var shelfEnabled
     @ObservedObject private var shelfState = ShelfStateViewModel.shared
     @State private var confirmingClear = false
-    @ObservedObject private var fullDiskAccessPermission = FullDiskAccessPermissionStore.shared
-    @ObservedObject private var shelfFolderAccessPermission = ShelfFolderAccessPermissionStore.shared
-
-    private var hasDocumentsAndDownloadsAccess: Bool {
-        shelfFolderAccessPermission.hasDocumentsAndDownloadsAccess
-    }
-
-    private var canEnableShelf: Bool {
-        fullDiskAccessPermission.isAuthorized || hasDocumentsAndDownloadsAccess
-    }
-
     private func highlightID(_ title: String) -> String {
         SettingsTab.shelf.highlightID(for: title)
     }
 
     var body: some View {
         Form {
-            if !canEnableShelf {
-                Section {
-                    SettingsPermissionCallout(
-                        title: "Folder access needed",
-                        message: "Allow access to Documents and Downloads to use Shelf.",
-                        icon: "folder.badge.questionmark",
-                        iconColor: .orange,
-                        requestButtonTitle: "Request Folder Access",
-                        openSettingsButtonTitle: "Open Privacy & Security",
-                        requestAction: { shelfFolderAccessPermission.requestAccessPrompt() },
-                        openSettingsAction: { shelfFolderAccessPermission.openSystemSettings() }
-                    )
-                } header: {
-                    Text("Permissions")
-                }
-            }
-
             Section {
                 Toggle("Enable shelf", isOn: $shelfEnabled)
-                .disabled(!canEnableShelf && !shelfEnabled)
                 .settingsHighlight(id: highlightID("Enable shelf"))
 
                 Defaults.Toggle(key: .openShelfByDefault) {
@@ -2672,15 +2590,10 @@ struct Shelf: View {
                 }
                 .settingsHighlight(id: highlightID("Remove from shelf after dragging"))
 
-                if canEnableShelf && !fullDiskAccessPermission.isAuthorized {
-                    LabeledContent {
-                        Button("Grant Access…") { fullDiskAccessPermission.requestAccessPrompt() }
-                    } label: {
-                        SettingsInfoLabel("Full Disk Access (optional)", info: "Shelf works with Documents and Downloads access. Full Disk Access lets it keep files from any location, such as the Desktop or an external drive, without separate macOS prompts.")
-                    }
-                }
             } header: {
                 Text("General")
+            } footer: {
+                Text("Shelf works with text, links and files you choose. macOS may ask for access to a protected folder when you use a file from it. Full Disk Access is not required.")
             }
             Section {
                 LabeledContent("Items", value: "\(shelfState.items.count) / 200")
@@ -2702,10 +2615,7 @@ struct Shelf: View {
         } message: {
             Text("This removes \(shelfState.items.count) items from Shelf. Your original files stay in place.")
         }
-        .onAppear {
-            fullDiskAccessPermission.refreshStatus()
-            shelfFolderAccessPermission.refreshStatus()
-        }
+
     }
 }
 
@@ -3935,6 +3845,18 @@ struct LockScreenSettings: View {
                     .settingsHighlight(id: highlightID("Show lock screen weather"))
 
                     if enableLockScreenWeatherWidget {
+                        LabeledContent {
+                            Button("Allow current location") {
+                                LockScreenWeatherManager.shared.prepareLocationAccess()
+                            }
+                            Button("Open System Settings") {
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }
+                        } label: {
+                            Text("Location (optional)")
+                        }
                         SettingsSegmentedPicker(
                             "Weather data provider",
                             selection: $lockScreenWeatherProviderSource,

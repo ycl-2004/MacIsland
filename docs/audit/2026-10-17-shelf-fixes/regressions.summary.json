@@ -1,0 +1,53 @@
+{
+  "devicesAndConfigurations" : [
+    {
+      "device" : {
+        "architecture" : "arm64e",
+        "deviceId" : "00008132-001A681436D3801C",
+        "deviceName" : "My Mac",
+        "modelName" : "MacBook Pro",
+        "osBuildNumber" : "26A434",
+        "osVersion" : "27.0.1",
+        "platform" : "macOS"
+      },
+      "expectedFailures" : 0,
+      "failedTests" : 0,
+      "passedTests" : 14,
+      "skippedTests" : 0,
+      "testPlanConfiguration" : {
+        "configurationId" : "1",
+        "configurationName" : "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription" : "DynamicIsland · Built with macOS 27.0.1",
+  "expectedFailures" : 0,
+  "failedTests" : 0,
+  "finishTime" : 1792290892.755,
+  "passedTests" : 14,
+  "result" : "Passed",
+  "runtimeWarnings" : [
+    {
+      "issueType" : "Runtime Warning",
+      "message" : "Accessing StateObject<Observable<Bool>>'s object without being installed on a View. This will create a new instance each time.",
+      "sourceURL" : "file:///Users/yichenlin/Desktop/Tester/Atoll/DynamicIslandTests/ShelfReliabilityTests.swift"
+    }
+  ],
+  "skippedTests" : 0,
+  "startTime" : 1792290880.035,
+  "statistics" : [
+
+  ],
+  "testFailures" : [
+
+  ],
+  "title" : "Test - DynamicIsland",
+  "topInsights" : [
+    {
+      "category" : "Longest Test Runs",
+      "impact" : "88% of duration",
+      "text" : "1 longest test run with outlier durations exceeding 2.65s (three standard deviations)"
+    }
+  ],
+  "totalTestCount" : 14
+}

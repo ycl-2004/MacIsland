@@ -104,6 +104,7 @@ struct ShelfItemView: View {
                 onDragEnded: { vm.shouldRecheckHover.toggle() }
             )
         }
+        .frame(width: ShelfRowLayout.width, height: ShelfRowLayout.height)
         .onAppear {
             if isVisible { viewModel.startLoading() }
             viewModel.onQuickLookRequest = { urls in
@@ -234,8 +235,7 @@ private struct DraggableClickHandler: NSViewRepresentable {
     }
     
     final class DraggableClickView: NSView, NSDraggingSource {
-        // Registered with `ShelfItemHitRegistry` so marquee selection can read
-        // this cell's frame without walking the view hierarchy.
+        // Expose live frames for geometry verification without retaining cells.
         var item: ShelfItem! {
             didSet {
                 guard let id = item?.id, id != oldValue?.id else { return }
@@ -252,8 +252,13 @@ private struct DraggableClickHandler: NSViewRepresentable {
         private var visibilityObserver: NSObjectProtocol?
         private var lastVisible = false
         private var dragLease: ShelfFileLease?
+        private var preparationTask: Task<Void, Never>?
+        private var preparationID: UUID?
+        private var pendingMouseUpMonitor: Any?
 
         deinit {
+            preparationTask?.cancel()
+            if let pendingMouseUpMonitor { NSEvent.removeMonitor(pendingMouseUpMonitor) }
             if let visibilityObserver { NotificationCenter.default.removeObserver(visibilityObserver) }
         }
 
@@ -298,6 +303,7 @@ private struct DraggableClickHandler: NSViewRepresentable {
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
+            if window == nil { cancelPreparation() }
             if let visibilityObserver { NotificationCenter.default.removeObserver(visibilityObserver) }
             visibilityObserver = nil
             if let clip = enclosingScrollView?.contentView, window != nil {
@@ -345,11 +351,14 @@ private struct DraggableClickHandler: NSViewRepresentable {
         }
         
         override func mouseDown(with event: NSEvent) {
+            cancelPreparation()
+            window?.makeFirstResponder(self)
             mouseDownEvent = event
             didStartDragSession = false
         }
 
         override func mouseUp(with event: NSEvent) {
+            cancelPreparation()
             defer {
                 mouseDownEvent = nil
                 didStartDragSession = false
@@ -364,6 +373,7 @@ private struct DraggableClickHandler: NSViewRepresentable {
         }
         
         override func mouseDragged(with event: NSEvent) {
+            guard !didStartDragSession else { return }
             guard let mouseDownEvent = mouseDownEvent else {
                 super.mouseDragged(with: event)
                 return
@@ -377,8 +387,7 @@ private struct DraggableClickHandler: NSViewRepresentable {
             if dragDistance > dragThreshold {
                 didStartDragSession = true
                 prepareSelectionForDrag(using: mouseDownEvent)
-                startDragSession(with: event)
-                self.mouseDownEvent = nil
+                prepareDragSession(with: mouseDownEvent)
             } else {
                 super.mouseDragged(with: event)
             }
@@ -396,7 +405,24 @@ private struct DraggableClickHandler: NSViewRepresentable {
             }
         }
         
-        private func startDragSession(with event: NSEvent) {
+        override var acceptsFirstResponder: Bool { true }
+
+        override func keyDown(with event: NSEvent) {
+            if event.keyCode == 53, preparationID != nil { cancelPreparation() }
+            else if !ShelfKeyboardActions.handle(event) { super.keyDown(with: event) }
+        }
+
+        private func cancelPreparation() {
+            guard preparationID != nil else { return }
+            preparationID = nil
+            preparationTask?.cancel(); preparationTask = nil
+            if let pendingMouseUpMonitor { NSEvent.removeMonitor(pendingMouseUpMonitor) }
+            pendingMouseUpMonitor = nil
+            ShelfSelectionModel.shared.endDrag()
+            onDragEnded?()
+        }
+
+        private func prepareDragSession(with event: NSEvent) {
             // Prepare dragging items
             let selectedItems = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
             let itemsToDrag: [ShelfItem]
@@ -407,16 +433,40 @@ private struct DraggableClickHandler: NSViewRepresentable {
                 itemsToDrag = [item]
             }
 
+            let id = UUID()
+            preparationID = id
+            ShelfSelectionModel.shared.beginDrag()
+            pendingMouseUpMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+                self?.cancelPreparation()
+                return event
+            }
+            preparationTask = Task { [weak self] in
+                let prepared = await ShelfDragPreparation.prepare(itemsToDrag)
+                guard let self else { prepared?.lease.finish(); return }
+                guard !Task.isCancelled, self.preparationID == id, self.window != nil,
+                      NSEvent.pressedMouseButtons & 1 != 0, Defaults[.dynamicShelf], let prepared else {
+                    prepared?.lease.finish()
+                    if self.preparationID == id { self.cancelPreparation() }
+                    return
+                }
+                self.preparationID = nil
+                self.preparationTask = nil
+                if let monitor = self.pendingMouseUpMonitor { NSEvent.removeMonitor(monitor) }
+                self.pendingMouseUpMonitor = nil
+                self.startDragSession(with: event, prepared: prepared)
+                self.mouseDownEvent = nil
+            }
+        }
+
+        private func startDragSession(with event: NSEvent, prepared: ShelfPreparedDrag) {
+
             // Store items being dragged for auto-remove feature
             draggedItems = []
 
             // Create dragging items for AppKit
             var draggingItems: [NSDraggingItem] = []
 
-            let offered = itemsToDrag.compactMap { item -> (ShelfItem, NSPasteboardWriting)? in
-                guard let writer = pasteboardWriter(for: item) else { return nil }
-                return (item, writer)
-            }
+            let offered = Array(zip(prepared.items, prepared.writers))
             for (dragItem, writer) in offered {
                 let draggingItem = NSDraggingItem(pasteboardWriter: writer)
 
@@ -445,41 +495,18 @@ private struct DraggableClickHandler: NSViewRepresentable {
                 draggedItems.append(dragItem)
             }
 
-            guard !draggingItems.isEmpty else { return }
+            guard !draggingItems.isEmpty else {
+                prepared.lease.finish()
+                ShelfSelectionModel.shared.endDrag()
+                onDragEnded?()
+                return
+            }
 
-            dragLease = ShelfFileLifetime.shared.acquire(draggedItems.compactMap { $0.resolvedFileURL })
+            dragLease = prepared.lease
             let session = beginDraggingSession(with: draggingItems, event: event, source: self)
             session.draggingFormation = .pile
         }
 
-        /// `resolvedFileURL` reads the path captured at drop time, which is the
-        /// path every item dropped or backfilled since launch has. Only when that
-        /// is missing does it fall back to a synchronous `resolveWithoutMounting()`
-        /// — still a main-actor bookmark resolve that can block, just bounded away
-        /// from mounting an absent volume.
-        ///
-        /// This used to build an `NSPasteboardItem` by hand after a 5s
-        /// semaphore wait that always deadlocked, so it fell through to writing
-        /// `item.displayName` as plain text — which is why dropping onto Finder
-        /// or Mail produced text instead of the file. Handing AppKit the
-        /// `NSURL` instead declares `public.file-url`, `public.url`,
-        /// `public.url-name` and the legacy filenames binding in one go, which
-        /// is what Finder, Mail attachments and Slack uploads actually look for.
-        ///
-        /// Returning nil (rather than degrading to text) keeps an unresolvable
-        /// item out of the drag entirely.
-        private func pasteboardWriter(for item: ShelfItem) -> NSPasteboardWriting? {
-            switch item.kind {
-            case .file:
-                guard let url = item.resolvedFileURL else { return nil }
-                return url as NSURL
-            case .text(let string):
-                return string as NSString
-            case .link(let url):
-                return url as NSURL
-            }
-        }
-        
         // MARK: - NSDraggingSource
         
         func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {

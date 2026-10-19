@@ -51,10 +51,11 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
    open DynamicIsland.xcodeproj
    ```
 3. Set the run destination to **My Mac** and press **⌘R** to build and run.
-4. **Grant permissions on first launch:**
-   - **Accessibility**: Required for positioning the notch window over system spaces and capturing global trigger shortcuts.
-   - **Screen Recording**: Required for the *Ask About Screen* marquee capture and the screen color loupe.
-   - **Music**: Required for Apple Music playback controls and track metadata.
+4. **Choose permissions only for the features you use.** YC Island's welcome guide can be completed without granting access. Notes, the built-in timer, and Shelf text/links work immediately.
+   - Accessibility: media-key controls, system Clock integration, and reading other apps' UI state.
+   - Screen Recording: screen questions and color picking. System audio capture: live waveforms and per-app volume.
+   - Camera, Calendar, Reminders, Location, Bluetooth, Automation and Apple Music are feature-specific. Calendar and Reminders are independent; Apple Music authorization is for animated artwork.
+   - Shelf does not require Full Disk Access. Full Disk Access and Developer Tools are optional Focus integrations. See the [current permission audit](docs/onboarding-permissions-2026-10-17.md).
 5. Move your pointer near the MacBook notch to open the interface, or press `⌘⇧A` to select any screen region and ask an active AI agent about it.
 
 ### System requirements
@@ -127,7 +128,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 <details>
 <summary>Why does Atoll need Accessibility and Screen Recording permissions?</summary>
 
-**Accessibility** is required to position the notch overlay window across system spaces, track cursor hover near the screen cutout, and register global hotkeys.
+**Accessibility** is used for media-key interception, system Clock controls, menu-bar layout inspection and full-screen app detection. The basic island, hover interaction and ordinary app shortcuts do not require blanket Accessibility access.
 
 **Screen Recording** is requested strictly for two user-triggered features: capturing the selected rectangle when using *Ask About Screen* (`⌘⇧A`), and magnifying pixels under the cursor in the screen color picker. Atoll never captures or stores background screen data.
 

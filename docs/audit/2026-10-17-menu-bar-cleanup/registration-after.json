@@ -1,0 +1,14 @@
+[
+  {
+    "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+    "identifier": "com.Ebullioscopic.Atoll"
+  },
+  {
+    "path": "/Applications/Atoll.app",
+    "identifier": "com.Ebullioscopic.Atoll"
+  },
+  {
+    "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/Atoll.app",
+    "identifier": "com.Ebullioscopic.Atoll.dev"
+  }
+]

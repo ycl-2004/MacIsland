@@ -110,7 +110,7 @@ struct Bookmark: Sendable, Equatable, Codable {
         var isStale = false
         return try? URL(
             resolvingBookmarkData: data,
-            options: [.withoutMounting],
+            options: [.withoutMounting, .withoutUI],
             relativeTo: nil,
             bookmarkDataIsStale: &isStale
         )

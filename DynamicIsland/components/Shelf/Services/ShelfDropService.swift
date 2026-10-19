@@ -30,7 +30,7 @@ struct ShelfDropService {
 
         for provider in providers {
             guard !Task.isCancelled else { break }
-            if let item = await processProvider(provider) {
+            if let item = await item(from: provider) {
                 results.append(item)
             }
         }
@@ -58,7 +58,7 @@ struct ShelfDropService {
         return results
     }
 
-    private static func processProvider(_ provider: NSItemProvider) async -> ShelfItem? {
+    static func item(from provider: NSItemProvider) async -> ShelfItem? {
         if let actualFileURL = await provider.extractFileURL() {
             return await fileItem(for: actualFileURL, isTemporary: false)
         }

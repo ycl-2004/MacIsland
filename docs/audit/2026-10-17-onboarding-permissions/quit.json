@@ -1,0 +1,8 @@
+{
+  "method": "NSRunningApplication.terminate()",
+  "normalExitConfirmed": true,
+  "forcedTermination": false,
+  "confirmation": "Fresh NSWorkspace runningApplications list was empty; pgrep -x Atoll found no process.",
+  "initialMonitorTimedOut": true,
+  "initialMonitorError": "The original NSRunningApplication observer timed out. A fresh independent check confirmed the application had exited; no forced termination was used."
+}

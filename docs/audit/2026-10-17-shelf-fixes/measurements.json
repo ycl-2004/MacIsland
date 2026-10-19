@@ -1,0 +1,105 @@
+[
+  {
+    "add_ms": 0.38301944732666016,
+    "count": 200,
+    "probe": "batch_mutation",
+    "publishes": 2,
+    "remove_batch_ms": 0.16701221466064453
+  },
+  {
+    "async_path_exists": true,
+    "drag_path_exists": true,
+    "paths_differ": false,
+    "probe": "renamed_source"
+  },
+  {
+    "arrivals": [
+      {
+        "count": 2,
+        "milliseconds": 18.63110065460205
+      },
+      {
+        "count": 3,
+        "milliseconds": 602.5350093841553
+      }
+    ],
+    "feedback_at_150ms": "Importing 2 of 3 items…",
+    "items_at_150ms": 2,
+    "probe": "slow_provider"
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      9.286999702453613,
+      2.0449161529541016,
+      2.6880502700805664
+    ],
+    "text_bytes": 40
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      3.5799741744995117,
+      1.8559694290161133,
+      1.468062400817871
+    ],
+    "text_bytes": 4096
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      1.0581016540527344,
+      0.7129907608032227,
+      0.6029605865478516
+    ],
+    "text_bytes": 65536
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      1.323103904724121,
+      0.7090568542480469,
+      0.5699396133422852
+    ],
+    "text_bytes": 1048576
+  },
+  {
+    "count": 1,
+    "max_mainactor_gap_ms": 6.559967994689941,
+    "milliseconds": 77.03804969787598,
+    "probe": "local_import"
+  },
+  {
+    "count": 10,
+    "max_mainactor_gap_ms": 6.09898567199707,
+    "milliseconds": 56.11896514892578,
+    "probe": "local_import"
+  },
+  {
+    "count": 50,
+    "max_mainactor_gap_ms": 6.119012832641602,
+    "milliseconds": 265.3529644012451,
+    "probe": "local_import"
+  },
+  {
+    "appkit_views": 21,
+    "count": 1,
+    "initial_sync_ms": 62.9500150680542,
+    "probe": "shelf_layout",
+    "select_all_sync_ms": 2.4329423904418945
+  },
+  {
+    "appkit_views": 27,
+    "count": 50,
+    "initial_sync_ms": 24.569034576416016,
+    "probe": "shelf_layout",
+    "select_all_sync_ms": 2.2950172424316406
+  },
+  {
+    "appkit_views": 27,
+    "count": 200,
+    "initial_sync_ms": 21.13795280456543,
+    "probe": "shelf_layout",
+    "select_all_sync_ms": 1.8180608749389648
+  }
+]

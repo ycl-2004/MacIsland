@@ -142,7 +142,6 @@ final class MediaKeyInterceptor {
     private var retryStartDate: Date?
     private var retryAttempts = 0
 #if canImport(ApplicationServices)
-    private var didRequestAccessibilityPrompt = false
 #endif
     private let systemDefinedEventType = CGEventType(rawValue: NX_SYSDEFINED_EVENT_TYPE)
     private let eventTapLocations: [CGEventTapLocation] = [.cghidEventTap, .cgSessionEventTap]
@@ -169,9 +168,8 @@ final class MediaKeyInterceptor {
             return true
         }
 
-#if canImport(ApplicationServices)
-        requestAccessibilityPermissionIfNeeded()
-#endif
+        // Starting background monitoring must not open a permission prompt.
+        // The HUD settings and menu provide explicit authorization actions.
 
         if installTap() {
             return true
@@ -458,16 +456,3 @@ final class MediaKeyInterceptor {
         return .standard
     }
 }
-
-#if canImport(ApplicationServices)
-extension MediaKeyInterceptor {
-    private func requestAccessibilityPermissionIfNeeded() {
-        guard !AXIsProcessTrusted(), !didRequestAccessibilityPrompt else { return }
-        if AppRuntimeEnvironment.isUITesting { return }
-        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        let options: CFDictionary = [promptKey: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-        didRequestAccessibilityPrompt = true
-    }
-}
-#endif

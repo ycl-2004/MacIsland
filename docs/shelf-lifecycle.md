@@ -1,6 +1,6 @@
 # Shelf resource lifecycle
 
-Updated 2026-10-06. The shelf stages references and small previews for an app that remains running all day. It does not pre-load file contents or run a background cleanup loop.
+Updated 2026-10-17. The shelf stages references and small previews for an app that remains running all day. It does not pre-load file contents or run a background cleanup loop.
 
 ## Resource limits
 
@@ -8,9 +8,9 @@ Updated 2026-10-06. The shelf stages references and small previews for an app th
 | --- | --- |
 | Thumbnail cache | LRU, at most 48 entries and 8 MiB of accounted image storage. This is a cache limit, not a total process memory limit. |
 | Quick Look thumbnail work | At most two requests at once; shared requests have individual cancellable consumers. A request that does not answer is cancelled after 30 seconds. |
-| Card images | Only cards intersecting the scroll viewport request thumbnails. Hidden cards release their image references. The eager row remains for marquee hit testing. |
-| Drag preview | Rendered once when a drag starts; a group uses its primary item and a count badge. No per-card preview bitmap is retained while idle. |
-| Incoming attachments | Ordinary files remain references. File representations are copied inside the provider callback into an owned directory; the provider's source is never deleted by Atoll. Shelf batches are serialized. |
+| Card images | A lazy row creates cards as needed. Only cards intersecting the viewport request thumbnails; hidden cards release images. Fixed card geometry preserves marquee hit testing across offscreen items, including right-to-left layout. |
+| Drag preview | Rendered once when a drag starts; a group uses its primary item and a count badge. Labels are bounded to 256 Unicode scalars plus an ellipsis; the actual text payload stays complete. No per-card preview bitmap is retained while idle. |
+| Incoming attachments | Ordinary files remain references. File representations are copied inside the provider callback into an owned directory; the provider's source is never deleted by Atoll. At most three providers run concurrently across accepted drops. Fast results appear independently of slow providers, coalesced over 16 ms; entries append in completion order. Immediate received/completed counts reuse the existing feedback surface. |
 | Provider cancellation | Cancels supported Progress objects and resumes waiters exactly once. An unanswered request expires after 30 seconds. A late callback cannot resume a cancelled waiter. |
 | File cleanup | A serial utility queue and one wake at the next expiry. No recurring sweep. |
 | Clipboard | Releases through pasteboard ownership callbacks, without polling. |
@@ -23,7 +23,7 @@ The visible card images, framework caches, enabled media features, and user's st
 
 ## File ownership and handoff
 
-`ShelfFileLifetime` coordinates saved references, active leases and per-file expiration dates. Dragging, sharing, copying, previewing and thumbnail generation use leases. Clearing or disabling Shelf removes references; it does not bypass an active lease. Only data under Atoll's own temporary `Shelf` directory can be reclaimed. Original files and the item provider's temporary source remain untouched.
+`ShelfFileLifetime` coordinates saved references, active leases and per-file expiration dates. Dragging, sharing, copying, previewing and thumbnail generation use leases. Explicit clearing removes references; disabling Shelf retains them. Neither bypasses an active lease. Only data under Atoll's own temporary `Shelf` directory can be reclaimed. Original files and the item provider's temporary source remain untouched.
 
 - A cancelled operation releases its lease. A successful external handoff preserves a ten-minute grace period for its files.
 - An individual handoff's expiry is stored in `.handoffs.json`. A later handoff of another file does not extend the first file's lifetime. Restart reads the existing dates before cleanup.
@@ -40,17 +40,17 @@ An intentionally empty saved list is removed from disk. Failed decoding is disti
 
 If a recovery warning appears, inspect/restore the recovery JSON in `~/Library/Application Support/DynamicIsland/Shelf` and the corresponding temporary files before retiring the recovery copy. A malformed `.handoffs.json` also disables cleanup and is retained. This intentionally favors recovering user data over automatically deleting uncertain files.
 
-Missing or disconnected volumes no longer cause items to vanish from Shelf. Reconnect the volume, retry access, or remove the item explicitly. Turning Shelf off confirms the count to clear and explains that original files remain in place. Imports already queued before a clear cannot repopulate the cleared Shelf.
+Missing or disconnected volumes no longer cause items to vanish from Shelf. Reconnect the volume, retry access, or remove the item explicitly. Turning Shelf off hides both closed-notch count indicators and retains staged items; the separate Clear action confirms removal. Imports already queued before a clear cannot repopulate the cleared Shelf.
 
 ## Verification
 
 Use the existing local package checkouts:
 
 ```sh
-xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland \
-  -configuration Debug -destination 'platform=macOS' -derivedDataPath Build \
-  -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO \
-  test -only-testing:DynamicIslandTests/ShelfTests
+python3 Tools/verify-stability.py --native-only --only-tests ShelfTests \
+  --output /tmp/atoll-shelf-lifecycle-check
+python3 Tools/verify-stability.py --skip-build --native-only --only-tests ShelfReliabilityTests \
+  --output /tmp/atoll-shelf-reliability-check
 ```
 
 The regression fixtures use isolated directories and a named test pasteboard, not the user's general clipboard. The application delegate skips its launch integrations when hosted by XCTest.
@@ -80,3 +80,24 @@ Turning it back on restores the tray, including after restarting Atoll. The swit
 Settings offers a separate **Clear Shelf items…** confirmation; only that action removes entries.
 Active drag/share/clipboard leases and handoff grace still apply to cleanup. A disable before asynchronous loading completes
 does not discard the saved list; explicit clear uses a separate content generation.
+
+
+## Drop acknowledgement and drag preparation (2026-10-17)
+
+The notch entry area and Shelf panel use the same accepting callback. An accepted drop
+has actually been queued; an already-open Home or Timer view switches to Shelf.
+An open Extra Space editor keeps its own text and file drops; its margins reject Shelf drops.
+Disabled Shelf, self-drags, marquee selection, empty drops and queue overflow are rejected.
+The importer keeps the existing 50-per-drop, 100-outstanding, 200-stored and text limits.
+Clear/disable cancels queued and active work; late completions cannot repopulate the tray.
+
+Drag-out resolves current file bookmarks on a background task with `withoutMounting`
+and `withoutUI`, then updates cached paths in one publication. It checks that all items
+still exist in Shelf before starting the native session using the original mouse-down event.
+Mouse-up, Escape, view removal and disabling Shelf prevent a late session. Unavailable
+files reject the whole prepared drag and preserve the items. Owned-file leases cover
+preparation, native dragging and the existing handoff grace. Multi-item removal publishes once.
+
+See [fix results and validation boundaries](shelf-fixes-2026-10-17.md) for measured changes,
+regression results and the local native drop test. These measurements do not certify a
+frame-rate target or all Finder/browser/network-volume combinations.

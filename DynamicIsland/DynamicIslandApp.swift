@@ -30,12 +30,17 @@ struct DynamicNotchApp: App {
     @Environment(\.openWindow) var openWindow
 
     var body: some Scene {
-        MenuBarExtra("dynamic.island", systemImage: "mountain.2.fill", isInserted: $showMenuBarIcon) {
+        // Insertion stays off for isolated test identities, so they never
+        // create a status item in the user's persistent menu-bar history.
+        MenuBarExtra("YC Island", systemImage: "mountain.2.fill", isInserted: (AppRuntimeEnvironment.isTesting || AppRuntimeEnvironment.isUITesting) ? .constant(false) : $showMenuBarIcon) {
             Button("Settings") {
                 SettingsWindowController.shared.showWindow()
             }
             Divider()
-            Button("Restart Atoll") {
+            Button("Welcome to YC Island") {
+                appDelegate.showOnboardingWindow()
+            }
+            Button("Restart YC Island") {
                 MemoryUsageMonitor.shared.relaunchApplication()
             }
             Button("Quit", role: .destructive) {
@@ -886,7 +891,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         // Skip onboarding window and welcome sound under UI testing.
-        if coordinator.firstLaunch && !AppRuntimeEnvironment.isUITesting {
+        if OnboardingLifecycle.shouldPresent() && !AppRuntimeEnvironment.isUITesting {
+            OnboardingLifecycle.begin()
             DispatchQueue.main.async {
                 self.showOnboardingWindow()
             }
@@ -895,9 +901,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         previousScreens = NSScreen.screens
 
-        // Skip weather under UI testing: prepareLocationAccess prompts for Location.
+        // Weather may use existing location access. Request new access only from Settings.
         if Defaults[.enableLockScreenWeatherWidget] && !AppRuntimeEnvironment.isUITesting {
-            LockScreenWeatherManager.shared.prepareLocationAccess()
             Task { @MainActor in
                 await LockScreenWeatherManager.shared.refresh(force: true)
             }
@@ -1360,29 +1365,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     
     
-    private func showOnboardingWindow() {
+    func showOnboardingWindow() {
         if onboardingWindowController == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
+                contentRect: NSRect(x: 0, y: 0, width: 540, height: 640),
                 styleMask: [.titled, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
             window.center()
-            window.title = "Onboarding"
+            window.title = String(localized: "Welcome to YC Island")
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.contentView = NSHostingView(rootView: OnboardingView(
-                onFinish: {
-                    window.orderOut(nil)
-                    NSApp.setActivationPolicy(.accessory)
-                    window.close()
-                    NSApp.deactivate()
-                },
-                onOpenSettings: {
-                    window.close()
-                    SettingsWindowController.shared.showWindow()
-                }
+                onFinish: { [weak self] in self?.finishOnboarding(openSettings: false) },
+                onOpenSettings: { [weak self] in self?.finishOnboarding(openSettings: true) }
             ))
             window.isRestorable = false
             window.identifier = NSUserInterfaceItemIdentifier("OnboardingWindow")
@@ -1396,6 +1393,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
         onboardingWindowController?.window?.orderFrontRegardless()
+    }
+
+    private func finishOnboarding(openSettings: Bool) {
+        OnboardingLifecycle.complete()
+        onboardingWindowController?.close()
+        onboardingWindowController = nil
+        if openSettings {
+            SettingsWindowController.shared.showWindow(tab: "features")
+        } else if SettingsWindowController.shared.window?.isVisible != true {
+            NSApp.setActivationPolicy(.accessory)
+            NSApp.deactivate()
+        }
     }
 }
 

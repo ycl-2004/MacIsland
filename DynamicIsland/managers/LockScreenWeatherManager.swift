@@ -42,7 +42,6 @@ final class LockScreenWeatherManager: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard Defaults[.enableLockScreenWeatherWidget], !AppDelegate.isHostingUnitTests else { return }
-            self.locationProvider.prepareAuthorization()
             _ = await self.refresh(force: true)
         }
     }
@@ -57,7 +56,6 @@ final class LockScreenWeatherManager: ObservableObject {
             return
         }
 
-        locationProvider.prepareAuthorization()
         let existingSnapshot = snapshot
         let hadSnapshot = existingSnapshot != nil
         var cachedSnapshot = existingSnapshot

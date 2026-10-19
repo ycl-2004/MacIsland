@@ -1,0 +1,84 @@
+[
+  {
+    "add_ms": 4.664063453674316,
+    "count": 200,
+    "probe": "batch_mutation",
+    "publishes": 201,
+    "remove_one_by_one_ms": 27.383923530578613
+  },
+  {
+    "async_path_exists": true,
+    "drag_path_exists": false,
+    "paths_differ": true,
+    "probe": "renamed_source"
+  },
+  {
+    "arrivals": [
+      {
+        "count": 2,
+        "milliseconds": 612.0530366897583
+      },
+      {
+        "count": 3,
+        "milliseconds": 613.7080192565918
+      }
+    ],
+    "feedback_at_150ms": "<nil>",
+    "items_at_150ms": 0,
+    "probe": "slow_provider"
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      21.916985511779785,
+      1.4009475708007812,
+      0.6639957427978516
+    ],
+    "text_bytes": 40
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      1.8999576568603516,
+      2.1790266036987305,
+      1.9259452819824219
+    ],
+    "text_bytes": 4096
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      2.722024917602539,
+      2.212047576904297,
+      2.1219253540039062
+    ],
+    "text_bytes": 65536
+  },
+  {
+    "probe": "drag_preview",
+    "render_ms": [
+      29.783010482788086,
+      29.124975204467773,
+      28.764009475708008
+    ],
+    "text_bytes": 1048576
+  },
+  {
+    "count": 1,
+    "max_mainactor_gap_ms": 6.42704963684082,
+    "milliseconds": 82.73601531982422,
+    "probe": "local_import"
+  },
+  {
+    "count": 10,
+    "max_mainactor_gap_ms": 6.346940994262695,
+    "milliseconds": 47.46699333190918,
+    "probe": "local_import"
+  },
+  {
+    "count": 50,
+    "max_mainactor_gap_ms": 6.36601448059082,
+    "milliseconds": 230.96609115600586,
+    "probe": "local_import"
+  }
+]

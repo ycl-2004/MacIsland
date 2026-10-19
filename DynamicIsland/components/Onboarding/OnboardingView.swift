@@ -21,129 +21,92 @@
  */
 
 import SwiftUI
-import AVFoundation
-import Defaults
 
-enum OnboardingStep {
-    case welcome
-    case cameraPermission
-    case calendarPermission
-    case profileSelection
-    case finished
+/// Keep setup completion separate from the short notch greeting. Existing
+/// installations keep their completed setup; interrupted new setups can resume.
+enum OnboardingLifecycle {
+    static let completionKey = "ycIslandOnboardingCompleted"
+
+    static func shouldPresent(in defaults: UserDefaults = .standard) -> Bool {
+        if let completed = defaults.object(forKey: completionKey) as? Bool {
+            return !completed
+        }
+        return defaults.object(forKey: "firstLaunch") as? Bool ?? true
+    }
+
+    static func begin(in defaults: UserDefaults = .standard) {
+        defaults.set(false, forKey: completionKey)
+    }
+
+    static func complete(in defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: completionKey)
+    }
 }
 
-private let calendarService = CalendarService()
+enum OnboardingStep: Int, CaseIterable {
+    case welcome, permissions, finished
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .welcome: "Welcome"
+        case .permissions: "Your permissions"
+        case .finished: "Ready to start"
+        }
+    }
+}
 
 struct OnboardingView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step: OnboardingStep = .welcome
-    @State private var showFocusMonitoringChoice = false
-    @State private var didPresentFocusMonitoringChoice = false
     let onFinish: () -> Void
     let onOpenSettings: () -> Void
 
+    init(initialStep: OnboardingStep = .welcome, onFinish: @escaping () -> Void,
+         onOpenSettings: @escaping () -> Void) {
+        _step = State(initialValue: initialStep)
+        self.onFinish = onFinish
+        self.onOpenSettings = onOpenSettings
+    }
+
     var body: some View {
-        ZStack {
-            switch step {
-            case .welcome:
-                WelcomeView {
-                    withAnimation(.easeInOut(duration: 0.6)) {
-                        step = .cameraPermission
-                    }
+        VStack(spacing: 0) {
+            HStack {
+                Text("YC Island").font(.headline)
+                Spacer()
+                Text(step.title).foregroundStyle(.secondary)
+                Text("\(step.rawValue + 1) / \(OnboardingStep.allCases.count)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text("Setup progress"))
+                    .accessibilityValue("\(step.rawValue + 1) / \(OnboardingStep.allCases.count)")
+            }
+            .font(.caption)
+            .padding(.horizontal, 28)
+            .padding(.top, 32)
+            .padding(.bottom, 16)
+
+            Group {
+                switch step {
+                case .welcome:
+                    WelcomeView { advance(to: .permissions) }
+                case .permissions:
+                    PermissionsOverviewView(onContinue: { advance(to: .finished) },
+                                            onBack: { advance(to: .welcome) })
+                case .finished:
+                    OnboardingFinishView(onFinish: onFinish, onOpenSettings: onOpenSettings,
+                                         onBack: { advance(to: .permissions) })
                 }
-                .transition(.opacity)
-
-            case .cameraPermission:
-                PermissionRequestView(
-                    icon: Image(systemName: "camera.fill"),
-                    title: String(localized: "Enable Camera Access"),
-                    description: String(localized: "Atoll includes a mirror feature that lets you quickly check your appearance using your camera, right from the notch. Camera access is required only to show this live preview. You can turn the mirror feature on or off at any time in the app."),
-                    privacyNote: String(localized: "Your camera is never used without your consent, and nothing is recorded or stored."),
-                    onAllow: {
-                        Task {
-                            await requestCameraPermission()
-                            withAnimation(.easeInOut(duration: 0.6)) {
-                                step = .calendarPermission
-                            }
-                        }
-                    },
-                    onSkip: {
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .calendarPermission
-                        }
-                    }
-                )
-                .transition(.opacity)
-
-            case .calendarPermission:
-                PermissionRequestView(
-                    icon: Image(systemName: "calendar"),
-                    title: String(localized: "Enable Calendar Access"),
-                    description: String(localized: "Atoll can show all your upcoming events in one place. Access to your calendar is needed to display your schedule."),
-                    privacyNote: String(localized: "Your calendar data is only used to show your events and is never shared."),
-                    onAllow: {
-                        Task {
-                            await requestCalendarPermission()
-                            withAnimation(.easeInOut(duration: 0.6)) {
-                                step = .profileSelection
-                            }
-                        }
-                    },
-                    onSkip: {
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .profileSelection
-                        }
-                    }
-                )
-                .transition(.opacity)
-                
-            case .profileSelection:
-                ProfileSelectionView(
-                    onContinue: { profiles in
-                        applyProfileSettings(profiles)
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .finished
-                        }
-                    }
-                )
-                .transition(.opacity)
-
-            case .finished:
-                OnboardingFinishView(onFinish: onFinish, onOpenSettings: onOpenSettings)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .id(step)
+            .transition(.opacity)
         }
-        .frame(width: 400, height: 600)
-        .onAppear {
-            guard !didPresentFocusMonitoringChoice else { return }
-            didPresentFocusMonitoringChoice = true
-            showFocusMonitoringChoice = true
-        }
-        .confirmationDialog(
-            "Focus detection mode",
-            isPresented: $showFocusMonitoringChoice,
-            titleVisibility: .visible
-        ) {
-            Button("Use DevTools") {
-                Defaults[.focusMonitoringMode] = .useDevTools
-            }
-
-            Button("Use without DevTools") {
-                Defaults[.focusMonitoringMode] = .withoutDevTools
-            }
-
-            Button("Later", role: .cancel) {}
-        } message: {
-            Text("This is optional. You can change it any time from the menu bar.")
-        }
+        .frame(width: 540, height: 640)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .tint(.effectiveAccent)
     }
 
-    // MARK: - Permission Request Logic
-
-    func requestCameraPermission() async {
-        await AVCaptureDevice.requestAccess(for: .video)
-    }
-
-    func requestCalendarPermission() async {
-        await calendarService.requestAccess()
+    private func advance(to next: OnboardingStep) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { step = next }
     }
 }
-

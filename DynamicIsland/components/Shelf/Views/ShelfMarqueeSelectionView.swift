@@ -26,6 +26,44 @@ enum ShelfDragMetrics {
     static let threshold: CGFloat = 3.0
 }
 
+/// Same fixed card dimensions as ShelfItemView, independent of lazy view lifetime.
+enum ShelfRowLayout {
+    static let width: CGFloat = 115
+    static let height: CGFloat = 108
+    static let spacing: CGFloat = 8
+
+    static func frame(at index: Int, in bounds: CGRect, rightToLeft: Bool = false) -> CGRect {
+        let offset = CGFloat(index) * (width + spacing)
+        return CGRect(x: rightToLeft ? bounds.maxX - offset - width : bounds.minX + offset,
+                      y: bounds.midY - height / 2, width: width, height: height)
+    }
+
+    static func hits(_ rect: CGRect, ids: [UUID], in bounds: CGRect, rightToLeft: Bool = false) -> Set<UUID> {
+        Set(ids.enumerated().compactMap { index, id in
+            frame(at: index, in: bounds, rightToLeft: rightToLeft).intersects(rect) ? id : nil
+        })
+    }
+}
+
+@MainActor
+enum ShelfKeyboardActions {
+    static func handle(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty else { return false }
+        switch event.keyCode {
+        case 51, 117:
+            let shelf = ShelfStateViewModel.shared, selection = ShelfSelectionModel.shared
+            let items = selection.selectedItems(in: shelf.items)
+            guard !items.isEmpty else { return false }
+            shelf.remove(items)
+            return true
+        case 53:
+            ShelfSelectionModel.shared.clear()
+            return true
+        default: return false
+        }
+    }
+}
+
 /// Rubber-band (marquee) selection over the shelf's empty space.
 ///
 /// Mounted as an `.overlay` on the ScrollView's content — inside the document
@@ -43,6 +81,8 @@ enum ShelfDragMetrics {
 /// SwiftUI gesture would never fire, and drawing the band in `draw(_:)` avoids
 /// republishing SwiftUI state on every mouse-moved event.
 struct ShelfMarqueeSelectionView: NSViewRepresentable {
+    let itemIDs: [UUID]
+    let rightToLeft: Bool
     /// Fired when the press was a plain click, not a drag — preserves the
     /// existing "click the background to clear the selection" behavior.
     let onBackgroundClick: () -> Void
@@ -53,12 +93,16 @@ struct ShelfMarqueeSelectionView: NSViewRepresentable {
         let view = MarqueeView()
         view.onBackgroundClick = onBackgroundClick
         view.onActiveChange = onActiveChange
+        view.itemIDs = itemIDs
+        view.rightToLeft = rightToLeft
         return view
     }
 
     func updateNSView(_ nsView: MarqueeView, context: Context) {
         nsView.onBackgroundClick = onBackgroundClick
         nsView.onActiveChange = onActiveChange
+        nsView.itemIDs = itemIDs
+        nsView.rightToLeft = rightToLeft
     }
 
     static func dismantleNSView(_ nsView: MarqueeView, coordinator: ()) {
@@ -66,6 +110,8 @@ struct ShelfMarqueeSelectionView: NSViewRepresentable {
     }
 
     final class MarqueeView: NSView {
+        var itemIDs: [UUID] = []
+        var rightToLeft = false
         var onBackgroundClick: (() -> Void)?
         var onActiveChange: ((Bool) -> Void)?
 
@@ -96,9 +142,9 @@ struct ShelfMarqueeSelectionView: NSViewRepresentable {
             let local = convert(point, from: superview)
             guard bounds.contains(local) else { return nil }
 
-            let overItem = ShelfItemHitRegistry.shared
-                .frames(in: self)
-                .contains { $0.frame.contains(local) }
+            let overItem = itemIDs.indices.contains {
+                ShelfRowLayout.frame(at: $0, in: bounds, rightToLeft: rightToLeft).contains(local)
+            }
             return overItem ? nil : self
         }
 
@@ -148,24 +194,8 @@ struct ShelfMarqueeSelectionView: NSViewRepresentable {
         // MARK: - Keyboard
 
         override func keyDown(with event: NSEvent) {
-            switch event.keyCode {
-            case 53: // Escape
-                if isActive {
-                    forceFinish(cancelled: true)
-                } else {
-                    ShelfSelectionModel.shared.clear()
-                }
-            case 51, 117: // Delete, Forward Delete
-                let items = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
-                guard !items.isEmpty else {
-                    super.keyDown(with: event)
-                    return
-                }
-                for item in items { ShelfActionService.remove(item) }
-                ShelfSelectionModel.shared.clear()
-            default:
-                super.keyDown(with: event)
-            }
+            if event.keyCode == 53, isActive { forceFinish(cancelled: true) }
+            else if !ShelfKeyboardActions.handle(event) { super.keyDown(with: event) }
         }
 
         /// Walks the whole view tree, so Cmd+A works even when this view isn't
@@ -174,6 +204,7 @@ struct ShelfMarqueeSelectionView: NSViewRepresentable {
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             guard flags == .command, event.charactersIgnoringModifiers == "a" else { return false }
             guard window != nil, !ShelfStateViewModel.shared.items.isEmpty else { return false }
+            window?.makeFirstResponder(self)
             ShelfSelectionModel.shared.selectAll(in: ShelfStateViewModel.shared.items)
             return true
         }
@@ -309,11 +340,8 @@ struct ShelfMarqueeSelectionView: NSViewRepresentable {
             )
             setRect(rect)
 
-            let hits = ShelfItemHitRegistry.shared
-                .frames(in: self)
-                .filter { NSIntersectsRect($0.frame, rect) }
-                .map(\.id)
-            ShelfSelectionModel.shared.updateMarquee(hitIDs: Set(hits))
+            let hits = ShelfRowLayout.hits(rect, ids: itemIDs, in: bounds, rightToLeft: rightToLeft)
+            ShelfSelectionModel.shared.updateMarquee(hitIDs: hits)
         }
 
         // MARK: - Drawing

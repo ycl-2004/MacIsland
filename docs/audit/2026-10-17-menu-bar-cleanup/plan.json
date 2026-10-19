@@ -1,0 +1,779 @@
+{
+  "mode": "dry-run",
+  "startedAt": "2026-10-17T20:37:34.382549-07:00",
+  "runningAtoll": [],
+  "kept": [
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll.dev",
+      "category": "development",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "development",
+      "exists": true
+    },
+    {
+      "path": "/Applications/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "installed",
+      "exists": true
+    }
+  ],
+  "registrations": [
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-assessment-20261017-native/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.ab18d6c2372d4bbcbf84b080a2a5349e",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-assessment-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.73b526949ef043199b62642b1c858ff9",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-regression-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.a0afd9a7dfb047d68ca216a83ac9fe0e",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/timer-sktnvjx1/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "development",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-assessment-layout-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.73d310d3c8e94950bdace53c3c18740c",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-fixes-build-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.fab8701ffdd44db78808f592e7f83ac4",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-fixes-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.be3b88c5d7b84364b45aeb2077b11ff2",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-lazy-geometry-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.d7305b86af6645c5a86a8bfd96ca336b",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-regressions-fixed-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.60be145cfb0f4ebe9af70cfce4b77e5b",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-native-drag-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.f72abe104ce647f78977d93a229ab52e",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-performance-fixed-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.a40d0b0585714d299601330471884419",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-regressions-rtl-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.afe554ea90d44d55ba67a3f59b69a040",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Applications/.Atoll-backups/20260930-065717/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-final-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.19ec5a034947456a810e226398e02012",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-final-existing-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.952c6cc5c1ba4364a0cfd01a3f5602c5",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-final-disable-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.83219ae1890a436fab11a949226997e9",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/ShelfFix-20261017-194051-24321a8e/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "development",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/yc-island-onboarding-check-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.b5a4e16f813440e58997edb34acac671",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/yc-island-onboarding-final-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5c39bfca6566401ba77b945a6a54899c",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/yc-island-media-key-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.23f5b368046043c78bbdb887df2b468a",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/yc-island-settings-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.dc0b8a392cc1423a82d6a8759735f49d",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/yc-island-permission-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.dfea06ea9bda47deb77890da566e098a",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/atoll-stats-probe/native/Debug/Atoll.app",
+      "identifier": "com.atoll.StatsFixture.98b65ef54ad74c24a41e2ab263e8b318",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-audit-20261010/native/Debug/Atoll.app",
+      "identifier": "app.atoll.stability-audit.f137967d2183499b801ee98c88f202ba",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/focused-1/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.faa91c939d844c049180a3505e4ad97c",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/full-1/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.9bcbc51d4c8b49b390824a3e571f62ca",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/tsan-1/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.f07b3d15e47b4093b361b75006b9ddbc",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/asan-1/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.518cf3b51e644188860adc8323757960",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/asan-2/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.de6bb5a0493c4c18b7bf6d3947329807",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/tsan-final/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.19d748f7af2d4060a06f939e1a5bc2bd",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/final/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.254b54bfa1494cab8fb00a6d1a5bce5f",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261010-161944/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261010-161944/OriginalAtoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/final-quit-fix/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.7204b2dcb5384b5d8bf84a40fa3549d3",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-stability-fixes/tsan-quit-fix/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.79619fecce714bfcbef255083673f459",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261010-163348/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261010-163348/OriginalAtoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/recording-side-indicator-verified/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.1950c335584748dcadf9d1d0e2386177",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/recording-side-indicator-final/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.6fc45951f7794dcb8e8892e3048a1120",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/recording-side-indicator-acceptance/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.6948c814632a4a1c9696b8f351b65666",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/Recording-20261010-205644/OriginalAtoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/background-audit-20261010/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5720b89180d847709f750c3b9e3458c1",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/background-fix-20261010-verified/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.0243503f14514c26843c90b8b2894be9",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/BackgroundBackpressure-20261010-214425-2b29a8a1/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "development",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/background-fix-final-20261010/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.0ee61cda1d7143afbd3522be4006bae5",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/private/tmp/claude-501/-Users-yichenlin-Desktop-Tester-Atoll/e71cb44b-72d6-42ad-8dae-35172f2f3466/scratchpad/wt/Build/Debug/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll.dev",
+      "category": "development",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-symroot/Debug/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll.dev",
+      "category": "development",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/AtollInstall.lAy03z/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "development",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261005-102936/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/AtollAllPaths.aDFMZF/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "development",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261005-104245/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/private/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/atoll-publish-check-j7cifidb/Build/Debug/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll.dev",
+      "category": "development",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/BackgroundBackpressure-20261010-215110-7ef755d6/OriginalAtoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/project-review-20261015-full/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.958adb95461e4129931cec0c19a0bfc2",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/current-review-20261015-verified/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.9d5aee0b219f480b9c543bec61f1d78e",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/project-review-20261015-settings/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.35d9dfad96a7438aa169df329fc93654",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/current-review-20261015-settings/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5c014e41410442df83eda07269168e0a",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142249-597244cb/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.b8841342efd04a3384575d28067060b0",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142307-03fe840e/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.c8ec39e987f240b0ac7c9f56deaf9dc4",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142406-d76529e3/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.48606183c98849a8a55a43c8b58f74a6",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142453-3f3ac5e4/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.9000387de91a458d92e02eca1c84a8ba",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142527-72a67671/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.0a8f2982389b4d0398b3c3550d4c6c99",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142717-827db56e/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.fa9671aef31545c8a9155d99abda5490",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-143002-5a74f243/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.9b76c205f4d940688a3bf5e413b7e4bf",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-143040-85da5b92/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.704647f4da1f44d8a50392047c65ca70",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-143139-f34ae518/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5f5ce731ad8b4865b46952f890dd21bd",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-144008-4b6a1132/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.1a052705f68243718bdde7a228dae45a",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/ReviewFixes-20261015-144603/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-153827-0b761d45/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.2f9a74e15da940edac0ae7546ae36f5d",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-154249-e330e335/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.7614b5cc9204439e8344a2d1bb0376d2",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/SettingsCleanup-20261015-155849/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-160206-840b485e/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.88ecdc7d12a44654ae89337c6c14af19",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-160235-80f1206c/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.d31bc231f3ba44bb971f845e33aa9f73",
+      "category": "test-host",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-123536/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-125527/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-153307/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-083717/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-next-version-fixes/native-run/Debug/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll.dev",
+      "category": "development",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-next-version-fixes/native-final/Debug/Atoll.app",
+      "identifier": "app.atoll.next-version-fixture.176f006ecf824089ab03fd3aa3616981",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-next-version-fixes/native-verified/Debug/Atoll.app",
+      "identifier": "app.atoll.next-version-verified.fcd41c6005b84248bba1659713427895",
+      "category": "test-host",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/20261006-211317/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "backup",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Installations/20260928-201834/Atoll.app",
+      "identifier": "com.Ebullioscopic.Atoll",
+      "category": "development",
+      "exists": false
+    }
+  ],
+  "removedTestHosts": [
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-assessment-20261017-native/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.ab18d6c2372d4bbcbf84b080a2a5349e",
+      "allocatedKiB": 91432,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-assessment-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.73b526949ef043199b62642b1c858ff9",
+      "allocatedKiB": 91432,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-regression-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.a0afd9a7dfb047d68ca216a83ac9fe0e",
+      "allocatedKiB": 91432,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-assessment-layout-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.73d310d3c8e94950bdace53c3c18740c",
+      "allocatedKiB": 91468,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-fixes-build-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.fab8701ffdd44db78808f592e7f83ac4",
+      "allocatedKiB": 91448,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-fixes-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.be3b88c5d7b84364b45aeb2077b11ff2",
+      "allocatedKiB": 91812,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-lazy-geometry-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.d7305b86af6645c5a86a8bfd96ca336b",
+      "allocatedKiB": 91812,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-regressions-fixed-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.60be145cfb0f4ebe9af70cfce4b77e5b",
+      "allocatedKiB": 91820,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-native-drag-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.f72abe104ce647f78977d93a229ab52e",
+      "allocatedKiB": 92044,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-performance-fixed-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.a40d0b0585714d299601330471884419",
+      "allocatedKiB": 92044,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-regressions-rtl-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.afe554ea90d44d55ba67a3f59b69a040",
+      "allocatedKiB": 92044,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-final-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.19ec5a034947456a810e226398e02012",
+      "allocatedKiB": 91868,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-final-existing-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.952c6cc5c1ba4364a0cfd01a3f5602c5",
+      "allocatedKiB": 91868,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/atoll-shelf-final-disable-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.83219ae1890a436fab11a949226997e9",
+      "allocatedKiB": 91868,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/yc-island-onboarding-check-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.b5a4e16f813440e58997edb34acac671",
+      "allocatedKiB": 91960,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/yc-island-onboarding-final-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5c39bfca6566401ba77b945a6a54899c",
+      "allocatedKiB": 91964,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/yc-island-media-key-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.23f5b368046043c78bbdb887df2b468a",
+      "allocatedKiB": 91964,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/yc-island-settings-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.dc0b8a392cc1423a82d6a8759735f49d",
+      "allocatedKiB": 91964,
+      "removed": false
+    },
+    {
+      "path": "/private/tmp/yc-island-permission-regressions-20261017/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.dfea06ea9bda47deb77890da566e098a",
+      "allocatedKiB": 91964,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/recording-side-indicator-verified/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.1950c335584748dcadf9d1d0e2386177",
+      "allocatedKiB": 102892,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/recording-side-indicator-final/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.6fc45951f7794dcb8e8892e3048a1120",
+      "allocatedKiB": 102892,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/recording-side-indicator-acceptance/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.6948c814632a4a1c9696b8f351b65666",
+      "allocatedKiB": 102928,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/background-audit-20261010/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5720b89180d847709f750c3b9e3458c1",
+      "allocatedKiB": 102928,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/background-fix-20261010-verified/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.0243503f14514c26843c90b8b2894be9",
+      "allocatedKiB": 103168,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/background-fix-final-20261010/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.0ee61cda1d7143afbd3522be4006bae5",
+      "allocatedKiB": 103152,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/project-review-20261015-full/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.958adb95461e4129931cec0c19a0bfc2",
+      "allocatedKiB": 103152,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/current-review-20261015-verified/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.9d5aee0b219f480b9c543bec61f1d78e",
+      "allocatedKiB": 103152,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/project-review-20261015-settings/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.35d9dfad96a7438aa169df329fc93654",
+      "allocatedKiB": 103152,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/current-review-20261015-settings/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5c014e41410442df83eda07269168e0a",
+      "allocatedKiB": 103152,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142249-597244cb/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.b8841342efd04a3384575d28067060b0",
+      "allocatedKiB": 103256,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142307-03fe840e/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.c8ec39e987f240b0ac7c9f56deaf9dc4",
+      "allocatedKiB": 103256,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142406-d76529e3/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.48606183c98849a8a55a43c8b58f74a6",
+      "allocatedKiB": 103284,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142453-3f3ac5e4/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.9000387de91a458d92e02eca1c84a8ba",
+      "allocatedKiB": 103304,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142527-72a67671/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.0a8f2982389b4d0398b3c3550d4c6c99",
+      "allocatedKiB": 103308,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-142717-827db56e/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.fa9671aef31545c8a9155d99abda5490",
+      "allocatedKiB": 103308,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-143002-5a74f243/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.9b76c205f4d940688a3bf5e413b7e4bf",
+      "allocatedKiB": 103260,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-143040-85da5b92/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.704647f4da1f44d8a50392047c65ca70",
+      "allocatedKiB": 103260,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-143139-f34ae518/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.5f5ce731ad8b4865b46952f890dd21bd",
+      "allocatedKiB": 103260,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-144008-4b6a1132/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.1a052705f68243718bdde7a228dae45a",
+      "allocatedKiB": 103316,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-153827-0b761d45/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.2f9a74e15da940edac0ae7546ae36f5d",
+      "allocatedKiB": 100696,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-154249-e330e335/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.7614b5cc9204439e8344a2d1bb0376d2",
+      "allocatedKiB": 100664,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-160206-840b485e/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.88ecdc7d12a44654ae89337c6c14af19",
+      "allocatedKiB": 86516,
+      "removed": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261015-160235-80f1206c/host/Debug/Atoll.app",
+      "identifier": "app.atoll.verification.d31bc231f3ba44bb971f845e33aa9f73",
+      "allocatedKiB": 91336,
+      "removed": false
+    }
+  ]
+}

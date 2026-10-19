@@ -1,0 +1,33 @@
+{
+  "base_commit": "578a61ecf48ed7a108d97c9ed3ef85c449694f88",
+  "regressions_passed": 41,
+  "diagnostic_probes_passed": 5,
+  "interactive_native_drag_passed": 1,
+  "debug_build": "passed",
+  "release_build": "passed",
+  "installed": true,
+  "committed": false,
+  "source_sha256": {
+    "DynamicIsland/ContentView.swift": "af13e57f9132235397b9bf72a588a9a9c896c689d95e9e18e33f0b6830171384",
+    "DynamicIsland/Localizable.xcstrings": "be8ff747332cf2ce1e8993c2785aecd5475b6c3e67b3538c6bbfdf67ebe9517f",
+    "DynamicIsland/components/Shelf/Models/Bookmark.swift": "b32eb85f846302cbe0720e4e41533ac36af61994643b53d6d1b66ddf87b25189",
+    "DynamicIsland/components/Shelf/Models/ShelfItem.swift": "30e0669f80ddaffaea3364e2556d5c7769cfbecf50076ccc68beea9c0f3c31f2",
+    "DynamicIsland/components/Shelf/Services/ShelfDragPreparation.swift": "4ca9ed1647b8868771a3695a16dd27e79443c4f503f4434e5a08ac24eec44447",
+    "DynamicIsland/components/Shelf/Services/ShelfDropService.swift": "eabb7a489746d0b2b6824c2bb0fcfee6b098ea3c3d138108ec3d2103d6f3f60e",
+    "DynamicIsland/components/Shelf/Services/ShelfItemHitRegistry.swift": "ff6513fe36474b898f925911c967948c86ba8fd4525c54cad92cd2883e88c946",
+    "DynamicIsland/components/Shelf/ViewModels/ShelfItemViewModel.swift": "0fb33569358754dcd3daeb7cddc74937fbdb67a0c0c538282283ba5fe4b0217f",
+    "DynamicIsland/components/Shelf/ViewModels/ShelfStateViewModel.swift": "292d12163e9503fe2f9dd965c671579da31a503d33402dbcca106567bffa74ac",
+    "DynamicIsland/components/Shelf/Views/DragPreviewView.swift": "7012d735524a70f970f9bfac2c235fbf46da43441cab78fa69c518879184a4df",
+    "DynamicIsland/components/Shelf/Views/ShelfItemView.swift": "c3e1b92cc2916a1c2f32e56b4d5f5c9bc4b042dc437ea82ec849f4668114a1d4",
+    "DynamicIsland/components/Shelf/Views/ShelfMarqueeSelectionView.swift": "9dddbf82bd3abc3ea18bb3e0bfd2392349c1e6bd6bce1679610a27c792f45b1f",
+    "DynamicIsland/components/Shelf/Views/ShelfView.swift": "8f1735bb9026aeccfc8949d72142d3ae886428dd44d313833b513ecaa7e762b9",
+    "DynamicIsland/models/DynamicIslandViewModel.swift": "b799ce52f02551647faeeadd78571b3c68c7c7e7872d5d6c08f78a50ed26b3fc",
+    "DynamicIslandTests/ShelfReliabilityTests.swift": "d502d2e5d7490179767a6e45c39a3b6282b787440617cf52ef80095cc2de21ca"
+  },
+  "limits": [
+    "No end-to-end frame-rate claim",
+    "No Finder/browser/NAS/multimonitor/sleep-wake matrix"
+  ],
+  "installationReceipt": "installation.json",
+  "installedPath": "/Applications/Atoll.app"
+}

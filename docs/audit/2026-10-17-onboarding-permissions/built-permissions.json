@@ -1,0 +1,36 @@
+{
+  "Debug": {
+    "CFBundleDisplayName": "YC Island",
+    "CFBundleIdentifier": "com.Ebullioscopic.Atoll.dev",
+    "CFBundleName": "Atoll",
+    "NSAppleEventsUsageDescription": "YC Island uses Automation to control Apple Music, supported terminals, and recording controls when you use those features.",
+    "NSAppleMusicUsageDescription": "YC Island uses Apple Music to fetch animated artwork for the lock screen wallpaper.",
+    "NSAudioCaptureUsageDescription": "YC Island needs audio capture permission to show the real-time music waveform and to set the volume of individual apps. Audio is only processed live and is never recorded or saved.",
+    "NSBluetoothAlwaysUsageDescription": "YC Island uses Bluetooth to show connected audio devices and their battery levels.",
+    "NSCalendarsFullAccessUsageDescription": "YC Island reads your calendar to show upcoming events in the island and on the lock screen.",
+    "NSCameraUsageDescription": "YC Island uses your camera only when you open the live mirror. No video is recorded or saved.",
+    "NSDesktopFolderUsageDescription": "YC Island accesses Desktop files you add to Shelf.",
+    "NSDocumentsFolderUsageDescription": "YC Island accesses Documents files you add to Shelf.",
+    "NSDownloadsFolderUsageDescription": "YC Island reads Downloads to show download progress and access files you add to Shelf.",
+    "NSLocationUsageDescription": "YC Island uses your location for local weather when you allow it.",
+    "NSLocationWhenInUseUsageDescription": "YC Island uses your location for local weather when you allow it.",
+    "NSRemindersFullAccessUsageDescription": "YC Island shows your reminders and marks them complete when you choose."
+  },
+  "Release": {
+    "CFBundleDisplayName": "YC Island",
+    "CFBundleIdentifier": "com.Ebullioscopic.Atoll",
+    "CFBundleName": "Atoll",
+    "NSAppleEventsUsageDescription": "YC Island uses Automation to control Apple Music, supported terminals, and recording controls when you use those features.",
+    "NSAppleMusicUsageDescription": "YC Island uses Apple Music to fetch animated artwork for the lock screen wallpaper.",
+    "NSAudioCaptureUsageDescription": "YC Island needs audio capture permission to show the real-time music waveform and to set the volume of individual apps. Audio is only processed live and is never recorded or saved.",
+    "NSBluetoothAlwaysUsageDescription": "YC Island uses Bluetooth to show connected audio devices and their battery levels.",
+    "NSCalendarsFullAccessUsageDescription": "YC Island reads your calendar to show upcoming events in the island and on the lock screen.",
+    "NSCameraUsageDescription": "YC Island uses your camera only when you open the live mirror. No video is recorded or saved.",
+    "NSDesktopFolderUsageDescription": "YC Island accesses Desktop files you add to Shelf.",
+    "NSDocumentsFolderUsageDescription": "YC Island accesses Documents files you add to Shelf.",
+    "NSDownloadsFolderUsageDescription": "YC Island reads Downloads to show download progress and access files you add to Shelf.",
+    "NSLocationUsageDescription": "YC Island uses your location for local weather when you allow it.",
+    "NSLocationWhenInUseUsageDescription": "YC Island uses your location for local weather when you allow it.",
+    "NSRemindersFullAccessUsageDescription": "YC Island shows your reminders and marks them complete when you choose."
+  }
+}

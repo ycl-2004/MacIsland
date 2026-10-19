@@ -1,0 +1,27 @@
+{
+  "elementsInspected": 476,
+  "matches": [
+    {
+      "attribute": "AXDescription",
+      "identifier": "",
+      "path": "root/0/0/0/3/0/0/5",
+      "role": "AXHeading",
+      "text": "Allow in the Menu Bar"
+    },
+    {
+      "attribute": "AXValue",
+      "identifier": "",
+      "path": "root/0/0/0/3/0/0/7/0",
+      "role": "AXStaticText",
+      "text": "Atoll"
+    },
+    {
+      "attribute": "AXValue",
+      "identifier": "",
+      "path": "root/0/0/0/3/0/0/7/2",
+      "role": "AXStaticText",
+      "text": "Atoll"
+    }
+  ],
+  "settingsPID": 18193
+}

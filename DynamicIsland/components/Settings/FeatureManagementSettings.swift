@@ -36,7 +36,7 @@ struct FeatureManagementSettings: View {
                 feature("Extra Space", key: .enableExtraSpaceFeature, tab: "extraSpace", note: "A text tab in the notch. Hiding it keeps your text.")
                 feature("Agents", key: .enableAgentsFeature, tab: "agents", note: "Shows your coding agents' sessions in the notch. Screen questions need Screen Recording permission.")
                 feature("Timer", key: .enableTimerFeature, tab: "timer", note: "Keeps running while the notch is closed.")
-                feature("Calendar", key: .showCalendar, tab: "calendar", note: "Shows your events and reminders. Needs Calendar and Reminders access.")
+                feature("Calendar", key: .showCalendar, tab: "calendar", note: "Shows events or reminders. Allow Calendar and Reminders separately, only if you use them.")
             } header: { Text("Everyday tools") }
             Section {
                 feature("Stats", key: .enableStatsFeature, tab: "stats", note: "Measures your Mac only while Stats is showing, unless background sampling is on.")

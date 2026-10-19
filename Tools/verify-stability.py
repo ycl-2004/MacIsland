@@ -70,6 +70,8 @@ def main():
     metadata = plistlib.loads(info.read_bytes())
     identifier = 'app.atoll.verification.' + uuid.uuid4().hex
     metadata['CFBundleIdentifier'] = identifier
+    metadata['CFBundleName'] = 'YC Island Tests'
+    metadata['CFBundleDisplayName'] = 'YC Island Tests'
     info.write_bytes(plistlib.dumps(metadata))
     run('sign-host', ['codesign', '--force', '--deep', '--sign', '-', str(app)])
     configuration = plistlib.loads(source.read_bytes())
@@ -88,12 +90,26 @@ def main():
     testfile = hostroot / 'DynamicIsland.xctestrun'
     testfile.write_bytes(plistlib.dumps(configuration))
     resultpath = receipt / 'native.xcresult'
-    native_status = run('native', ['xcodebuild', 'test-without-building', '-xctestrun', str(testfile),
-                  '-destination', 'platform=macOS', '-resultBundlePath', str(resultpath),
-                  '-parallel-testing-enabled', 'NO'], 1200, allow_failure=True)
-    # The copied host ran under a one-off bundle identifier; leave no preferences domain behind.
-    subprocess.run(['defaults', 'delete', identifier], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    (Path.home() / 'Library/Preferences' / (identifier + '.plist')).unlink(missing_ok=True)
+    native_status = None
+    try:
+        native_status = run('native', ['xcodebuild', 'test-without-building', '-xctestrun', str(testfile),
+                      '-destination', 'platform=macOS', '-resultBundlePath', str(resultpath),
+                      '-parallel-testing-enabled', 'NO'], 1200, allow_failure=True)
+    finally:
+        # Isolated preferences alone are not enough: launching the host also
+        # registers its one-off bundle ID with Launch Services. Keep results,
+        # unregister every host, and remove successful hosts to stop rediscovery.
+        # The whole copied products folder goes (~85 MB per run, including the
+        # unused UI-test runner app); the xcresult lives outside it.
+        subprocess.run(['defaults', 'delete', identifier], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        (Path.home() / 'Library/Preferences' / (identifier + '.plist')).unlink(missing_ok=True)
+        run('unregister-host', ['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', '-u', str(app)])
+        if native_status == 0:
+            shutil.rmtree(hostroot)
+        (receipt / 'host-cleanup.json').write_text(json.dumps({
+            'identifier': identifier, 'app': str(app), 'unregistered': True,
+            'hostRemoved': not hostroot.exists(), 'resultsRetained': resultpath.exists()
+        }, indent=2) + '\n')
     run('native-summary', ['xcrun', 'xcresulttool', 'get', 'test-results', 'summary', '--path', str(resultpath), '--format', 'json'])
     if native_status:
         raise RuntimeError(f'Native tests failed ({native_status}); see {receipt / "native-summary.log"}')

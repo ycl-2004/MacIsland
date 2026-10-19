@@ -46,11 +46,20 @@ final class ShelfStateViewModel: ObservableObject {
 
     @Published private(set) var feedback: String?
     private var feedbackTask: Task<Void, Never>?
-    private var importTask: Task<Void, Never>?
+    static let maximumConcurrentImports = 3
+    private var importTasks: [UUID: Task<Void, Never>] = [:]
+    private var importFlushTask: Task<Void, Never>?
+    private var pendingImports: [ShelfItem] = []
+    private var importTotal = 0
+    private var importCompleted = 0
+    private var importAdded = 0
+    private var importFailures = 0
+    private var importLimitReached = false
     private var importGeneration = UUID()
     private var contentGeneration = UUID()
     private var importWasLimited = false
-    private var importQueue: [[NSItemProvider]] = []
+    private var importQueue: [NSItemProvider] = []
+    var isImporting: Bool { !importTasks.isEmpty || !importQueue.isEmpty }
     var generation: UUID { importGeneration }
 
     func report(_ message: String, persistent: Bool = false) {
@@ -96,7 +105,9 @@ final class ShelfStateViewModel: ObservableObject {
                 guard let self else { return }
                 if self.contentGeneration == generation { self.items = loaded }
                 self.isLoaded = true
-                self.feedback = self.persistence.lastError ?? self.persistence.recoveryWarning
+                if let issue = self.persistence.lastError ?? self.persistence.recoveryWarning {
+                    self.report(issue, persistent: true)
+                }
                 self.backfillCachedPaths()
             }
         }
@@ -246,16 +257,18 @@ final class ShelfStateViewModel: ObservableObject {
         var merged = items
         // Deduplicate by identityKey while preserving order (existing first)
         var seen: Set<String> = Set(merged.map { $0.identityKey })
+        var textBytes = merged.reduce(0) { $0 + $1.storageTextBytes }
         var added = false
         for it in newItems where seen.insert(it.identityKey).inserted {
             guard merged.count < Self.maximumItems, it.storageTextBytes <= 1024 * 1024,
-                  merged.reduce(0, { $0 + $1.storageTextBytes }) + it.storageTextBytes <= 4 * 1024 * 1024 else {
+                  textBytes + it.storageTextBytes <= 4 * 1024 * 1024 else {
                 importWasLimited = true
                 report("Shelf holds up to 200 items and 4 MB of text (1 MB per item). Remove some items before adding more.")
                 fileLifetime.requestCleanup()
                 break
             }
             merged.append(it)
+            textBytes += it.storageTextBytes
             added = true
         }
         // Every duplicate-only drop would otherwise trigger a save and a publish.
@@ -265,22 +278,39 @@ final class ShelfStateViewModel: ObservableObject {
 
     /// Removes the reference; the lifetime service reclaims unused owned data.
     func remove(_ item: ShelfItem) {
-        items.removeAll { $0.id == item.id }
+        remove([item])
+    }
+
+    func remove(_ removed: [ShelfItem]) {
+        let ids = Set(removed.map(\.id))
+        guard items.contains(where: { ids.contains($0.id) }) else { return }
+        items.removeAll { ids.contains($0.id) }
     }
 
     /// Takes items just dragged into another app off the shelf. Their temporary
     /// files remain protected by the drag session's lease and handoff grace.
     func removeAfterHandOff(_ handedOff: [ShelfItem]) {
-        let ids = Set(handedOff.map(\.id))
-        guard items.contains(where: { ids.contains($0.id) }) else { return }
-        items.removeAll { ids.contains($0.id) }
+        remove(handedOff)
     }
 
     func pauseImports() {
         importGeneration = UUID()
-        importTask?.cancel()
-        importTask = nil
+        importTasks.values.forEach { $0.cancel() }
+        importTasks.removeAll()
+        importFlushTask?.cancel()
+        importFlushTask = nil
+        pendingImports.removeAll()
         importQueue.removeAll()
+        if importTotal > importCompleted {
+            feedbackTask?.cancel()
+            feedback = persistence.lastError ?? persistence.recoveryWarning
+            if fileLifetime.needsRecovery {
+                report(String(localized: "Temporary file records could not be read. Files have been kept for recovery."), persistent: true)
+            }
+        }
+        importTotal = 0
+        importCompleted = 0
+        fileLifetime.requestCleanup()
         Task { await thumbnails.clear() }
     }
 
@@ -363,40 +393,79 @@ final class ShelfStateViewModel: ObservableObject {
         }
     }
 
-    func load(_ providers: [NSItemProvider]) {
-        guard !providers.isEmpty, Defaults[enabledKey] else { return }
-        guard providers.count <= 50, importQueue.reduce(0, { $0 + $1.count }) + providers.count <= 100 else {
+    @discardableResult
+    func load(_ providers: [NSItemProvider]) -> Bool {
+        guard !providers.isEmpty, Defaults[enabledKey] else { return false }
+        guard providers.count <= 50, importQueue.count + importTasks.count + providers.count <= 100 else {
             report("Drop up to 50 items at a time. Wait for the current import to finish before adding more.")
-            return
+            return false
         }
-        importQueue.append(providers)
-        guard importTask == nil else { return }
+        if !isImporting {
+            importTotal = 0; importCompleted = 0; importAdded = 0; importFailures = 0
+            importLimitReached = false
+        }
+        importTotal += providers.count
+        importQueue.append(contentsOf: providers)
+        reportImportProgress()
+        startImports()
+        return true
+    }
+
+    private func reportImportProgress() {
+        guard !importLimitReached else { return }
+        report(String(localized: "Importing \(importCompleted) of \(importTotal) items…"), persistent: true)
+    }
+
+    private func startImports() {
         let generation = importGeneration
-        // One worker across all drops. Clearing cancels the active provider and
-        // releases queued batches rather than leaving a chain of waiting tasks.
-        importTask = Task { [weak self] in
-            defer { if self?.importGeneration == generation { self?.importTask = nil } }
-            while let self, !Task.isCancelled, self.importGeneration == generation, !self.importQueue.isEmpty {
-                if !self.isLoaded { try? await Task.sleep(for: .milliseconds(20)); continue }
-                let providers = self.importQueue.removeFirst()
-                let dropped = await ShelfDropService.items(from: providers)
-                guard !Task.isCancelled, self.importGeneration == generation, Defaults[enabledKey] else {
-                    self.fileLifetime.requestCleanup()
+        while importTasks.count < Self.maximumConcurrentImports, !importQueue.isEmpty {
+            let id = UUID(), provider = importQueue.removeFirst()
+            importTasks[id] = Task { [weak self] in
+                guard let self else { return }
+                await self.awaitInitialLoad()
+                guard !Task.isCancelled, self.importGeneration == generation else { return }
+                let item = await ShelfDropService.item(from: provider)
+                guard !Task.isCancelled, self.importGeneration == generation, Defaults[self.enabledKey] else {
+                    // Disabled before the switch observer paused: this task still
+                    // owns a slot, and a quick re-enable would otherwise leak it.
+                    if self.importGeneration == generation { self.pauseImports() }
+                    else { self.fileLifetime.requestCleanup() }
                     return
                 }
-                let before = self.items.count
-                self.add(dropped, ifUnchanged: generation)
-                if self.importWasLimited { continue }
-                let added = self.items.count - before
-                let failures = providers.count - dropped.count
-                if failures > 0 {
-                    self.report(String(localized: "Added \(added) items. \(failures) items could not be read; try dropping them from Finder."))
-                } else if added == 0 {
-                    self.report(String(localized: "These items are already on the Shelf."))
-                } else {
-                    self.report(String(localized: "Added \(added) items to Shelf."))
+                self.importTasks[id] = nil
+                self.importCompleted += 1
+                if let item { self.pendingImports.append(item) } else { self.importFailures += 1 }
+                self.startImports()
+                if !self.isImporting {
+                    self.flushImports()
+                } else if self.importFlushTask == nil {
+                    // Coalesce fast completions into one view/persistence update per frame.
+                    self.importFlushTask = Task { [weak self] in
+                        try? await Task.sleep(for: .milliseconds(16))
+                        guard !Task.isCancelled, let self, self.importGeneration == generation else { return }
+                        self.flushImports()
+                    }
                 }
             }
+        }
+    }
+
+    private func flushImports() {
+        importFlushTask?.cancel(); importFlushTask = nil
+        let completed = pendingImports
+        pendingImports.removeAll()
+        let before = items.count
+        add(completed, ifUnchanged: importGeneration)
+        importAdded += items.count - before
+        importLimitReached = importLimitReached || importWasLimited
+        guard !importLimitReached else { return }
+        if isImporting { reportImportProgress() }
+        else if importFailures > 0 {
+            report(String(localized: "Added \(importAdded) items. \(importFailures) items could not be read; try dropping them from Finder."))
+        } else if importAdded == 0 {
+            report(String(localized: "These items are already on the Shelf."))
+        } else {
+            report(String(localized: "Added \(importAdded) items to Shelf."))
         }
     }
 
