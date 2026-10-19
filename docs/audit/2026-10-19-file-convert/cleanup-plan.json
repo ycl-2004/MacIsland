@@ -1,0 +1,268 @@
+{
+  "mode": "dry-run",
+  "at": "2026-10-19T11:13:06.283790-07:00",
+  "running": [
+    "51519 /Applications/Atoll.app/Contents/MacOS/Atoll"
+  ],
+  "unregistered": [
+    {
+      "path": "/Applications/.Atoll-backups/20260930-065717/Atoll.app",
+      "exists": true
+    },
+    {
+      "path": "/Applications/Atoll.app.bak/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/.Trash/Atoll-backup-2026-09-26.app",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/Atoll.app",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/Atoll.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/DynamicIslandUITests-Runner.app",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/Sparkle.framework/Versions/B/Updater.app",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+      "exists": true
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Sparkle.framework/Versions/B/Updater.app",
+      "exists": false
+    },
+    {
+      "path": "/Users/yichenlin/Library/Caches/com.Ebullioscopic.Atoll.dev/org.sparkle-project.Sparkle/Launcher/3Fw4eVaLp/Updater.app",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/atoll-symroot/Debug/Atoll.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/claude-501/-Users-yichenlin-Desktop-Tester-Atoll/e71cb44b-72d6-42ad-8dae-35172f2f3466/scratchpad/wt/Build/Debug/Atoll.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app",
+      "exists": false
+    }
+  ],
+  "removed": [
+    {
+      "reason": "old backup inside /Applications",
+      "path": "/Applications/.Atoll-backups",
+      "allocatedKiB": 55684
+    },
+    {
+      "reason": "older install backup",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/Onboarding-20261017-202236-5967fc9d",
+      "allocatedKiB": 53212
+    },
+    {
+      "reason": "older install backup",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/ShelfFix-20261017-194122-0d1942bc",
+      "allocatedKiB": 53156
+    },
+    {
+      "reason": "empty install staging folder",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/FileConvert-20261019-111047-07d8dfe0",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test-host preferences",
+      "path": "/Users/yichenlin/Library/Preferences/app.atoll.verification.f72abe104ce647f78977d93a229ab52e.plist",
+      "allocatedKiB": 4
+    },
+    {
+      "reason": "Debug build preferences",
+      "path": "/Users/yichenlin/Library/Preferences/com.Ebullioscopic.Atoll.dev.plist",
+      "allocatedKiB": 4
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-2376-FFE0B15A-44D4-48F4-8146-507903F8212F",
+      "allocatedKiB": 8
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-12311-A3A091FB-BE69-4859-8D06-9D51D543FCEB",
+      "allocatedKiB": 4
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-48115-222BDA5A-83DB-4B62-A945-DAF99B3F2477",
+      "allocatedKiB": 512
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-3186-E235C0A2-4E0C-4B01-A030-960C6E9C4DFE",
+      "allocatedKiB": 4124
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-68930-06279756-2A51-4D72-99F3-75238F97ADCB",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-96693-04040558-E30D-4BBD-9935-F1B4E71C0F48",
+      "allocatedKiB": 244
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-2774-AEC85653-263F-41E8-A0FB-CAC796D08F8F",
+      "allocatedKiB": 212
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-75596-3031E897-62BC-4A80-80A4-097F8BDFBAD6",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-71455-B5490F16-AEB3-4277-8F49-F0D254C3981C",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-25064-0AEBF638-021D-4B9B-9CA3-DE305D5DEB7A",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-76007-0D16D9FD-F836-4C4B-9DE0-3F3599758A24",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-69330-9DF23273-0CCE-4022-BFCF-40F144FFBE38",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-69000-99305DED-D3F9-48B8-B1BF-57C6D3A63FE2",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-69242-4E4F3F3A-4476-4C84-9ED8-F2554B9169A0",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-47794-B3CE6312-BA10-4268-B9E7-CE0C82FE6DD6",
+      "allocatedKiB": 172
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-69138-96355B7D-8F60-40B0-A829-D41CC916E4E5",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-69472-0E9562D6-B0B3-4F62-97BF-4EA05CCD4A38",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-47878-5DDC8395-93F6-4626-84C7-8D503CC1A2ED",
+      "allocatedKiB": 92
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-77670-A3C7F2C3-DF25-4019-882F-D6878C8FAE66",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-30187-9601C037-EC57-4C53-B5D3-A44F40FA5D3F",
+      "allocatedKiB": 4124
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-48862-6B0DF49A-1EC2-4DED-BFEE-CFB10B34D2B3",
+      "allocatedKiB": 16
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-70159-22E08425-B7EC-42D7-BC64-9E796BB42F49",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-49462-DA6C04A9-4251-4DAF-88B0-50ACE8773410",
+      "allocatedKiB": 5020
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-1646-E67E9BFD-9F20-4FA9-8819-6C5637C1AFD1",
+      "allocatedKiB": 32
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-25730-15910B91-9EE4-415A-B5B5-41A54936C930",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-25934-A47E4E59-A603-4961-BEA4-4D94116717AB",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-34202-2F843C92-E9C1-4882-A6DD-03E04F7F810B",
+      "allocatedKiB": 4120
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-25217-65540101-8D5D-4670-B9D9-9CCA2DC7F10F",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-48274-790016AE-4F1F-406C-912D-29995BC4E1D2",
+      "allocatedKiB": 5020
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-69888-2A9A04F1-6CBD-428C-A1A8-6F7B28EE4E05",
+      "allocatedKiB": 0
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-96465-69BCD2D3-73C3-4414-AFD3-6E28F4B6B02F",
+      "allocatedKiB": 208
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-1906-FCB680D1-A404-4B24-9B56-9EB80DF8E01F",
+      "allocatedKiB": 20
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-2845-E61C3916-5393-41AC-AA70-8A94694F5314",
+      "allocatedKiB": 24
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-49020-FB9904D6-8CEE-4E01-A775-0DECB84A570B",
+      "allocatedKiB": 16
+    },
+    {
+      "reason": "test content folder",
+      "path": "/var/folders/bj/_6886nzd0rd2f4vvw_2bdq7h0000gn/T/AtollTests-839-174665A0-3A0F-433F-BC5B-F0D93A1CD4FD",
+      "allocatedKiB": 32
+    }
+  ]
+}

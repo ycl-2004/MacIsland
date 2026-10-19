@@ -1,0 +1,68 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "stage": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/FileConvert-20261019-111047-07d8dfe0/Atoll.app",
+  "target": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/FileConvert-20261019-111047-07d8dfe0/OriginalAtoll.app",
+  "buildInfo": {
+    "build": "1637",
+    "commit": "782898e42ddcd8a2a21805fe56edbec5e5e47409",
+    "configuration": "Release",
+    "dirty": "false",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.0",
+    "sourceSHA256": "1fc39edf196bc91485b4cf415c43ebe8cab0565716db43b032a8e0ca90b25def",
+    "version": "1.0.0",
+    "xcode": "2710"
+  },
+  "sourceMatchesCurrentCode": true,
+  "signingTeam": "BQYHJCCRMP",
+  "signatureVerified": true,
+  "unsignedSHA256": "1c3cee6062245db63afc78b7b794aa9f0f0751e17bab16cb8eb0d903f18bda92",
+  "signedSHA256": "187f85a1503c76d5680d3ad53f72f994ac04a1bf76e6e284db4c5aa0dc73930c",
+  "originalSHA256": "91b07281b9d0c8b78cd3446639b0f17885a8ad256f7bd41537fffb7b6b1fa3d0",
+  "previousInstance": {
+    "action": "status",
+    "instances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 71133,
+        "terminated": false
+      }
+    ]
+  },
+  "prepared": true,
+  "quit": {
+    "method": "NSRunningApplication.terminate()",
+    "normalExitConfirmed": true,
+    "forcedTermination": false,
+    "confirmation": "Fresh lifecycle status listed no instances and pgrep -x Atoll found no process; no new crash report.",
+    "initialMonitorTimedOut": true,
+    "initialMonitorError": "The helper's NSRunningApplication observer timed out, as in the previous installation. An independent check confirmed the exit; no forced termination was used."
+  },
+  "extraSpaceAfterSaveSHA256": "bb203b5a262ba3f1f166a6622bb47b38c665fa2c8f381f71a9b72b21867384e9",
+  "installed": true,
+  "installedAt": "2026-10-19T11:11:46.700042-07:00",
+  "installedSHA256": "187f85a1503c76d5680d3ad53f72f994ac04a1bf76e6e284db4c5aa0dc73930c",
+  "backupVerified": true,
+  "installedSignatureVerified": true,
+  "previousInstanceExitedNormally": true,
+  "forcedTermination": false,
+  "launchPending": false,
+  "extraSpaceUnchangedByInstallation": true,
+  "launched": {
+    "bundlePath": "/Applications/Atoll.app",
+    "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "finishedLaunching": true,
+    "pid": 51519,
+    "terminated": false
+  },
+  "launchedFinished": true,
+  "preferenceSet": {
+    "domain": "com.Ebullioscopic.Atoll",
+    "key": "enableFileConvertFeature",
+    "value": true,
+    "reason": "User asked to install the feature for use; set while the app was not running."
+  }
+}
