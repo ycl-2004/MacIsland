@@ -105,8 +105,9 @@ The repeat popover and double-click tests use events sent to an isolated test
 window. GitHub Actions has not run against the uncommitted workspace.
 
 The Release build was signed with the existing development identity, installed
-at `/Applications/Atoll.app`, and launched successfully. The previous app is
-kept under `Build/InstalledBackups/MicroEventsCompact-20261031-130323-9452d4f0/`.
+at `/Applications/Atoll.app`, and launched successfully. Its previous app was
+initially kept under `Build/InstalledBackups/MicroEventsCompact-20261031-130323-9452d4f0/`
+and later removed at the user's request.
 The Micro Events data file was byte-for-byte unchanged between the old app's
 exit and the new app's launch. Installation evidence is under
 `Build/InstallRecords/micro-events-crud-compact/`.
@@ -133,10 +134,15 @@ physical overnight shutdown are separate checks; the latter was simulated by
 reloading an isolated store at the next local midnight.
 
 The confirmed Release build was signed and installed at `/Applications/Atoll.app`
-after a normal app exit. The previous bundle is retained under
-`Build/InstalledBackups/MicroEventsCompact-20261031-133123-0905a9d5/`;
-installation evidence is in `Build/InstallRecords/micro-events-cleanup-final/`.
-The replacement launched successfully from the installed path.
+after a normal app exit. The previous bundle was initially retained under
+`Build/InstalledBackups/MicroEventsCompact-20261031-133123-0905a9d5/`, then
+removed with all other old application backups at the user's request.
+Installation evidence is in `Build/InstallRecords/micro-events-cleanup-final/`.
+The replacement launched successfully from the installed path. Disposable build
+and test artifacts were also cleaned; a compact local test summary remains in
+`Build/CleanupReceipts/micro-events-final/`. The generated Debug and Release
+application bundles were removed after verifying the installed application;
+they can be rebuilt from source.
 
 The first GitHub run on macOS 26.6.2 timed out in the synthetic time-editor
 click. Its spindump showed `NSTextView.mouseDown` waiting for mouse-up while the
