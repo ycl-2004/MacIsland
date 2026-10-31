@@ -7,9 +7,10 @@ struct NotchTabAvailability {
     let colorPickerEnabled: Bool
 
     init(home: Bool, shelf: Bool, timer: Bool, stats: Bool, agents: Bool,
-         extraSpace: Bool, colorPicker: Bool, order: [String] = []) {
+         extraSpace: Bool, microEvents: Bool = false, colorPicker: Bool, order: [String] = []) {
         let candidates: [(NotchViews, Bool)] = [(.home, home), (.shelf, shelf),
-            (.timer, timer), (.stats, stats), (.agents, agents), (.extraSpace, extraSpace)]
+            (.timer, timer), (.stats, stats), (.agents, agents),
+            (.extraSpace, extraSpace), (.microEvents, microEvents)]
         tabs = SavedRowOrder.apply(order, to: candidates.filter { $0.1 }.map { $0.0 }, key: { String(describing: $0) })
         colorPickerEnabled = colorPicker
     }
@@ -27,7 +28,9 @@ struct NotchTabAvailability {
              shelf: Defaults[.dynamicShelf],
              timer: Defaults[.enableTimerFeature] && Defaults[.timerDisplayMode] == .tab,
              stats: Defaults[.enableStatsFeature], agents: Defaults[.enableAgentsFeature],
-             extraSpace: Defaults[.enableExtraSpaceFeature], colorPicker: Defaults[.enableColorPickerFeature],
+             extraSpace: Defaults[.enableExtraSpaceFeature],
+             microEvents: Defaults[.enableMicroEventsFeature],
+             colorPicker: Defaults[.enableColorPickerFeature],
              order: Defaults[.notchTabOrder])
     }
 }

@@ -40,15 +40,22 @@ final class StabilityHardeningTests: XCTestCase {
         let text = ExtraSpaceStore(fileURL: textURL)
         text.isRelaunching = true
         XCTAssertFalse(text.isLoaded)
+        let microURL = try temporaryURL("events.json")
+        let microEvents = MicroEventStore(fileURL: microURL, saveDelay: 30)
+        microEvents.loadIfNeeded()
+        microEvents.add(MicroEvent(title: "Save before quit"))
 
         let error = await AppTerminationCoordinator.saveContent(extraSpace: text, shelf: shelf,
                                                                 sessions: sessions, conversation: conversation,
-                                                                timer: .shared)
+                                                                timer: .shared, microEvents: microEvents)
         XCTAssertNil(error)
         XCTAssertEqual(text.text, String(decoding: original, as: UTF8.self))
         XCTAssertEqual(try Data(contentsOf: textURL), original)
         XCTAssertEqual(shelf.items, [item])
         XCTAssertEqual(conversation.drafts["one"], "unsent saved draft")
+        let reloadedMicroEvents = MicroEventStore(fileURL: microURL)
+        reloadedMicroEvents.loadIfNeeded()
+        XCTAssertEqual(reloadedMicroEvents.events.map(\.title), ["Save before quit"])
         conversation.stop()
     }
 

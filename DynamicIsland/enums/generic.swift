@@ -68,6 +68,7 @@ public enum NotchViews: Hashable {
     case stats
     case agents
     case extraSpace
+    case microEvents
     case colorPicker
 }
 
@@ -79,6 +80,7 @@ public enum ShortcutDefaultTab: String, CaseIterable, Defaults.Serializable, Ide
     case stats = "Stats"
     case agents = "Agents"
     case extraSpace = "Extra Space"
+    case microEvents = "Micro Events"
 
     public var id: String { rawValue }
 
@@ -92,6 +94,7 @@ public enum ShortcutDefaultTab: String, CaseIterable, Defaults.Serializable, Ide
         case .stats: return .stats
         case .agents: return .agents
         case .extraSpace: return .extraSpace
+        case .microEvents: return .microEvents
         }
     }
 }

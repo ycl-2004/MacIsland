@@ -45,6 +45,7 @@ struct ContentView: View {
     @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var timerManager = TimerManager.shared
     @ObservedObject var reminderManager = ReminderLiveActivityManager.shared
+    @ObservedObject var microEventManager = MicroEventManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var recordingManager = ScreenRecordingManager.shared
     @ObservedObject var privacyManager = PrivacyIndicatorManager.shared
@@ -377,7 +378,8 @@ struct ContentView: View {
     /// Whether this screen's sneak peek is drawn as an `InlineHUD`.
     private var isInlineSneakPeekVisible: Bool {
         let type = coordinator.sneakPeek.type
-        let hasOwnSurface = type == .music || type == .battery || type == .timer || type == .reminder
+        let hasOwnSurface = type == .music || type == .battery || type == .timer
+            || type == .reminder || type == .microEvent
         let isOutputLevel = type == .volume || type == .brightness || type == .backlight
         return isSneakPeekVisibleOnCurrentScreen
             && (Defaults[.inlineHUD] || isAirPodsListeningModeSneak)
@@ -1103,6 +1105,7 @@ struct ContentView: View {
                     && coordinator.sneakPeek.type != .battery
                     && coordinator.sneakPeek.type != .timer
                     && coordinator.sneakPeek.type != .reminder
+                    && coordinator.sneakPeek.type != .microEvent
                     && !Defaults[.inlineHUD]
                     && !isAirPodsListeningModeSneak
                     && ((coordinator.sneakPeek.type != .volume
@@ -1145,6 +1148,24 @@ struct ContentView: View {
                         }
                     }
                     .foregroundStyle(timerManager.timerColor)
+                    .padding(.bottom, 10)
+                }
+            }
+            // Micro Event sneak peek
+            else if coordinator.sneakPeek.type == .microEvent {
+                if !vm.hideOnClosed && activeSneakPeekStyle == .standard {
+                    HStack(spacing: 6) {
+                        Image(systemName: coordinator.sneakPeek.icon.isEmpty ? "checklist" : coordinator.sneakPeek.icon)
+                        GeometryReader { geo in
+                            MarqueeText(
+                                .constant(microEventSneakText),
+                                textColor: .statusAttention,
+                                minDuration: 1,
+                                frameWidth: geo.size.width
+                            )
+                        }
+                    }
+                    .foregroundStyle(.statusAttention)
                     .padding(.bottom, 10)
                 }
             }
@@ -1193,6 +1214,8 @@ struct ContentView: View {
                     NotchAgentsView()
                 case .extraSpace:
                     NotchExtraSpaceView()
+                case .microEvents:
+                    NotchMicroEventsView()
                 case .colorPicker:
                     NotchColorPickerView()
                 }
@@ -1201,6 +1224,12 @@ struct ContentView: View {
             .id(coordinator.currentView)
             .transition(tabSwitchTransition)
         }
+    }
+
+    private var microEventSneakText: String {
+        let title = coordinator.sneakPeek.title
+        let subtitle = coordinator.sneakPeek.subtitle
+        return subtitle.isEmpty ? title : "\(title) · \(subtitle)"
     }
 
     private func reminderColor(for reminder: ReminderLiveActivityManager.ReminderEntry, now: Date) -> Color {
@@ -2478,9 +2507,12 @@ struct ContentView: View {
         let isMusicSneak = coordinator.sneakPeek.type == .music && vm.notchState == .closed && !vm.hideOnClosed && style == .standard
         let isTimerSneak = coordinator.sneakPeek.type == .timer && !vm.hideOnClosed && style == .standard
         let isReminderSneak = coordinator.sneakPeek.type == .reminder && !vm.hideOnClosed && style == .standard
-        let isOtherSneak = coordinator.sneakPeek.type != .music && coordinator.sneakPeek.type != .timer && coordinator.sneakPeek.type != .reminder && vm.notchState == .closed
+        let isMicroEventSneak = coordinator.sneakPeek.type == .microEvent && !vm.hideOnClosed && style == .standard
+        let isOtherSneak = coordinator.sneakPeek.type != .music && coordinator.sneakPeek.type != .timer
+            && coordinator.sneakPeek.type != .reminder && coordinator.sneakPeek.type != .microEvent
+            && vm.notchState == .closed
         
-        return isMusicSneak || isTimerSneak || isReminderSneak || isOtherSneak
+        return isMusicSneak || isTimerSneak || isReminderSneak || isMicroEventSneak || isOtherSneak
     }
 
     private func resolvedSneakPeekStyle() -> SneakPeekStyle {

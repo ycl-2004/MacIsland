@@ -30,6 +30,9 @@ final class LightweightPolicyTests: XCTestCase {
         // Kept in the result bundle only when the test fails.
         add(XCTAttachment(data: try XCTUnwrap(bitmap.representation(using: .png, properties: [:])), uniformTypeIdentifier: "public.png"))
         XCTAssertEqual(window.title, "Feature Management", "The destination must display Feature Management, not fall back to General")
+        NotificationCenter.default.post(name: .atollSettingsDestination, object: "microEvents")
+        try await waitForTitle("Micro Events")
+        XCTAssertEqual(window.title, "Micro Events", "Micro Events must exist in the sidebar and be reachable from Details")
     }
 
     func testRealDefaultsTransactionRejectsStalePreviewAndPreservesLaterEdits() throws {

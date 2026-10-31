@@ -44,6 +44,7 @@ struct TabSelectionView: View {
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableAgentsFeature) private var enableAgentsFeature
     @Default(.enableExtraSpaceFeature) private var enableExtraSpaceFeature
+    @Default(.enableMicroEventsFeature) private var enableMicroEventsFeature
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
     @Default(.timerDisplayMode) var timerDisplayMode
     @Default(.showCalendar) private var showCalendar
@@ -53,12 +54,14 @@ struct TabSelectionView: View {
     @Namespace var animation
     @State private var agentsNeedYou = false
     @State private var shelfHasItems = false
+    @ObservedObject private var microEvents = MicroEventManager.shared
     
     private var tabs: [TabModel] {
         let labels: [NotchViews: (String, String)] = [
             .home: ("Home", "house.fill"), .shelf: ("Shelf", "tray.fill"),
             .timer: ("Timer", "timer"), .stats: ("Stats", "chart.xyaxis.line"),
-            .agents: ("Agents", "sparkles"), .extraSpace: ("Extra Space", "text.alignleft")]
+            .agents: ("Agents", "sparkles"), .extraSpace: ("Extra Space", "text.alignleft"),
+            .microEvents: ("Micro Events", "checklist")]
         return NotchTabAvailability.current.tabs.compactMap { view in
             labels[view].map { TabModel(label: $0.0, icon: $0.1, view: view) }
         }
@@ -111,6 +114,7 @@ struct TabSelectionView: View {
     private func badge(for view: NotchViews) -> Color? {
         switch view {
         case .agents: return agentsNeedYou ? .statusAttention : nil
+        case .microEvents: return microEvents.dueTodayCount() > 0 ? .statusAttention : nil
         case .shelf: return fileDropEnabled && shelfHasItems && coordinator.currentView != .shelf ? .inkTertiary : nil
         default: return nil
         }

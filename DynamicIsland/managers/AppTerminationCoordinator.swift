@@ -47,12 +47,13 @@ final class AppTerminationCoordinator {
         // A LibreOffice or FFmpeg child would otherwise keep running after quit.
         await FileConvertModel.shared.stopForTermination()
         return await Self.saveContent(extraSpace: .shared, shelf: .shared, sessions: .shared,
-                                      conversation: .shared, timer: .shared)
+                                      conversation: .shared, timer: .shared, microEvents: .shared)
     }
 
     static func saveContent(extraSpace: ExtraSpaceStore, shelf: ShelfStateViewModel,
                             sessions: AgentSessionStore, conversation: AgentConversationService,
-                            timer: TimerManager) async -> String? {
+                            timer: TimerManager, microEvents: MicroEventStore? = nil) async -> String? {
+        let microEvents = microEvents ?? .shared
         // All five stores are instantiated before the first await. Initial
         // restoration is not a user edit; snapshot only after it has settled.
         await extraSpace.awaitInitialLoad()
@@ -70,6 +71,7 @@ final class AppTerminationCoordinator {
         if let error = await sessions.saveForTermination() { errors.append(error) }
         if let error = await conversation.saveForTermination() { errors.append(error) }
         if let error = await timer.saveForTermination() { errors.append(error) }
+        if let error = await microEvents.saveForTermination() { errors.append(error) }
         if text != extraSpace.text || shelfItems != shelf.items
             || drafts != conversation.drafts || timerRevision != timer.recoveryRevision {
             errors.append("Content changed while saving. Please try Quit or Restart again.")

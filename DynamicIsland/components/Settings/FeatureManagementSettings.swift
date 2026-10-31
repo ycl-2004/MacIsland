@@ -40,6 +40,7 @@ struct FeatureManagementSettings: View {
                 feature("Calendar", key: .showCalendar, tab: "calendar", note: "Shows events or reminders. Allow Calendar and Reminders separately, only if you use them.")
             } header: { Text("Everyday tools") }
             Section {
+                feature("Micro Events", key: .enableMicroEventsFeature, tab: "microEvents", note: "Your own recurring reminders. Uses the notch and a chime, not system notifications, and only runs while Atoll is open.")
                 feature("Stats", key: .enableStatsFeature, tab: "stats", note: "Measures your Mac only while Stats is showing, unless background sampling is on.")
                 feature("Real-time waveform", key: .enableRealTimeWaveform, tab: "media", note: "Moves the visualizer with your music. Needs audio recording permission.")
                 feature("Lyrics", key: .enableLyrics, tab: "media", note: "Fetches lyrics for the current song.")
@@ -115,6 +116,7 @@ struct FeatureManagementSettings: View {
         case "colorPicker": return permissions.screenRecording ? String(localized: "Screen access allowed · on demand") : String(localized: "Waiting for Screen Recording permission")
         case "downloads": return String(localized: "Enabled · folder access managed in Details")
         case "shelf": return String(localized: "Enabled · choose your file tools in Details")
+        case "microEvents": return String(localized: "Enabled · reminders appear in the notch")
         case "lockScreen": return String(localized: "Enabled for lock screen · location options in Details")
         default:
             if key.name == Defaults.Keys.enableRealTimeWaveform.name { return String(localized: "Enabled · audio capture checked when used") }

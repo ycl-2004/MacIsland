@@ -866,7 +866,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if self.coordinator.currentView == .extraSpace { return }
 
                 let workItem = DispatchWorkItem { [weak viewModel] in
-                    viewModel?.close()
+                    guard let viewModel, !viewModel.isAutoCloseSuppressed else { return }
+                    viewModel.close()
                 }
                 self.closeNotchWorkItem = workItem
 

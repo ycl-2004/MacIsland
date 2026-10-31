@@ -59,6 +59,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case stats
     case colorPicker
     case extraSpace
+    case microEvents
     case downloads
     case shelf
     case shortcuts
@@ -72,7 +73,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .general, .features, .appearance:                                          return .core
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
-        case .timer, .calendar:                                              return .productivity
+        case .timer, .calendar, .microEvents:                                return .productivity
         case .colorPicker, .extraSpace, .shelf,
              .downloads, .shortcuts:                                         return .utilities
         case .stats:                                                         return .developer
@@ -98,6 +99,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .stats: return String(localized: "Stats")
         case .colorPicker: return String(localized: "Color Picker")
         case .extraSpace: return String(localized: "Extra Space")
+        case .microEvents: return String(localized: "Micro Events")
         case .downloads: return String(localized: "Downloads")
         case .shelf: return String(localized: "Shelf")
         case .shortcuts: return String(localized: "Shortcuts")
@@ -122,6 +124,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .stats: return "chart.xyaxis.line"
         case .colorPicker: return "eyedropper"
         case .extraSpace: return "text.alignleft"
+        case .microEvents: return "checklist"
         case .downloads: return "square.and.arrow.down"
         case .shelf: return "books.vertical"
         case .shortcuts: return "keyboard"
@@ -146,6 +149,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .stats: return .teal
         case .colorPicker: return .accentColor
         case .extraSpace: return .teal
+        case .microEvents: return .mint
         case .downloads: return .gray
         case .shelf: return .brown
         case .shortcuts: return .orange
@@ -214,6 +218,8 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .shelf, title: "Enable File Convert", keywords: ["convert", "format", "pdf", "word", "jpg", "heic", "mp3", "转换", "格式", "轉換"], highlightID: SettingsTab.shelf.highlightID(for: "Enable File Convert")),
         SettingsSearchEntry(tab: .shelf, title: "Keep original file", keywords: ["replace", "trash", "original", "保留原文件", "原始檔案"], highlightID: SettingsTab.shelf.highlightID(for: "Keep original file")),
         SettingsSearchEntry(tab: .extraSpace, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: SettingsTab.extraSpace.highlightID(for: "Enable Extra Space")),
+        SettingsSearchEntry(tab: .microEvents, title: "Enable Micro Events", keywords: ["reminder", "recurring", "daily", "weekly", "monthly", "todo", "提醒", "每周", "每月", "待办"], highlightID: SettingsTab.microEvents.highlightID(for: "Enable Micro Events")),
+        SettingsSearchEntry(tab: .microEvents, title: "Reminder sound", keywords: ["chime", "sound", "alert", "声音", "提示音"], highlightID: SettingsTab.microEvents.highlightID(for: "Reminder sound")),
         // General
         SettingsSearchEntry(tab: .features, title: "Feature Management", keywords: ["features", "lightweight", "performance", "功能管理", "轻量"], highlightID: nil),
         SettingsSearchEntry(tab: .features, title: "Lightweight suggestions", keywords: ["preset", "undo", "cache", "storage", "轻量", "缓存", "储存"], highlightID: "features-Lightweight suggestions"),
@@ -726,6 +732,7 @@ struct SettingsView: View {
             // Productivity
             .timer,
             .calendar,
+            .microEvents,
             // Utilities
             .colorPicker,
             .extraSpace,
@@ -990,6 +997,10 @@ struct SettingsView: View {
         case .extraSpace:
             SettingsForm(tab: .extraSpace) {
                 ExtraSpaceSettings()
+            }
+        case .microEvents:
+            SettingsForm(tab: .microEvents) {
+                MicroEventSettings()
             }
         case .downloads:
             SettingsForm(tab: .downloads) {

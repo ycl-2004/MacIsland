@@ -63,20 +63,36 @@ final class OnboardingPermissionTests: XCTestCase {
     }
 
     private func render<V: View>(_ view: V, size: NSSize, name: String, dark: Bool) async throws {
+        // A plain container owns the frame. An NSHostingView used directly as the
+        // content view lets AppKit resize the window to the SwiftUI ideal size
+        // during the async yield, which shrank this page to 470x310 pt.
+        let container = NSView(frame: NSRect(origin: .zero, size: size))
         let hosting = NSHostingView(rootView: view)
+        hosting.sizingOptions = []
+        hosting.frame = NSRect(origin: .zero, size: size)
+        container.addSubview(hosting)
+
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-        window.contentView = hosting
+        window.contentView = container
+        window.setContentSize(size)
         defer { window.contentView = nil; window.close() }
-        hosting.frame = NSRect(origin: .zero, size: size)
-        hosting.layoutSubtreeIfNeeded()
+
+        container.frame = NSRect(origin: .zero, size: size)
+        container.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(100))
         hosting.layoutSubtreeIfNeeded()
+
         let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
         hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
-        XCTAssertGreaterThan(bitmap.pixelsWide, 500)
+        // Assert the layout size in points. A hardcoded pixel threshold passed
+        // on a 2x display and failed on the 1x CI runner; points are the thing
+        // the page is actually laid out at.
+        XCTAssertEqual(hosting.bounds.width, size.width, accuracy: 0.5,
+                       "The page should render at the requested size, not its intrinsic size")
+        XCTAssertEqual(hosting.bounds.height, size.height, accuracy: 0.5)
         attachPreview(try XCTUnwrap(bitmap.representation(using: .png, properties: [:])), named: name)
     }
 }

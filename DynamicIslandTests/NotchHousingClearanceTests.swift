@@ -11,7 +11,8 @@ import XCTest
 final class NotchHousingClearanceTests: XCTestCase {
     func testEveryTabFitsLeftOfTheHousingAtTheMinimumWidth() throws {
         let features: [Defaults.Key<Bool>] = [.showCalendar, .dynamicShelf, .enableFileConvertFeature, .enableTimerFeature,
-                                              .enableStatsFeature, .enableAgentsFeature, .enableExtraSpaceFeature]
+                                              .enableStatsFeature, .enableAgentsFeature, .enableExtraSpaceFeature,
+                                              .enableMicroEventsFeature]
         let saved = features.map { Defaults[$0] }
         let savedMode = Defaults[.timerDisplayMode], savedOrder = Defaults[.notchTabOrder]
         defer {
@@ -22,7 +23,7 @@ final class NotchHousingClearanceTests: XCTestCase {
         features.forEach { Defaults[$0] = true }
         Defaults[.timerDisplayMode] = .tab
         let count = enabledStandardTabCount()
-        XCTAssertEqual(count, 6, "File Convert shares Shelf instead of adding a seventh tab")
+        XCTAssertEqual(count, 7, "File Convert shares Shelf instead of adding an eighth tab")
 
         let row = NSHostingView(rootView: TabSelectionView().environmentObject(DynamicIslandViewModel()))
         let rowWidth = row.fittingSize.width

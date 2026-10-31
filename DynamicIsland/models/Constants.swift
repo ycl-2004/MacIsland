@@ -680,6 +680,12 @@ extension Defaults.Keys {
     // MARK: Extra Space
     static let enableExtraSpaceFeature = Key<Bool>("enableExtraSpaceFeature", default: false)
 
+    // MARK: Micro Events
+    static let enableMicroEventsFeature = Key<Bool>("enableMicroEventsFeature", default: false)
+    static let microEventsPlaySound = Key<Bool>("microEventsPlaySound", default: true)
+    /// Minutes before the item's time to show the reminder; 0 means at the time.
+    static let microEventsLeadMinutes = Key<Int>("microEventsLeadMinutes", default: 0)
+
     // MARK: File Convert
     static let enableFileConvertFeature = Key<Bool>("enableFileConvertFeature", default: false)
     /// Off: a successful conversion moves the original to the Trash.
