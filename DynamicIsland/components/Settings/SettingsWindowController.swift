@@ -77,7 +77,9 @@ class SettingsWindowController: NSWindowController {
     
     func showWindow(tab: String) {
         showWindow()
-        DispatchQueue.main.async { NotificationCenter.default.post(name: .atollSettingsDestination, object: tab) }
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .atollSettingsDestination, object: tab == "fileConvert" ? "shelf" : tab)
+        }
     }
 
     func showWindow() {

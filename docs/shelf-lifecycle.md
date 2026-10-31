@@ -87,8 +87,14 @@ does not discard the saved list; explicit clear uses a separate content generati
 
 The notch entry area and Shelf panel use the same accepting callback. An accepted drop
 has actually been queued; an already-open Home or Timer view switches to Shelf.
-Since 2026-10-19, files dragged onto the notch open File Convert when it is on;
-text, links, and files while Convert is off still open Shelf, and an open Shelf keeps its drops.
+Since 2026-10-20, Shelf and File Convert share one tab. Entry/background drops
+add to File Drop when enabled. File Drop, AirDrop and File Convert are all
+optional modules configured in Shelf settings. If File Drop is disabled, file
+entry drops prepare conversion when available; otherwise they are rejected.
+AirDrop requires the explicit card. Hidden File Drop never imports items.
+Conversion drops never also add files to the tray. The Shelf master switch
+hides every module and retains the individual choices. Disabling either Shelf
+or File Drop pauses imports and thumbnail work without clearing saved entries.
 An open Extra Space editor keeps its own text and file drops; its margins reject Shelf drops.
 Disabled Shelf, self-drags, marquee selection, empty drops and queue overflow are rejected.
 The importer keeps the existing 50-per-drop, 100-outstanding, 200-stored and text limits.

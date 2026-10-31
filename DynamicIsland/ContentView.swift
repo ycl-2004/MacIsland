@@ -57,6 +57,8 @@ struct ContentView: View {
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
     @Default(.dynamicShelf) private var shelfEnabled
+    @Default(.shelfFileDropEnabled) private var fileDropEnabled
+    @Default(.shelfAirDropEnabled) private var airDropEnabled
     @Default(.enableFileConvertFeature) private var fileConvertEnabled
     @ObservedObject private var agentStore = AgentSessionStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -858,7 +860,7 @@ struct ContentView: View {
                 if needed { startHiddenEdgeHoverPolling() }
                 else { stopHiddenEdgeHoverPolling() }
             }
-            .onChange(of: shelfEnabled || fileConvertEnabled) { _, _ in syncDragApproachMonitor() }
+            .onChange(of: hasShelfTools) { _, _ in syncDragApproachMonitor() }
             .onChange(of: vm.notchState) { _, state in
                 if state == .open {
                     suppressMusicControlWindowUpdates()
@@ -1183,8 +1185,6 @@ struct ContentView: View {
                     NotchHomeView(albumArtNamespace: albumArtNamespace)
                 case .shelf:
                     NotchShelfView()
-                case .fileConvert:
-                    NotchFileConvertView()
                 case .timer:
                     NotchTimerView()
                 case .stats:
@@ -1639,7 +1639,7 @@ struct ContentView: View {
     var dragDetector: some View {
         if lockScreenManager.isLocked {
             EmptyView()
-        } else if shelfEnabled || fileConvertEnabled {
+        } else if hasShelfTools {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -1666,11 +1666,13 @@ struct ContentView: View {
         }
     }
 
-    var hasShelfActivity: Bool { shelfEnabled && !shelfState.isEmpty }
+    private var hasShelfTools: Bool { shelfEnabled && (fileDropEnabled || airDropEnabled || fileConvertEnabled) }
+
+    var hasShelfActivity: Bool { shelfEnabled && fileDropEnabled && !shelfState.isEmpty }
 
     /// Runs only while a tab takes dropped files.
     private func syncDragApproachMonitor() {
-        guard shelfEnabled || fileConvertEnabled else {
+        guard hasShelfTools else {
             dragApproach?.stop()
             dragApproach = nil
             return

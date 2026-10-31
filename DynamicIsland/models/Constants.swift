@@ -638,6 +638,8 @@ extension Defaults.Keys {
     
         // MARK: Shelf
     static let dynamicShelf = Key<Bool>("dynamicShelf", default: true)
+    static let shelfFileDropEnabled = Key<Bool>("shelfFileDropEnabled", default: true)
+    static let shelfAirDropEnabled = Key<Bool>("shelfAirDropEnabled", default: true)
     static let openShelfByDefault = Key<Bool>("openShelfByDefault", default: true)
         // Off by default: offering `.move` to another app lets Finder move the
         // original out from under the user when the destination is on the same

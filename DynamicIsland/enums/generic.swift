@@ -64,7 +64,6 @@ public enum NotchState {
 public enum NotchViews: Hashable {
     case home
     case shelf
-    case fileConvert
     case timer
     case stats
     case agents

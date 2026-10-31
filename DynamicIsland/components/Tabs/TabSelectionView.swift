@@ -39,6 +39,7 @@ struct TabSelectionView: View {
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
     @EnvironmentObject private var vm: DynamicIslandViewModel
     @Default(.dynamicShelf) private var dynamicShelf
+    @Default(.shelfFileDropEnabled) private var fileDropEnabled
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableAgentsFeature) private var enableAgentsFeature
@@ -56,7 +57,6 @@ struct TabSelectionView: View {
     private var tabs: [TabModel] {
         let labels: [NotchViews: (String, String)] = [
             .home: ("Home", "house.fill"), .shelf: ("Shelf", "tray.fill"),
-            .fileConvert: ("Convert", "arrow.triangle.2.circlepath"),
             .timer: ("Timer", "timer"), .stats: ("Stats", "chart.xyaxis.line"),
             .agents: ("Agents", "sparkles"), .extraSpace: ("Extra Space", "text.alignleft")]
         return NotchTabAvailability.current.tabs.compactMap { view in
@@ -111,7 +111,7 @@ struct TabSelectionView: View {
     private func badge(for view: NotchViews) -> Color? {
         switch view {
         case .agents: return agentsNeedYou ? .statusAttention : nil
-        case .shelf: return shelfHasItems && coordinator.currentView != .shelf ? .inkTertiary : nil
+        case .shelf: return fileDropEnabled && shelfHasItems && coordinator.currentView != .shelf ? .inkTertiary : nil
         default: return nil
         }
     }
@@ -122,8 +122,8 @@ struct TabSelectionView: View {
 
 }
 
-/// Resting a drag on a tab icon opens that tab. Dropping on the Shelf or
-/// Convert icon hands the files straight to it.
+/// Resting a drag on a tab icon opens that tab. Dropping on the Shelf icon
+/// hands the files straight to it.
 private struct TabDropDelegate: DropDelegate {
     static let types: [UTType] = [.fileURL, .url, .utf8PlainText, .plainText, .data]
     let view: NotchViews
@@ -150,9 +150,7 @@ private struct TabDropDelegate: DropDelegate {
         switch view {
         case .shelf:
             vm.coordinator.currentView = .shelf
-            return vm.receiveShelfDrop(providers)
-        case .fileConvert:
-            return vm.receiveConvertDrop(providers)
+            return vm.receiveNotchDrop(providers)
         default:
             return false
         }

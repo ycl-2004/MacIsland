@@ -27,7 +27,7 @@ import Defaults
 
 @MainActor
 final class ShelfStateViewModel: ObservableObject {
-    static let shared = ShelfStateViewModel()
+    static let shared = ShelfStateViewModel(enabledKey: .shelfFileDropEnabled, workspaceKey: .dynamicShelf)
 
     @Published private(set) var items: [ShelfItem] = [] {
         didSet {
@@ -90,13 +90,19 @@ final class ShelfStateViewModel: ObservableObject {
     private let persistence: ShelfPersistenceService
     private let fileLifetime: ShelfFileLifetime
     private let enabledKey: Defaults.Key<Bool>
+    private let workspaceKey: Defaults.Key<Bool>?
+    private var isEnabled: Bool {
+        Defaults[enabledKey] && (workspaceKey.map { Defaults[$0] } ?? true)
+    }
     private let thumbnails: ThumbnailService
 
     init(persistence: ShelfPersistenceService = .shared, lifetime: ShelfFileLifetime = .shared,
-         enabledKey: Defaults.Key<Bool> = .dynamicShelf, thumbnails: ThumbnailService = .shared) {
+         enabledKey: Defaults.Key<Bool> = .dynamicShelf, workspaceKey: Defaults.Key<Bool>? = nil,
+         thumbnails: ThumbnailService = .shared) {
         self.persistence = persistence
         self.fileLifetime = lifetime
         self.enabledKey = enabledKey
+        self.workspaceKey = workspaceKey
         self.thumbnails = thumbnails
         let generation = contentGeneration
         persistenceQueue.async { [weak self] in
@@ -113,10 +119,12 @@ final class ShelfStateViewModel: ObservableObject {
         }
         // Hiding the shelf preserves its persisted references. Only explicit
         // Clear removes entries; active handoffs retain their existing leases.
-        shelfSwitch = Defaults.publisher(enabledKey).sink { [weak self] change in
+        var switches = [Defaults.publisher(enabledKey).map { _ in () }.eraseToAnyPublisher()]
+        if let workspaceKey { switches.append(Defaults.publisher(workspaceKey).map { _ in () }.eraseToAnyPublisher()) }
+        shelfSwitch = Publishers.MergeMany(switches).sink { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                let enabled = Defaults[self.enabledKey]
+                let enabled = self.isEnabled
                 if !enabled { self.pauseImports() }
                 await self.thumbnails.setEnabled(enabled)
             }
@@ -250,7 +258,7 @@ final class ShelfStateViewModel: ObservableObject {
     func add(_ newItems: [ShelfItem], ifUnchanged generation: UUID? = nil) {
         importWasLimited = false
         guard !newItems.isEmpty else { return }
-        guard (generation == nil || generation == importGeneration), Defaults[enabledKey] else {
+        guard (generation == nil || generation == importGeneration), isEnabled else {
             fileLifetime.requestCleanup()
             return
         }
@@ -395,7 +403,7 @@ final class ShelfStateViewModel: ObservableObject {
 
     @discardableResult
     func load(_ providers: [NSItemProvider]) -> Bool {
-        guard !providers.isEmpty, Defaults[enabledKey] else { return false }
+        guard !providers.isEmpty, isEnabled else { return false }
         guard providers.count <= 50, importQueue.count + importTasks.count + providers.count <= 100 else {
             report("Drop up to 50 items at a time. Wait for the current import to finish before adding more.")
             return false
@@ -425,7 +433,7 @@ final class ShelfStateViewModel: ObservableObject {
                 await self.awaitInitialLoad()
                 guard !Task.isCancelled, self.importGeneration == generation else { return }
                 let item = await ShelfDropService.item(from: provider)
-                guard !Task.isCancelled, self.importGeneration == generation, Defaults[self.enabledKey] else {
+                guard !Task.isCancelled, self.importGeneration == generation, self.isEnabled else {
                     // Disabled before the switch observer paused: this task still
                     // owns a slot, and a quick re-enable would otherwise leak it.
                     if self.importGeneration == generation { self.pauseImports() }

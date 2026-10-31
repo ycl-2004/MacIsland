@@ -61,7 +61,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case extraSpace
     case downloads
     case shelf
-    case fileConvert
     case shortcuts
     case about
 
@@ -74,7 +73,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
         case .timer, .calendar:                                              return .productivity
-        case .colorPicker, .extraSpace, .shelf, .fileConvert,
+        case .colorPicker, .extraSpace, .shelf,
              .downloads, .shortcuts:                                         return .utilities
         case .stats:                                                         return .developer
         case .agents:                                                        return .integrations
@@ -101,7 +100,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .extraSpace: return String(localized: "Extra Space")
         case .downloads: return String(localized: "Downloads")
         case .shelf: return String(localized: "Shelf")
-        case .fileConvert: return String(localized: "File Convert")
         case .shortcuts: return String(localized: "Shortcuts")
         case .about: return String(localized: "About")
         }
@@ -126,7 +124,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .extraSpace: return "text.alignleft"
         case .downloads: return "square.and.arrow.down"
         case .shelf: return "books.vertical"
-        case .fileConvert: return "arrow.triangle.2.circlepath"
         case .shortcuts: return "keyboard"
         case .about: return "info.circle"
         }
@@ -151,7 +148,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .extraSpace: return .teal
         case .downloads: return .gray
         case .shelf: return .brown
-        case .fileConvert: return .indigo
         case .shortcuts: return .orange
         case .about: return .secondary
         }
@@ -215,8 +211,8 @@ enum LockScreenSettingsSection: String, CaseIterable, Identifiable {
 
 private enum SettingsSearchIndex {
     static let entries: [SettingsSearchEntry] = [
-        SettingsSearchEntry(tab: .fileConvert, title: "Enable File Convert", keywords: ["convert", "format", "pdf", "word", "jpg", "heic", "mp3", "转换", "格式", "轉換"], highlightID: SettingsTab.fileConvert.highlightID(for: "Enable File Convert")),
-        SettingsSearchEntry(tab: .fileConvert, title: "Keep original file", keywords: ["replace", "trash", "original", "保留原文件", "原始檔案"], highlightID: SettingsTab.fileConvert.highlightID(for: "Keep original file")),
+        SettingsSearchEntry(tab: .shelf, title: "Enable File Convert", keywords: ["convert", "format", "pdf", "word", "jpg", "heic", "mp3", "转换", "格式", "轉換"], highlightID: SettingsTab.shelf.highlightID(for: "Enable File Convert")),
+        SettingsSearchEntry(tab: .shelf, title: "Keep original file", keywords: ["replace", "trash", "original", "保留原文件", "原始檔案"], highlightID: SettingsTab.shelf.highlightID(for: "Keep original file")),
         SettingsSearchEntry(tab: .extraSpace, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: SettingsTab.extraSpace.highlightID(for: "Enable Extra Space")),
         // General
         SettingsSearchEntry(tab: .features, title: "Feature Management", keywords: ["features", "lightweight", "performance", "功能管理", "轻量"], highlightID: nil),
@@ -335,6 +331,8 @@ private enum SettingsSearchIndex {
 
         // Shelf
         SettingsSearchEntry(tab: .shelf, title: "Enable shelf", keywords: ["shelf", "dock"], highlightID: SettingsTab.shelf.highlightID(for: "Enable shelf")),
+        SettingsSearchEntry(tab: .shelf, title: "Enable File Drop", keywords: ["files", "storage", "tray", "暂存", "暫存", "存储"], highlightID: SettingsTab.shelf.highlightID(for: "Enable File Drop")),
+        SettingsSearchEntry(tab: .shelf, title: "Enable AirDrop", keywords: ["airdrop", "share", "send", "隔空投送", "分享", "传送"], highlightID: SettingsTab.shelf.highlightID(for: "Enable AirDrop")),
         SettingsSearchEntry(tab: .shelf, title: "Open shelf tab by default if items added", keywords: ["auto open", "shelf tab"], highlightID: SettingsTab.shelf.highlightID(for: "Open shelf tab by default if items added")),
         SettingsSearchEntry(tab: .shelf, title: "Allow moving files when dragging out", keywords: ["shelf", "drag", "move", "copy"], highlightID: SettingsTab.shelf.highlightID(for: "Allow moving files when dragging out")),
         SettingsSearchEntry(tab: .shelf, title: "Remove from shelf after dragging", keywords: ["shelf", "drag", "remove"], highlightID: SettingsTab.shelf.highlightID(for: "Remove from shelf after dragging")),
@@ -732,7 +730,6 @@ struct SettingsView: View {
             .colorPicker,
             .extraSpace,
             .shelf,
-            .fileConvert,
             .downloads,
             .shortcuts,
             // Developer
@@ -1001,10 +998,6 @@ struct SettingsView: View {
         case .shelf:
             SettingsForm(tab: .shelf) {
                 Shelf()
-            }
-        case .fileConvert:
-            SettingsForm(tab: .fileConvert) {
-                FileConvertSettings()
             }
         case .shortcuts:
             SettingsForm(tab: .shortcuts) {
@@ -2574,6 +2567,8 @@ private final class SettingsLoopingPlayerController {
 
 struct Shelf: View {
     @Default(.dynamicShelf) private var shelfEnabled
+    @Default(.shelfFileDropEnabled) private var fileDropEnabled
+    @Default(.enableFileConvertFeature) private var convertEnabled
     @ObservedObject private var shelfState = ShelfStateViewModel.shared
     @State private var confirmingClear = false
     private func highlightID(_ title: String) -> String {
@@ -2586,6 +2581,35 @@ struct Shelf: View {
                 Toggle("Enable shelf", isOn: $shelfEnabled)
                 .settingsHighlight(id: highlightID("Enable shelf"))
 
+            } header: {
+                Text("General")
+            } footer: {
+                Text("Your file workspace. Turning Shelf off hides it and keeps your tool choices and saved items.")
+            }
+
+            Section {
+                Toggle(isOn: $fileDropEnabled) {
+                    SettingsInfoLabel("Enable File Drop", info: "Temporarily store files, text and links. Turning it off hides the tray and keeps its saved items.")
+                }
+                .settingsHighlight(id: highlightID("Enable File Drop"))
+
+                Defaults.Toggle(key: .shelfAirDropEnabled) {
+                    SettingsInfoLabel("Enable AirDrop", info: "Shows an AirDrop card on the left. Drop items to send them, or click to choose files.")
+                }
+                .settingsHighlight(id: highlightID("Enable AirDrop"))
+
+                Toggle(isOn: $convertEnabled) {
+                    SettingsInfoLabel("Enable File Convert", info: "Drop files and choose a format. Shares the file area equally with File Drop when both are enabled.")
+                }
+                .settingsHighlight(id: highlightID("Enable File Convert"))
+            } header: {
+                Text("Shelf tools")
+            } footer: {
+                Text("Choose any combination, including just AirDrop. Enabled tools share the space; disabled tools keep their content and settings.")
+            }
+            .disabled(!shelfEnabled)
+
+            Section {
                 Defaults.Toggle(key: .openShelfByDefault) {
                     Text("Open shelf tab by default if items added")
                 }
@@ -2602,10 +2626,14 @@ struct Shelf: View {
                 .settingsHighlight(id: highlightID("Remove from shelf after dragging"))
 
             } header: {
-                Text("General")
+                Text("File drop")
             } footer: {
                 Text("Shelf works with text, links and files you choose. macOS may ask for access to a protected folder when you use a file from it. Full Disk Access is not required.")
             }
+            .disabled(!shelfEnabled || !fileDropEnabled)
+
+            FileConvertSettings()
+                .disabled(!shelfEnabled || !convertEnabled)
             Section {
                 LabeledContent("Items", value: "\(shelfState.items.count) / 200")
                 Button("Clear Shelf items…", role: .destructive) { confirmingClear = true }

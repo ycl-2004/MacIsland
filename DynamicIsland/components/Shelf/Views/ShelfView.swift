@@ -63,15 +63,10 @@ struct ShelfView: View {
     private let spacing = ShelfRowLayout.spacing
 
     var body: some View {
-        HStack(spacing: 12) {
-            FileShareView()
-                .aspectRatio(1, contentMode: .fit)
-                .environmentObject(vm)
-            panel
-                .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], isTargeted: $vm.dragDetectorTargeting) { providers in
-                    handleDrop(providers: providers)
-                }
-        }
+        panel
+            .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], isTargeted: $vm.dragDetectorTargeting) { providers in
+                handleDrop(providers: providers)
+            }
         // Bind Quick Look to shelf selection. Skipped mid-marquee so a sweep
         // doesn't spawn a resolve Task per intermediate selection.
         .onChange(of: selection.selectedIDs) {
@@ -178,6 +173,15 @@ struct ShelfView: View {
                         .padding(6)
                         .allowsHitTesting(false)
                         .accessibilityLabel(feedback)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if tvm.isEmpty {
+                    Text("File Drop")
+                        .font(.notch(.caption, weight: .medium))
+                        .foregroundStyle(.inkSecondary)
+                        .padding(12)
+                        .allowsHitTesting(false)
                 }
             }
             .animation(vm.animation, value: vm.dragDetectorTargeting)

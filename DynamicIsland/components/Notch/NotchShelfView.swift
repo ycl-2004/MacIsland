@@ -16,14 +16,58 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import Defaults
 import SwiftUI
 
 struct NotchShelfView: View {
     @EnvironmentObject var vm: DynamicIslandViewModel
+    @Default(.shelfFileDropEnabled) private var fileDropEnabled
+    @Default(.shelfAirDropEnabled) private var airDropEnabled
+    @Default(.enableFileConvertFeature) private var convertEnabled
 
     var body: some View {
-        ShelfView()
-            .environmentObject(vm)
+        GeometryReader { geometry in
+            let filePanelCount = (fileDropEnabled ? 1 : 0) + (convertEnabled ? 1 : 0)
+            let workspaceWidth = max(0, geometry.size.width - (airDropEnabled ? geometry.size.height + 12 : 0))
+            let panelWidth = filePanelCount == 2 ? max(0, (workspaceWidth - 12) / 2) : workspaceWidth
+
+            HStack(spacing: 12) {
+                if airDropEnabled {
+                    FileShareView()
+                        .frame(width: geometry.size.height)
+                }
+                if fileDropEnabled {
+                    ShelfView()
+                        .frame(width: panelWidth)
+                }
+                if convertEnabled {
+                    NotchFileConvertView()
+                        .frame(width: panelWidth)
+                }
+                if !airDropEnabled && filePanelCount == 0 {
+                    VStack(spacing: 10) {
+                        Text("Choose your Shelf tools")
+                            .font(.notch(.body, weight: .medium))
+                            .foregroundStyle(.inkSecondary)
+                        Button("Configure Shelf") {
+                            SettingsWindowController.shared.showWindow(tab: "shelf")
+                        }
+                        .controlSize(.small)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .onChange(of: fileDropEnabled) { _, enabled in
+            if !enabled { vm.dragDetectorTargeting = false }
+        }
+        .onChange(of: airDropEnabled) { _, enabled in
+            if !enabled { vm.dropZoneTargeting = false }
+        }
+        .onChange(of: convertEnabled) { _, enabled in
+            if !enabled { vm.convertDropTargeting = false }
+        }
     }
 }
 

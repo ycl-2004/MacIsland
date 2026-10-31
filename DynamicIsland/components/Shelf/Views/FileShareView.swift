@@ -21,6 +21,7 @@
  */
 
 import AppKit
+import Defaults
 import SwiftUI
 
 /// The shelf's AirDrop zone: drop things on it to send them, or click it to
@@ -39,7 +40,8 @@ struct FileShareView: View {
             .help("Drop to send · Click to choose files")
             .background(NSViewHost(view: $hostView))
             .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data, .image], isTargeted: $vm.dropZoneTargeting) { providers in
-                guard !isProcessing, !airDrop.isSending else { return false }
+                guard Defaults[.dynamicShelf], Defaults[.shelfAirDropEnabled],
+                      !isProcessing, !airDrop.isSending else { return false }
                 isProcessing = true
                 vm.dropEvent = true
                 Task { await handleDrop(providers) }

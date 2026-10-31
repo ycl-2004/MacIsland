@@ -444,7 +444,7 @@ private struct DraggableClickHandler: NSViewRepresentable {
                 let prepared = await ShelfDragPreparation.prepare(itemsToDrag)
                 guard let self else { prepared?.lease.finish(); return }
                 guard !Task.isCancelled, self.preparationID == id, self.window != nil,
-                      NSEvent.pressedMouseButtons & 1 != 0, Defaults[.dynamicShelf], let prepared else {
+                      NSEvent.pressedMouseButtons & 1 != 0, Defaults[.dynamicShelf], Defaults[.shelfFileDropEnabled], let prepared else {
                     prepared?.lease.finish()
                     if self.preparationID == id { self.cancelPreparation() }
                     return

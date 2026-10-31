@@ -22,7 +22,7 @@ final class NotchHousingClearanceTests: XCTestCase {
         features.forEach { Defaults[$0] = true }
         Defaults[.timerDisplayMode] = .tab
         let count = enabledStandardTabCount()
-        XCTAssertEqual(count, 7, "Every standard tab should be on for the widest row")
+        XCTAssertEqual(count, 6, "File Convert shares Shelf instead of adding a seventh tab")
 
         let row = NSHostingView(rootView: TabSelectionView().environmentObject(DynamicIslandViewModel()))
         let rowWidth = row.fittingSize.width

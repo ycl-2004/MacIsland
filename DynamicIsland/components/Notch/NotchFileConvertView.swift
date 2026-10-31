@@ -13,35 +13,44 @@ struct NotchFileConvertView: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
-            header
-            panel
-        }
-        .onDrop(of: [.fileURL], isTargeted: $vm.convertDropTargeting) { providers in
-            vm.receiveConvertDrop(providers, model: model)
-        }
+        panel
+            .onDrop(of: [.fileURL], isTargeted: $vm.convertDropTargeting) { providers in
+                vm.receiveConvertDrop(providers, model: model)
+            }
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
-            Text("Convert")
-                .font(.notch(.body, weight: .medium))
-                .foregroundStyle(.inkPrimary)
-            Spacer()
+        HStack(spacing: 8) {
+            Text("File Convert")
+                .font(.notch(.caption, weight: .medium))
+                .lineLimit(1)
+            Spacer(minLength: 0)
             if model.isWorking && !model.items.isEmpty {
-                Button { model.cancel() } label: { Label("Stop", systemImage: "stop.circle") }
+                Button { model.cancel() } label: { Image(systemName: "stop.circle") }
+                    .help("Stop conversion")
+                    .accessibilityLabel("Stop conversion")
             } else if model.hasResults {
-                Button { model.revealResults() } label: { Label("Show in Finder", systemImage: "folder") }
+                Button { model.revealResults() } label: { Image(systemName: "folder") }
+                    .help("Show in Finder")
+                    .accessibilityLabel("Show in Finder")
             }
             if !model.items.isEmpty && !model.isWorking {
-                Button { model.clear() } label: { Label("Clear", systemImage: "xmark.circle") }
+                Button { model.clear() } label: { Image(systemName: "xmark.circle") }
+                    .help("Clear conversion list")
+                    .accessibilityLabel("Clear conversion list")
             }
-            Toggle("Keep original", isOn: $keepOriginal)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .disabled(model.isWorking)
-                .help(keepOriginal ? Text("The original file stays next to the converted one.")
-                                   : Text("After a successful conversion, the original moves to the Trash."))
+            Menu {
+                Toggle("Keep original", isOn: $keepOriginal)
+                    .disabled(model.isWorking)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(keepOriginal ? Text("Keep original: On. The original stays next to the converted file.")
+                               : Text("Keep original: Off. After conversion, the original moves to the Trash."))
+            .accessibilityLabel("Conversion options")
         }
         .font(.notch(.caption))
         .buttonStyle(.plain)
@@ -60,8 +69,13 @@ struct NotchFileConvertView: View {
                     )
             )
             .overlay {
-                Group {
-                    if model.items.isEmpty { emptyState } else { content }
+                VStack(spacing: 8) {
+                    header
+                    if model.items.isEmpty {
+                        emptyState
+                    } else {
+                        content
+                    }
                 }
                 .padding(12)
             }
@@ -78,10 +92,11 @@ struct NotchFileConvertView: View {
                     .foregroundStyle(vm.convertDropTargeting ? Color.accentColor : .inkSecondary)
             }
             Text("Drop files to convert")
-                .font(.system(.title3, design: .rounded)).fontWeight(.medium)
+                .font(.system(.body, design: .rounded)).fontWeight(.medium)
                 .foregroundStyle(vm.convertDropTargeting ? .inkSecondary : .inkTertiary)
-            Text(model.message ?? String(localized: "Images, PDFs, documents, audio and video. Saved next to the original."))
-                .font(.notch(.caption))
+                .multilineTextAlignment(.center)
+            Text(model.message ?? String(localized: "Images, PDFs, documents, audio and video"))
+                .font(.notch(.micro))
                 .foregroundStyle(model.message == nil ? .inkTertiary : .statusAttention)
                 .multilineTextAlignment(.center)
         }
@@ -89,15 +104,14 @@ struct NotchFileConvertView: View {
     }
 
     private var content: some View {
-        HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(model.items) { row($0) }
                 }
             }
-            .frame(maxWidth: .infinity)
-            Divider().overlay(Color.strokeHairline)
-            formatPicker.frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            formatPicker
         }
     }
 
@@ -131,13 +145,13 @@ struct NotchFileConvertView: View {
         case .converting:
             Text("Converting…").foregroundStyle(.inkTertiary)
         case .converted(let outputs):
-            // The file name gives way first; what happened to the original stays readable.
-            HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(outputs.count == 1 ? outputs[0].lastPathComponent : String(localized: "\(outputs.count) files"))
-                    .layoutPriority(0)
                 if let note = item.note {
-                    Text(verbatim: " · ").fixedSize()
-                    Text(note).fixedSize().layoutPriority(1)
+                    Text(note)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .help(note)
                 }
             }
             .foregroundStyle(.inkSecondary)
@@ -154,13 +168,17 @@ struct NotchFileConvertView: View {
                     .foregroundStyle(model.message == nil ? .inkTertiary : .statusAttention)
             } else {
                 Text("Convert to").font(.notch(.caption)).foregroundStyle(.inkTertiary)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 58), spacing: 6)], alignment: .leading, spacing: 6) {
-                    ForEach(model.formats) { format in
-                        Button(format.label) { model.convert(to: format) }
-                            .buttonStyle(FormatChipStyle())
-                            .disabled(model.isWorking)
+                ScrollView(.horizontal) {
+                    HStack(spacing: 6) {
+                        ForEach(model.formats) { format in
+                            Button(format.label) { model.convert(to: format) }
+                                .buttonStyle(FormatChipStyle())
+                                .disabled(model.isWorking)
+                                .fixedSize()
+                        }
                     }
                 }
+                .scrollIndicators(.automatic)
             }
         }
     }
@@ -180,7 +198,7 @@ private struct FormatChip: View {
         configuration.label
             .font(.notch(.caption, weight: .medium))
             .foregroundStyle(isEnabled ? Color.inkPrimary : Color.inkTertiary)
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(isHovering || configuration.isPressed ? Color.fillControlHover : Color.fillControl,
                         in: RoundedRectangle(cornerRadius: NotchRadius.control, style: .continuous))

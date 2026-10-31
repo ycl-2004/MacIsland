@@ -5,18 +5,14 @@ struct FileConvertSettings: View {
     @State private var engines: [ExternalConversionTool: String] = [:]
 
     var body: some View {
-        Form {
+        Group {
             Section {
-                Defaults.Toggle(key: .enableFileConvertFeature) {
-                    Text("Enable File Convert")
-                }
-                .settingsHighlight(id: "fileConvert-Enable File Convert")
                 Defaults.Toggle(key: .fileConvertKeepOriginal) {
-                    SettingsInfoLabel("Keep original file", info: "When off, the original moves to the Trash after a successful conversion, so you can still restore it. The same switch is in the Convert tab.")
+                    SettingsInfoLabel("Keep original file", info: "When off, the original moves to the Trash after a successful conversion, so you can still restore it. The same option is in the File Convert panel’s menu.")
                 }
-                .settingsHighlight(id: "fileConvert-Keep original file")
+                .settingsHighlight(id: "shelf-Keep original file")
             } header: {
-                SettingsInfoLabel("File Convert", info: "Adds a Convert tab to the notch. Drop files there and choose a format. The result is saved in the same folder as the original; existing files are never replaced.")
+                SettingsInfoLabel("File Convert", info: "Shares the Shelf tab: drop files on the right panel and choose a format. Results are saved next to the original; existing files are never replaced.")
             }
 
             Section {
@@ -44,7 +40,6 @@ struct FileConvertSettings: View {
                 Text("Formats")
             }
         }
-        .navigationTitle("File Convert")
         .onAppear(perform: refreshEngines)
     }
 

@@ -242,70 +242,136 @@ final class FileConvertTests: XCTestCase {
         XCTAssertEqual(try names(in: staging), [])
     }
 
-    func testFileDragsOpenConvertWhicheverTabWasLastAndOpenTabsKeepTheirDrops() async throws {
+    func testSharedShelfKeepsEntryDropsSeparateFromExplicitConversionDrops() async throws {
         let dir = try folder()
         let png = dir.appendingPathComponent("a.png")
         try writeImage(transparentPixels: 4, as: .png, to: png)
         let (vm, coordinator) = notch()
-        let saved = (Defaults[.dynamicShelf], Defaults[.enableFileConvertFeature])
+        let saved = (Defaults[.dynamicShelf], Defaults[.enableFileConvertFeature], Defaults[.shelfAirDropEnabled], Defaults[.shelfFileDropEnabled])
         Defaults[.dynamicShelf] = true
+        Defaults[.shelfFileDropEnabled] = true
         Defaults[.enableFileConvertFeature] = true
-        let drag = NSPasteboard.withUniqueName()
+        Defaults[.shelfAirDropEnabled] = false
+        let shelf = ShelfStateViewModel.shared
+        await shelf.awaitInitialLoad()
+        shelf.removeAll()
         defer {
+            shelf.removeAll()
             Defaults[.dynamicShelf] = saved.0
             Defaults[.enableFileConvertFeature] = saved.1
-            drag.releaseGlobally()
+            Defaults[.shelfAirDropEnabled] = saved.2
+            Defaults[.shelfFileDropEnabled] = saved.3
             vm.destroy()
         }
         let model = FileConvertModel(enabledKey: Defaults.Key<Bool>("file-convert-on-\(UUID())", default: true))
-        func dragging(_ object: NSPasteboardWriting) {
-            drag.clearContents()
-            drag.writeObjects([object])
-        }
 
-        dragging(png as NSURL)
-        coordinator.currentView = .shelf
-        vm.revealDropTarget(from: drag)
-        XCTAssertEqual(coordinator.currentView, .fileConvert, "Shelf was last selected, but files go to Convert")
+        coordinator.currentView = .home
+        vm.revealDropTarget()
+        XCTAssertEqual(coordinator.currentView, .shelf)
         XCTAssertEqual(vm.notchState, .open)
-        XCTAssertFalse(vm.receiveShelfDrop([NSItemProvider(object: "text" as NSString)]))
-        XCTAssertTrue(vm.receiveNotchDrop([NSItemProvider(object: png as NSURL)], convertModel: model))
+        XCTAssertTrue(vm.receiveNotchDrop([NSItemProvider(object: png as NSURL)]))
+        try await waitUntil { shelf.items.count == 1 }
+        XCTAssertTrue(model.items.isEmpty, "An entry drop must not queue a conversion")
+
+        XCTAssertTrue(vm.receiveConvertDrop([NSItemProvider(object: png as NSURL)], model: model))
         try await waitUntil { model.items.count == 1 }
+        XCTAssertEqual(coordinator.currentView, .shelf, "Conversion stays in the shared tab")
+        XCTAssertEqual(shelf.items.count, 1, "A conversion drop must not also add to Shelf")
+        XCTAssertFalse(vm.receiveConvertDrop([NSItemProvider(object: "text" as NSString)], model: model))
 
         vm.close()
-        dragging("text" as NSString)
-        vm.revealDropTarget(from: drag)
-        XCTAssertEqual(coordinator.currentView, .shelf, "Text has nothing to convert")
-        dragging(png as NSURL)
-        vm.revealDropTarget(from: drag)
-        XCTAssertEqual(coordinator.currentView, .shelf, "An open Shelf keeps its drops")
+        XCTAssertTrue(vm.receiveNotchDrop([NSItemProvider(object: "text" as NSString)]))
+        try await waitUntil { shelf.items.count == 2 }
+        XCTAssertEqual(coordinator.currentView, .shelf)
 
         vm.close()
         Defaults[.enableFileConvertFeature] = false
-        vm.revealDropTarget(from: drag)
+        vm.revealDropTarget()
         XCTAssertEqual(coordinator.currentView, .shelf)
+        XCTAssertFalse(vm.receiveConvertDrop([NSItemProvider(object: png as NSURL)], model: model))
 
         vm.close()
         Defaults[.enableFileConvertFeature] = true
         Defaults[.dynamicShelf] = false
         coordinator.currentView = .home
-        dragging("text" as NSString)
-        vm.revealDropTarget(from: drag)
-        XCTAssertEqual(vm.notchState, .closed, "Without Shelf, text has nowhere to go")
-        XCTAssertNil(vm.notchDropTarget(carriesFiles: false))
+        vm.revealDropTarget()
+        XCTAssertEqual(vm.notchState, .closed, "Shelf is the master switch for all its tools")
+        XCTAssertNil(vm.notchDropTarget())
+        XCTAssertFalse(vm.receiveNotchDrop([NSItemProvider(object: png as NSURL)]))
+        XCTAssertFalse(vm.receiveConvertDrop([NSItemProvider(object: png as NSURL)], model: model))
+        XCTAssertTrue(Defaults[.enableFileConvertFeature], "Disabling Shelf retains the tool choices")
+        XCTAssertFalse(Defaults[.shelfAirDropEnabled])
+    }
+
+    func testConversionSharesShelfWithoutAddingATabOrChangingItsSavedPosition() {
+        let saved = (Defaults[.dynamicShelf], Defaults[.enableFileConvertFeature])
+        defer {
+            Defaults[.dynamicShelf] = saved.0
+            Defaults[.enableFileConvertFeature] = saved.1
+        }
+        Defaults[.dynamicShelf] = true
+        Defaults[.enableFileConvertFeature] = false
+        let before = NotchTabAvailability.current.tabs
+        Defaults[.enableFileConvertFeature] = true
+        XCTAssertEqual(NotchTabAvailability.current.tabs, before)
+        XCTAssertEqual(before.filter { $0 == .shelf }.count, 1)
+        Defaults[.dynamicShelf] = false
+        XCTAssertFalse(NotchTabAvailability.current.tabs.contains(.shelf))
+
+        let ordered = NotchTabAvailability(home: true, shelf: true, timer: false, stats: false, agents: false,
+                                          extraSpace: false, colorPicker: false, order: ["fileConvert", "shelf", "home"])
+        XCTAssertEqual(ordered.tabs, [.shelf, .home], "The removed Convert order entry is harmless")
+    }
+
+    func testOptionalToolCombinationsNeverStoreDropsInAHiddenFileTray() async throws {
+        let keys: [Defaults.Key<Bool>] = [.dynamicShelf, .shelfFileDropEnabled, .shelfAirDropEnabled, .enableFileConvertFeature]
+        let saved = keys.map { Defaults[$0] }
+        let (vm, coordinator) = notch()
+        let shelf = ShelfStateViewModel.shared
+        await shelf.awaitInitialLoad()
+        shelf.removeAll()
+        let png = try folder().appendingPathComponent("convert.png")
+        try writeImage(transparentPixels: 4, as: .png, to: png)
+        let model = FileConvertModel(enabledKey: Defaults.Key<Bool>("workspace-convert-\(UUID())", default: true))
+        defer {
+            shelf.removeAll()
+            zip(keys, saved).forEach { Defaults[$0] = $1 }
+            vm.destroy()
+        }
+        Defaults[.dynamicShelf] = true
+        for fileDrop in [false, true] {
+            for airDrop in [false, true] {
+                for convert in [false, true] {
+                    Defaults[.shelfFileDropEnabled] = fileDrop
+                    Defaults[.shelfAirDropEnabled] = airDrop
+                    Defaults[.enableFileConvertFeature] = convert
+                    coordinator.currentView = .home
+                    XCTAssertEqual(vm.notchDropTarget(), fileDrop || airDrop || convert ? .shelf : nil)
+                    if !fileDrop {
+                        XCTAssertFalse(vm.receiveNotchDrop([NSItemProvider(object: "hidden" as NSString)], convertModel: model))
+                        XCTAssertEqual(vm.receiveNotchDrop([NSItemProvider(object: png as NSURL)], convertModel: model), convert)
+                        if convert {
+                            try await waitUntil { !model.isWorking }
+                            XCTAssertEqual(model.items.count, 1)
+                            model.clear()
+                        }
+                        XCTAssertTrue(shelf.items.isEmpty, "A disabled File Drop must never receive a fallback import")
+                    }
+                }
+            }
+        }
     }
 
     func testRestingADragOnATabSwitchesToIt() async throws {
         let (vm, coordinator) = notch()
         defer { vm.destroy() }
         coordinator.currentView = .home
-        vm.beginSpringLoad(.fileConvert, after: 0.01)
-        try await waitUntil { coordinator.currentView == .fileConvert }
+        vm.beginSpringLoad(.shelf, after: 0.01)
+        try await waitUntil { coordinator.currentView == .shelf }
         vm.beginSpringLoad(.home, after: 0.01)
-        vm.beginSpringLoad(.shelf, after: 0.05)
         vm.cancelSpringLoad()
         try await Task.sleep(for: .milliseconds(120))
-        XCTAssertEqual(coordinator.currentView, .fileConvert, "Home has no drops, and a cancelled rest switches nothing")
+        XCTAssertEqual(coordinator.currentView, .shelf, "Home has no drops, and a cancelled rest switches nothing")
     }
 
     // MARK: Fixtures
@@ -314,7 +380,7 @@ final class FileConvertTests: XCTestCase {
         let vm = DynamicIslandViewModel()
         let coordinator = DynamicIslandViewCoordinator(availability: {
             NotchTabAvailability(home: true, shelf: true, timer: false, stats: false, agents: false,
-                                 extraSpace: false, colorPicker: false, fileConvert: true)
+                                 extraSpace: false, colorPicker: false)
         }, observeDefaults: false)
         vm.coordinator = coordinator
         return (vm, coordinator)

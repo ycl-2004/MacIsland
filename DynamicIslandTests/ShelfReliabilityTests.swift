@@ -8,13 +8,13 @@ import XCTest
 
 @MainActor
 final class ShelfReliabilityTests: XCTestCase {
-    private func fixture() async throws -> (URL, ShelfStateViewModel, Defaults.Key<Bool>) {
+    private func fixture(workspaceKey: Defaults.Key<Bool>? = nil) async throws -> (URL, ShelfStateViewModel, Defaults.Key<Bool>) {
         let folder = AppRuntimeEnvironment.testDirectory.appendingPathComponent("ShelfFix-\(UUID())")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let key = Defaults.Key<Bool>("shelf-fix-\(UUID())", default: true)
         let lifetime = ShelfFileLifetime(directory: folder.appendingPathComponent("owned"))
         let model = ShelfStateViewModel(persistence: ShelfPersistenceService(directory: folder.appendingPathComponent("saved")),
-            lifetime: lifetime, enabledKey: key, thumbnails: ThumbnailService(lifetime: lifetime))
+            lifetime: lifetime, enabledKey: key, workspaceKey: workspaceKey, thumbnails: ThumbnailService(lifetime: lifetime))
         await model.awaitInitialLoad()
         return (folder, model, key)
     }
@@ -74,6 +74,26 @@ final class ShelfReliabilityTests: XCTestCase {
         gate.finish("late")
         XCTAssertFalse(shelf.load([NSItemProvider(object: "rejected" as NSString)]))
         XCTAssertEqual(shelf.items.map(\.id), [saved.id])
+    }
+
+    func testFileDropAndWorkspaceSwitchesIndependentlyPauseImportsAndRetainSavedItems() async throws {
+        let workspace = Defaults.Key<Bool>("workspace-on-\(UUID())", default: true)
+        let (_, shelf, fileDrop) = try await fixture(workspaceKey: workspace)
+        shelf.add([ShelfItem(kind: .text(string: "retained"))])
+        for disabledKey in [fileDrop, workspace] {
+            let gate = ShelfProviderGate()
+            XCTAssertTrue(shelf.load([gate.provider]))
+            try await waitUntil { gate.started }
+            Defaults[disabledKey] = false
+            try await waitUntil { !shelf.isImporting }
+            gate.finish("late")
+            XCTAssertFalse(shelf.load([NSItemProvider(object: "rejected" as NSString)]))
+            XCTAssertEqual(shelf.items.map(\.displayName), ["retained"])
+            Defaults[disabledKey] = true
+        }
+        XCTAssertTrue(shelf.load([NSItemProvider(object: "restored" as NSString)]))
+        try await waitUntil { !shelf.isImporting }
+        XCTAssertEqual(shelf.items.map(\.displayName), ["retained", "restored"])
     }
 
     func testConcurrentImportsStillEnforceItemAndTextBudgets() async throws {
@@ -252,11 +272,21 @@ final class ShelfReliabilityTests: XCTestCase {
     func testDisabledShelfDoesNotSupplyClosedActivityAndKeepsItems() async throws {
         let shelf = ShelfStateViewModel.shared
         await shelf.awaitInitialLoad()
-        let enabled = Defaults[.dynamicShelf]
+        let enabled = (Defaults[.dynamicShelf], Defaults[.shelfFileDropEnabled])
         Defaults[.dynamicShelf] = true
+        Defaults[.shelfFileDropEnabled] = true
         shelf.removeAll()
-        defer { shelf.removeAll(); Defaults[.dynamicShelf] = enabled }
+        defer {
+            shelf.removeAll()
+            Defaults[.dynamicShelf] = enabled.0
+            Defaults[.shelfFileDropEnabled] = enabled.1
+        }
         shelf.add([ShelfItem(kind: .text(string: "hidden but retained"))])
+        XCTAssertTrue(ContentView().hasShelfActivity)
+        Defaults[.shelfFileDropEnabled] = false
+        XCTAssertFalse(ContentView().hasShelfActivity)
+        XCTAssertEqual(shelf.items.count, 1)
+        Defaults[.shelfFileDropEnabled] = true
         XCTAssertTrue(ContentView().hasShelfActivity)
         Defaults[.dynamicShelf] = false
         XCTAssertFalse(ContentView().hasShelfActivity)

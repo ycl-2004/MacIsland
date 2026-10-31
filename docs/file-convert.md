@@ -1,29 +1,52 @@
 # File Convert
 
-Enable **Settings → Utilities → File Convert → Enable File Convert**, or the
-File Convert row in Feature Management. The feature is off by default. Once
-enabled, **Convert** appears in the main tab row next to Shelf and can be
-reordered like the other tabs.
+Enable **Settings → Utilities → Shelf → Enable shelf**, then choose **Enable
+File Convert** under **Shelf tools**. Conversion is off by default; an existing
+conversion preference is retained. There is one **Shelf** tab and one Shelf
+settings page for optional file tools. Shelf is the workspace, not the storage
+module: **File Drop**, **AirDrop** and **File Convert** each have their own switch.
+
+File Drop and AirDrop default to on to preserve the previous layout. AirDrop’s
+left-hand card keeps its square size. File Drop and File Convert divide the
+remaining file area equally when both are enabled; either one fills that area
+when the other is off. Turning AirDrop off releases its space to those panels.
+AirDrop alone is centered at its usual card size. All eight tool combinations
+are valid, including no tools: that state offers **Configure Shelf**.
+
+Turning Shelf off hides every panel and keeps the individual tool preferences
+and saved File Drop items. Turning File Drop off also retains those items,
+pauses imports and thumbnail work, and removes the stored-item activity/badge.
+Re-enabling it restores the tray. Explicit **Clear Shelf items…** is still the
+only settings action that removes stored entries.
 
 ## Using it
 
-Drop up to 20 files on the Convert tab and choose a format. Only formats every
+Drop up to 20 files on the **File Convert** panel and choose a format. Only formats every
 dropped file can reach are offered, and a file's own format is never listed.
 Files convert one at a time; each row shows its result or the reason it failed.
-**Show in Finder** selects the results, **Stop** cancels the current file, and
-**Clear** empties the list. Folders are skipped.
+The folder button selects results in Finder, **Stop** cancels the current file,
+and the clear button empties the list. Their tooltips and accessibility labels
+describe the action. Formats scroll horizontally to fit the half-width panel.
+Folders are skipped.
 
 Getting files to the tab while dragging:
 
-- Resting a drag on a tab icon for a moment opens that tab, the way Finder's
-  spring-loaded folders work. Dropping straight onto the Convert icon also works.
-- A file dragged onto a closed notch opens Convert, whichever tab was selected
-  last. Text and links still open Shelf, and so do files while Convert is off.
+- Resting a drag on the Shelf icon opens the shared workspace, the way Finder's
+  spring-loaded folders work. Dropping onto that icon follows the same entry
+  rules as the notch background.
+- A drag onto a closed notch opens Shelf, whichever tab was selected last.
+  Drop on the File Drop area to store files, text or links; drop files on the
+  conversion area to prepare conversion. Background/entry drops add to File
+  Drop when enabled. If File Drop is off and conversion is on, entry file drops
+  prepare conversion instead; text is rejected. With AirDrop alone, drag near
+  the notch to open it, then use the AirDrop card explicitly. Background drops
+  never send files or import into a hidden tray. With no tools, drags do not
+  open Shelf.
 - A file drag opens the notch as soon as it comes within about 48 pt below the
   closed notch or 60 pt to either side, so the pointer never has to reach the
   top edge. Pushing into that edge opens Mission Control's Spaces bar, and the
   "Drag windows to top of screen" setting only covers windows, not files.
-- An open Convert, Shelf or Extra Space tab keeps its own drops.
+- An open Extra Space editor keeps its own drops.
 
 ## Where results go
 
@@ -34,8 +57,9 @@ in Downloads into Downloads. A name already in use gets a number
 `name-2.png`, … Writing into Desktop, Documents or Downloads may ask for
 folder access once.
 
-**Keep original** is on by default. The same setting appears as a switch in the
-Convert tab and in settings. When it is off, the original moves to the Trash
+**Keep original** is on by default. The same setting appears in the File Convert
+panel’s options menu and as a switch in Shelf settings. When it is off, the
+original moves to the Trash
 only after every result is in place, so a failed or cancelled conversion leaves
 the original untouched, and a converted one can still be restored from the
 Trash. If the Trash refuses the file, it is kept and the row says so.
