@@ -292,14 +292,17 @@ final class MicroEventTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(300))
 
         func click(_ point: NSPoint) async throws {
-            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-                let mouse = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
-                                                             timestamp: ProcessInfo.processInfo.systemUptime,
-                                                             windowNumber: window.windowNumber, context: nil,
-                                                             eventNumber: 1, clickCount: 1, pressure: 1))
-                NSApp.sendEvent(mouse)
-                try await Task.sleep(for: .milliseconds(30))
+            func mouse(_ type: NSEvent.EventType) throws -> NSEvent {
+                try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                                                 timestamp: ProcessInfo.processInfo.systemUptime,
+                                                 windowNumber: window.windowNumber, context: nil,
+                                                 eventNumber: 1, clickCount: 1, pressure: 1))
             }
+            // NSTextView can synchronously track until mouse-up. Queue that
+            // event before dispatching mouse-down so CI cannot deadlock.
+            NSApp.postEvent(try mouse(.leftMouseUp), atStart: true)
+            window.sendEvent(try mouse(.leftMouseDown))
+            try await Task.sleep(for: .milliseconds(60))
         }
         func key(_ characters: String, code: UInt16, modifiers: NSEvent.ModifierFlags = []) async throws {
             for type in [NSEvent.EventType.keyDown, .keyUp] {

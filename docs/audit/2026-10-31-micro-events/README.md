@@ -137,3 +137,8 @@ after a normal app exit. The previous bundle is retained under
 `Build/InstalledBackups/MicroEventsCompact-20261031-133123-0905a9d5/`;
 installation evidence is in `Build/InstallRecords/micro-events-cleanup-final/`.
 The replacement launched successfully from the installed path.
+
+The first GitHub run on macOS 26.6.2 timed out in the synthetic time-editor
+click. Its spindump showed `NSTextView.mouseDown` waiting for mouse-up while the
+test attempted to send mouse-up only after mouse-down returned. The test now
+queues the matching mouse-up first; this changes the test harness, not the app.
