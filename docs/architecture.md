@@ -1,8 +1,13 @@
 # Architecture: window sizing pipeline & agent bridge
 
-Updated 2026-10-10. These are the two subsystems most likely to break in
+Updated 2026-10-31. These are the two subsystems most likely to break in
 non-obvious ways when edited. Everything here describes the code as it is,
 not as it should be.
+
+> **Read this before changing anything that sizes, positions or animates the
+> notch.** The AppKit frame and the SwiftUI content size are computed twice;
+> they agree only because both sides call the same pure helpers. A change that
+> touches only one side desynchronizes hover targets from what is drawn.
 
 ## Product scope
 
@@ -16,6 +21,35 @@ scope. Terminal remains a possible later addition; it is not part of the
 current work. These decisions do not remove existing optional capabilities.
 See the [product research](notch-product-research-2026-10-06.md) for the
 supporting comparison and proposed improvements.
+
+## Before changing notch geometry
+
+1. Decide which demand the change touches: the closed HUD
+   (`AppDelegate.closedHUDWindowSize()`), the open tab
+   (`AppDelegate.standardWindowSize()`), or both. The window target is the
+   per-axis maximum, plus the recording reservation.
+2. Put every number in a pure helper beside the existing ones
+   (`NetworkConnectivityHUDMetrics`, `TimerHUDMetrics`, `FlyoutFrameCalculator`,
+   `InlineSneakPeekMetrics`, `BatteryTemporaryHUDKind.metrics`,
+   `RecordingHUDLayout`). Never write the same constant into `AppDelegate` and
+   `ContentView`; a new closed HUD gets its own helper.
+3. Keep the invariant: the window is never smaller than the open notch, even
+   while the notch is closed. Resize only on a tab switch, a settings change
+   that alters the open size, or a closed HUD appearing — never on the
+   open/close animation itself.
+4. Tab count is geometry. `openNotchSize` floors its width at
+   `recommendedMinimumNotchWidth(forTabCount:)`, which budgets room for every
+   tab left of the camera housing. Adding a tab therefore raises the minimum
+   open width on every screen; see [adding a notch tab](adding-a-tab.md).
+5. `@Published` emits before the new value is assigned. Any observer that reads
+   the value inside its handler must hop one run-loop turn
+   (`DispatchQueue.main.async`); several call sites document this.
+6. Add the recording reservation once per path. `calculateRequiredNotchSize()`
+   includes it after the maximum, and `ensureWindowSize(_:)` adds it before
+   resizing. Never pass `calculateRequiredNotchSize()` to `ensureWindowSize(_:)`.
+7. Verify with the focused suites listed at the end of this file.
+   `NotchHousingClearanceTests` renders the real tab row and fails if a tab
+   would sit under the camera housing.
 
 ## Window sizing pipeline
 
@@ -271,20 +305,33 @@ are excluded from the preset; no content removal is part of this transaction.
 ```sh
 xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland \
   -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
+
+xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland \
+  -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test \
+  -only-testing:DynamicIslandTests/ClosedHUDSizingTests \
+  -only-testing:DynamicIslandTests/FlyoutFrameCalculatorTests \
+  -only-testing:DynamicIslandTests/NotchHousingClearanceTests \
+  -only-testing:DynamicIslandTests/ScreenRecordingPresentationTests \
+  -only-testing:DynamicIslandTests/TimerHUDTests
 ```
 
 Focused suites that guard these areas:
 `FlyoutFrameCalculatorTests`, `SystemHUDPlacementTests`,
 `MenuBarClearanceTests`, `TimerHUDTests`, `ClosedHUDSizingTests` (sizing
-math), and `ScreenRecordingPresentationTests` (capture transitions, passive
-indicator sizing, privacy coexistence, and native rendering); the agents pipeline is
+math), `NotchHousingClearanceTests` (real tab row vs the camera housing), and
+`ScreenRecordingPresentationTests` (capture transitions, passive indicator
+sizing, privacy coexistence, and native rendering); the agents pipeline is
 exercised through the regression scripts under `tests/`.
 
 ## Tab and Calendar demand routing
 
 `NotchTabAvailability` is shared by the header, content, coordinator and minimum-width calculation.
-Invalid current/remembered/shortcut targets resolve to the first enabled tab in saved order. Color Picker remains a separate utility.
-With no enabled tabs, Home is a sentinel that renders Feature Management access rather than hidden feature content.
+The standard tabs are Home, Shelf, Timer, Stats, Agents and Extra Space. Color Picker remains a separate
+header utility. File Convert is a panel inside Shelf, not a tab, so enabling it changes no tab width and
+no tab-switch size. Invalid current/remembered/shortcut targets resolve to the first enabled tab in saved
+order. With no enabled tabs, Home is a sentinel that renders Feature Management access rather than hidden
+feature content. Adding or removing a standard tab changes `enabledStandardTabCount()`, the minimum open
+width and the housing-clearance budget; follow [adding a notch tab](adding-a-tab.md).
 
 `CalendarManager` observes the emitted runtime policy and existing settings. No consumer or read access means no periodic query task.
 Home consumes the selected date while visible; lock-screen queries require lock plus the calendar widget setting. Reminder activity

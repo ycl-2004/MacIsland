@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/build-1.0.0%20(YC__Island__v1)-111111" alt="Build: 1.0.0 (YC_Island_v1)">
-  <img src="https://img.shields.io/badge/macOS-14.0%2B-111111?logo=apple&logoColor=white" alt="macOS 14.0 or later">
+  <img src="https://img.shields.io/badge/macOS-14.6%2B-111111?logo=apple&logoColor=white" alt="macOS 14.6 or later">
   <img src="https://img.shields.io/badge/Swift-SwiftUI%20%C2%B7%20AppKit-F05138?logo=swift&logoColor=white" alt="Built with SwiftUI and AppKit">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-111111" alt="GPL-3.0 License"></a>
 </p>
@@ -60,7 +60,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 
 ### System requirements
 
-- **Operating System**: macOS 14.0 (Sonoma) or macOS 15+ (Sequoia).
+- **Operating System**: macOS 14.6 (Sonoma) or macOS 15+ (Sequoia).
 - **Hardware**: MacBook with a physical display notch (14-inch or 16-inch MacBook Pro, M2/M3 MacBook Air across Apple silicon generations).
 - **Toolchain**: Xcode 15.0 or later with Swift 5.9 toolchain.
 
@@ -170,7 +170,7 @@ You can revoke permissions in **System Settings → Privacy & Security → Acces
 <summary>Requirements, build commands, and test verification</summary>
 
 ### Requirements
-- macOS 14.0 or later.
+- macOS 14.6 or later.
 - Xcode 15.0 or later.
 - Apple Silicon Mac with physical notch.
 
@@ -221,7 +221,7 @@ The repository tracks source files, assets, test fixtures, and shared workspace 
 
 - **Release Name**: `YC_Island_v1` (defined in `DynamicIsland/strings/constants.swift`).
 - **Marketing Version**: `1.0.0` (build 1637) in `DynamicIsland.xcodeproj`.
-- **Branch**: `feat/agents`.
+- **Branch**: `main`.
 - This is a personal source-first repository. Versions mark milestones in personal workflow customization.
 
 ---

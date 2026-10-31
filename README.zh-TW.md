@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/build-1.0.0%20(YC__Island__v1)-111111" alt="版本：1.0.0 (YC_Island_v1)">
-  <img src="https://img.shields.io/badge/macOS-14.0%2B-111111?logo=apple&logoColor=white" alt="支援 macOS 14.0 以上">
+  <img src="https://img.shields.io/badge/macOS-14.6%2B-111111?logo=apple&logoColor=white" alt="支援 macOS 14.6 以上">
   <img src="https://img.shields.io/badge/Swift-SwiftUI%20%C2%B7%20AppKit-F05138?logo=swift&logoColor=white" alt="以 SwiftUI 與 AppKit 打造">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-111111" alt="GPL-3.0 授權條款"></a>
 </p>
@@ -60,7 +60,7 @@ Atoll 將 MacBook 螢幕頂部的瀏海區域轉化為低干擾、可隨時互�
 
 ### 系統需求
 
-- **作業系統**：macOS 14.0 (Sonoma) 或 macOS 15+ (Sequoia)。
+- **作業系統**：macOS 14.6 (Sonoma) 或 macOS 15+ (Sequoia)。
 - **硬體設備**：配備實體螢幕瀏海的 Apple Silicon MacBook（14 吋 / 16 吋 MacBook Pro、M2/M3 MacBook Air 各世代機種）。
 - **開發工具**：Xcode 15.0 以上版本（附帶 Swift 5.9 以上工具鏈）。
 
@@ -169,7 +169,7 @@ defaults delete com.ebullioscopic.DynamicIsland
 <summary>系統需求、建置指令與測試驗證</summary>
 
 ### 需求條件
-- macOS 14.0 以上版本。
+- macOS 14.6 以上版本。
 - Xcode 15.0 以上版本。
 - 配備實體瀏海的 Apple Silicon Mac。
 
@@ -220,7 +220,7 @@ xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration
 
 - **版本名稱 (Release Name)**：`YC_Island_v1`（定義於 `DynamicIsland/strings/constants.swift`）。
 - **行銷版本 (Marketing Version)**：`1.0.0` (組建編號 1637，位於 `DynamicIsland.xcodeproj`）。
-- **主要分支**：`feat/agents`。
+- **主要分支**：`main`。
 - 本專案採源碼優先管理，版本號標示個人工作流客製化的演進里程碑。
 
 ---
