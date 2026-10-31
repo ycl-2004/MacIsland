@@ -1,0 +1,10 @@
+{
+  "action": "launch",
+  "instance": {
+    "bundlePath": "/Applications/Atoll.app",
+    "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+    "finishedLaunching": true,
+    "pid": 59985,
+    "terminated": false
+  }
+}

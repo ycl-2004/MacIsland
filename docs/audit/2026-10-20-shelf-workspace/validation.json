@@ -1,0 +1,18 @@
+{
+  "native": {
+    "result": "Passed",
+    "passedTests": 387,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "totalTestCount": 387
+  },
+  "releaseBuildPassed": true,
+  "installedCodeMatchesCurrentSource": true,
+  "sourceSHA256": "255cdc7c5fdf4105e6c6822356b184d25819bebef86f22bba73a341cf0628f3b",
+  "signatureVerified": true,
+  "process": "59985 /Applications/Atoll.app/Contents/MacOS/Atoll",
+  "registeredApps": [
+    "/Applications/Atoll.app"
+  ],
+  "generatedApplicationCopies": []
+}

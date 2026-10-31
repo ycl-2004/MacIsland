@@ -1,0 +1,124 @@
+{
+  "mode": "apply",
+  "at": "2026-10-20T09:05:05.297225-07:00",
+  "running": [
+    "59985 /Applications/Atoll.app/Contents/MacOS/Atoll"
+  ],
+  "archives": [
+    {
+      "app": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/DragApproach-20261019-165723-177872c9/OriginalAtoll.app",
+      "archive": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/DragApproach-20261019-165723-177872c9/OriginalAtoll.app.zip",
+      "binarySHA256": "3655cbea97e292e268500343404b5acf61018476de6abe51ae7134d74b21f71b",
+      "verified": true
+    },
+    {
+      "app": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/ShelfWorkspace-20261020-090215-26df3b87/OriginalAtoll.app",
+      "archive": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/ShelfWorkspace-20261020-090215-26df3b87/OriginalAtoll.app.zip",
+      "binarySHA256": "334ec83a324db4da1829a6c1ab64f5eaa0658c53ed7875e9f722fdf616ee7fd3",
+      "verified": true
+    }
+  ],
+  "removed": [
+    {
+      "reason": "generated build products",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug",
+      "allocatedKiB": 181560,
+      "removed": true
+    },
+    {
+      "reason": "generated build products",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release",
+      "allocatedKiB": 185596,
+      "removed": true
+    },
+    {
+      "reason": "copied test host",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-workspace-20261020-verified/host",
+      "allocatedKiB": 181020,
+      "removed": true
+    },
+    {
+      "reason": "raw test result bundle",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-workspace-20261020-final/native.xcresult",
+      "allocatedKiB": 155008,
+      "removed": true
+    },
+    {
+      "reason": "raw test result bundle",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-workspace-20261020-render/native.xcresult",
+      "allocatedKiB": 149488,
+      "removed": true
+    },
+    {
+      "reason": "raw test result bundle",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-workspace-20261020-verified/native.xcresult",
+      "allocatedKiB": 154480,
+      "removed": true
+    },
+    {
+      "reason": "test launch configuration",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/DynamicIsland_DynamicIsland_macosx27.0-arm64.xctestrun",
+      "allocatedKiB": 40,
+      "removed": true
+    },
+    {
+      "reason": "render probe temporary files",
+      "path": "/private/tmp/atoll-shelf-workspace-20261020",
+      "allocatedKiB": 632,
+      "removed": true
+    },
+    {
+      "reason": "installation helper",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallTools/ShelfWorkspace-app-lifecycle",
+      "allocatedKiB": 116,
+      "removed": true
+    },
+    {
+      "reason": "helper compilation cache",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallTools/swift-cache",
+      "allocatedKiB": 140476,
+      "removed": true
+    },
+    {
+      "reason": "empty installation staging",
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/ShelfWorkspace-20261020-090215-26df3b87",
+      "allocatedKiB": 0,
+      "removed": true
+    }
+  ],
+  "unregistered": [
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/Atoll.app",
+      "exit": 0
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Debug/DynamicIslandUITests-Runner.app",
+      "exit": 0
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/DragApproach-20261019-165723-177872c9/OriginalAtoll.app",
+      "exit": 0
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261019-163416-746eb8cc/host/Debug/DynamicIslandUITests-Runner.app",
+      "exit": 0
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/20261019-165304-24cee988/host/Debug/DynamicIslandUITests-Runner.app",
+      "exit": 0
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-workspace-20261020-final/host/Debug/DynamicIslandUITests-Runner.app",
+      "exit": 0
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-workspace-20261020-render/host/Debug/DynamicIslandUITests-Runner.app",
+      "exit": 0
+    },
+    {
+      "path": "/Users/yichenlin/Desktop/Tester/Atoll/Build/VerificationRuns/shelf-workspace-20261020-verified/host/Debug/DynamicIslandUITests-Runner.app",
+      "exit": 0
+    }
+  ],
+  "remainingGeneratedRegistrations": []
+}
