@@ -102,7 +102,7 @@ This edition is YC's personal customized build (`YC_Island_v1`). It introduces f
 - **Screen color picker**: Fast color sampler with a 10× pixel-level loupe and one-click HEX clipboard copying.
 - **Shelf dock**: Drag files, text, and links onto the notch to stage them. Turning Shelf off hides it and preserves its contents. Clear is a separate action; original files and active handoffs are protected. See [Shelf resource lifecycle](docs/shelf-lifecycle.md).
 - **Calendar glance**: Quick agenda view for upcoming calendar events.
-- **Extra Space**: Enable it in Settings → Utilities → Extra Space to add a main tab with one continuous, scrollable text area. Double-click the text area, or click Edit or Paste, to change text; Cmd+S or Save finishes editing. The close swipe saves and closes in reading mode. Cmd+F opens native find; Export saves a plain-text copy. Changes persist locally across restarts. Turning the feature off hides the tab and keeps its contents. See [Extra Space](docs/extra-space.md).
+- **Extra Space**: Enable it in Settings → Utilities → Tools to add a main tab with one continuous, scrollable text area. Double-click the text area, or click Edit or Paste, to change text; Cmd+S or Save finishes editing. The close swipe saves and closes in reading mode. Cmd+F opens native find; Export saves a plain-text copy. Changes persist locally across restarts. Turning the feature off hides the tab and keeps its contents. See [Extra Space](docs/extra-space.md).
 - **File Convert**: Enable it in Settings → Utilities → Shelf. Shelf is one file workspace with three independently optional tools: File Drop, AirDrop and File Convert. File Drop and conversion share the file area equally when both are on; AirDrop keeps its small card. Drop files on the conversion panel, pick a format, and the result is saved next to the original without replacing anything. **Keep original** in the panel’s options menu and in Shelf settings decides whether the original stays or moves to the Trash. Images, PDFs, documents, audio and video convert with built-in macOS frameworks; installed LibreOffice and FFmpeg add Office-to-PDF, MP3, WebM, WebP and GIF. See [File Convert](docs/file-convert.md).
 
 ---
@@ -257,5 +257,4 @@ Refer to [NOTICE](NOTICE), [COPYRIGHT_ASSETS](COPYRIGHT_ASSETS), and [TRADEMARKS
 
 Reliability limits, recovery and verification: [2026-10-06 audit fixes](docs/project-audit-fixes-2026-10-06.md).
 
-Lightweight setup, optional settings preview/undo, Extra Space shortcut and
-Agent status semantics: [feature management guide](docs/lightweight-setup-and-agent-status.md).
+Extra Space shortcut and Agent status semantics: [2026-10-06 implementation record](docs/lightweight-setup-and-agent-status.md).

@@ -1,5 +1,11 @@
 # 轻量功能管理与 Agent 状态修正
 
+> 2026-11-10 更新：Feature Management 页、轻量建议预设和资源计数已整体移除，
+> Extra Space 的设置并入 Settings → Utilities → Tools，快捷键只在 Shortcuts 页设置。
+> 下文「使用入口」中这几项是当时的实施记录，不再是现役入口；Agent 状态部分仍然有效。
+> 见 [Settings trim](audit/2026-11-10-settings-trim/README.md) 和
+> [page merge](audit/2026-11-10-settings-merge/README.md)。
+
 实施日期：2026-10-06。基于 `ce417b73631d1b59126496ca4d180ca756652c6d`。
 
 这是[下一步审查](next-step-review-2026-10-06.md)的实施记录。继续使用原生

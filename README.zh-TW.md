@@ -101,7 +101,7 @@ Atoll 將 MacBook 螢幕頂部的瀏海區域轉化為低干擾、可隨時互�
 - **螢幕取色器**：具備 10 倍像素級放大鏡與 HEX 色碼一鍵複製功能。
 - **檔案暫存架 (Shelf)**：將檔案、文字或連結拖到瀏海即可暫存。關閉 Shelf 會隱藏提示並保留項目；只有「清空 Shelf」會移除暫存架內容。原始檔案保持不變，仍在交接中的暫存副本會延後清理。詳見 [Shelf 資源生命週期](docs/shelf-lifecycle.md)。
 - **行事曆速覽**：快速檢視即將到來的日程活動。
-- **Extra Space**：在「設定 → Utilities → Extra Space」啟用後，主分頁列會加入一整塊可連續捲動的文字區。雙擊文字區，或點擊 Edit／Paste 修改內容；按 ⌘S 或 Save 儲存並結束編輯。閱讀時可用收起手勢儲存並關閉。內容會自動儲存於本機；關閉功能只隱藏分頁，保留文字。詳見 [Extra Space 使用說明](docs/extra-space.md)。
+- **Extra Space**：在「設定 → Utilities → Tools」啟用後，主分頁列會加入一整塊可連續捲動的文字區。雙擊文字區，或點擊 Edit／Paste 修改內容；按 ⌘S 或 Save 儲存並結束編輯。閱讀時可用收起手勢儲存並關閉。內容會自動儲存於本機；關閉功能只隱藏分頁，保留文字。詳見 [Extra Space 使用說明](docs/extra-space.md)。
 - **檔案轉換 (File Convert)**：在「設定 → Utilities → Shelf」啟用。Shelf 是檔案工作區，File Drop 暫存架、AirDrop、File Convert 三個工具皆可獨立開關；暫存架和轉換同時啟用時平分檔案區，AirDrop 保留原本的小卡片。將檔案拖入轉換區並選擇格式，結果會存在原始檔案所在的檔案夾，不會覆寫既有檔案。轉換區選單和 Shelf 設定裡都有「保留原始檔案」選項，決定原檔保留或移到垃圾桶。圖片、PDF、文件、音訊與影片使用 macOS 內建框架轉換；若已安裝 LibreOffice 與 FFmpeg，另可轉成保留版面的 PDF、MP3、WebM、WebP 與 GIF。詳見 [File Convert](docs/file-convert.md)。
 
 ---

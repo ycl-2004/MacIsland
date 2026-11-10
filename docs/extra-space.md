@@ -1,14 +1,13 @@
 # Extra Space
 
-Enable **Settings → Utilities → Extra Space → Enable Extra Space**. The feature
+Enable **Settings → Utilities → Tools → Enable Extra Space**. The feature
 is off by default. Once enabled, **Extra Space** appears in the main tab row
 beside Home, Stats and Agents, and can be reordered like the other tabs.
 
-Set **Open Extra Space** in this page or Settings → Shortcuts for direct access.
+Set **Open Extra Space** in Settings → Shortcuts for direct access.
 The shortcut is unassigned by default and follows the Shortcuts master switch.
-It opens reading mode when the feature is enabled; otherwise it opens Extra
-Space settings without enabling it. See [feature management and runtime
-policy](lightweight-setup-and-agent-status.md) for lightweight setup choices.
+It opens reading mode when the feature is enabled; otherwise it opens the
+Tools page of Settings without enabling it.
 
 The tab opens in reading mode. Double-click the text area or click **Edit** to
 type, select and change text. **Paste** enters editing and inserts at the cursor.

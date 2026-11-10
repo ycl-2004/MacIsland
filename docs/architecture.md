@@ -12,8 +12,8 @@ not as it should be.
 ## Product scope
 
 Atoll is a lightweight notch utility for temporary content, work status and a
-small set of quick actions. Prioritize interaction, feature management and
-bounded background work when improving the existing app.
+small set of quick actions. Prioritize interaction and bounded background
+work when improving the existing app.
 
 The user has excluded unlimited clipboard history, a full AI workspace, a
 plugin marketplace and additional complex audio features from the development
@@ -267,8 +267,7 @@ late results. The sampler commits its collected snapshot only if not cancelled.
 Each refresh publishes one `StatsSnapshot` containing the readings and 30-point
 histories. The existing metric getters read that snapshot. Monitoring state,
 process results and volume capacities remain separate publications. The notch
-root no longer subscribes to Stats. Feature management still observes the
-monitoring state separately.
+root no longer subscribes to Stats, and no Settings page does.
 
 Enabled graph preferences request their basic metrics. `StatsDetailSampling`
 registers a UUID per visible detail panel, so multiple windows contribute
