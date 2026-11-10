@@ -1,0 +1,63 @@
+{
+  "source": "/Users/yichenlin/Desktop/Tester/Atoll/Build/Release/Atoll.app",
+  "stage": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstallStaging/LyricsSources-20261110-085147-cbf63367/Atoll.app",
+  "target": "/Applications/Atoll.app",
+  "backup": "/Users/yichenlin/Desktop/Tester/Atoll/Build/InstalledBackups/LyricsSources-20261110-085147-cbf63367/OriginalAtoll.app",
+  "buildInfo": {
+    "build": "1637",
+    "commit": "7a9837cb1a2e730f619e4805c42f2d8cd1d31d48",
+    "configuration": "Release",
+    "dirty": "false",
+    "packagesSHA256": "3f8faa61cbb51232086ab9287783e11060fe888843674b601256325748c78b95",
+    "sdk": "macosx27.2",
+    "sourceSHA256": "2e6bda3da7268e66d86dfb778e6a005894c872d4c3215c36d463c04f799c86a2",
+    "version": "1.0.0",
+    "xcode": "2720"
+  },
+  "sourceMatchesCurrentCode": true,
+  "signingTeam": "BQYHJCCRMP",
+  "signatureVerified": true,
+  "unsignedSHA256": "0351a474f2ec5610c0efb3715a34371f8d1fd5d5dfbb9f338085606e847f2406",
+  "signedSHA256": "6afb6be3e68551af6aa6c3596ed2c74780f7332518ac7a92531987ad802b04b6",
+  "originalSHA256": "36baaca9ddd383634b99d625a2b28e07a150076f794d6aabcbaa33c9bdf76fcc",
+  "previousInstance": {
+    "action": "status",
+    "instances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 44830,
+        "terminated": false
+      }
+    ]
+  },
+  "prepared": true,
+  "quit": {
+    "action": "quit",
+    "forcedTermination": false,
+    "normalExitConfirmed": true,
+    "previousInstances": [
+      {
+        "bundlePath": "/Applications/Atoll.app",
+        "executablePath": "/Applications/Atoll.app/Contents/MacOS/Atoll",
+        "finishedLaunching": true,
+        "pid": 44830,
+        "terminated": false
+      }
+    ],
+    "method": "NSRunningApplication.terminate() with independent PID exit confirmation"
+  },
+  "extraSpaceAfterSaveSHA256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+  "shelfAfterSaveSHA256": null,
+  "installed": true,
+  "installedAt": "2026-11-10T08:52:42.152151-07:00",
+  "installedSHA256": "6afb6be3e68551af6aa6c3596ed2c74780f7332518ac7a92531987ad802b04b6",
+  "backupVerified": true,
+  "installedSignatureVerified": true,
+  "previousInstanceExitedNormally": true,
+  "forcedTermination": false,
+  "launchPending": true,
+  "extraSpaceUnchangedByInstallation": true,
+  "shelfUnchangedByInstallation": true
+}
