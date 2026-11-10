@@ -260,22 +260,6 @@ enum BatteryNotificationStyle: String, CaseIterable, Identifiable, Defaults.Seri
     }
 }
 
-enum RecordingHoverStyle: String, CaseIterable, Identifiable, Defaults.Serializable {
-    case `default`
-    case inline
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .default:
-            return String(localized: "Default")
-        case .inline:
-            return String(localized: "Inline")
-        }
-    }
-}
-
 enum RecordingControlMode: String, CaseIterable, Identifiable, Defaults.Serializable {
     case indicatorOnly
     case withStopButton
@@ -759,7 +743,6 @@ extension Defaults.Keys {
     // MARK: Screen Recording Detection Feature
     static let enableScreenRecordingDetection = Key<Bool>("enableScreenRecordingDetection", default: true)
     static let showRecordingIndicator = Key<Bool>("showRecordingIndicator", default: true)
-    static let recordingHoverStyle = Key<RecordingHoverStyle>("recordingHoverStyle", default: .default)
     static let recordingControlMode = Key<RecordingControlMode>("recordingControlMode", default: .withStopButton)
 
     // MARK: Focus / Do Not Disturb Detection

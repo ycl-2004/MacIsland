@@ -69,20 +69,13 @@ final class ScreenRecordingPresentationTests: XCTestCase {
         XCTAssertFalse(privacy.hasCameraOrMicrophoneIndicator)
     }
 
-    func testLegacyHoverAndStopSettingsCannotExpandTheIndicator() {
-        let oldStyle = Defaults[.recordingHoverStyle]
+    func testStopControlSettingCannotExpandTheIndicator() {
         let oldControls = Defaults[.recordingControlMode]
-        defer {
-            Defaults[.recordingHoverStyle] = oldStyle
-            Defaults[.recordingControlMode] = oldControls
-        }
-        for style in RecordingHoverStyle.allCases {
-            for controls in RecordingControlMode.allCases {
-                Defaults[.recordingHoverStyle] = style
-                Defaults[.recordingControlMode] = controls
-                XCTAssertEqual(layout().addingIndicator(to: CGSize(width: 200, height: 32)),
-                               CGSize(width: 224, height: 32))
-            }
+        defer { Defaults[.recordingControlMode] = oldControls }
+        for controls in RecordingControlMode.allCases {
+            Defaults[.recordingControlMode] = controls
+            XCTAssertEqual(layout().addingIndicator(to: CGSize(width: 200, height: 32)),
+                           CGSize(width: 224, height: 32))
         }
     }
 

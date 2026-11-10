@@ -1,4 +1,3 @@
-import KeyboardShortcuts
 import Defaults
 import SwiftUI
 
@@ -24,7 +23,6 @@ struct ExtraSpaceSettings: View {
             }
 
             Section {
-                KeyboardShortcuts.Recorder("Open Extra Space:", name: .openExtraSpace)
                 LabeledContent("Text storage", value: "\(ByteCountFormatter.string(fromByteCount: Int64(store.byteCount), countStyle: .binary)) / 5 MB")
                 Button("Show Local Content File") { store.revealContent() }
                 if store.hasPreviousVersion {

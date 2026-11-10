@@ -250,8 +250,7 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .liveActivities, title: "Show Focus Label", keywords: ["focus label", "text"], highlightID: SettingsTab.liveActivities.highlightID(for: "Show Focus Label")),
         SettingsSearchEntry(tab: .liveActivities, title: "Enable Camera Detection", keywords: ["camera", "privacy indicator"], highlightID: SettingsTab.liveActivities.highlightID(for: "Enable Camera Detection")),
         SettingsSearchEntry(tab: .liveActivities, title: "Enable Microphone Detection", keywords: ["microphone", "privacy"], highlightID: SettingsTab.liveActivities.highlightID(for: "Enable Microphone Detection")),
-        SettingsSearchEntry(tab: .liveActivities, title: "Enable music live activity", keywords: ["music", "now playing"], highlightID: SettingsTab.liveActivities.highlightID(for: "Enable music live activity")),
-        SettingsSearchEntry(tab: .liveActivities, title: "Enable reminder live activity", keywords: ["reminder", "live activity"], highlightID: SettingsTab.liveActivities.highlightID(for: "Enable reminder live activity")),
+        SettingsSearchEntry(tab: .media, title: "Enable music live activity", keywords: ["music", "now playing"], highlightID: SettingsTab.media.highlightID(for: "Enable music live activity")),
 
         // Battery (Charge)
         SettingsSearchEntry(tab: .battery, title: "Show battery indicator", keywords: ["battery hud", "charge"], highlightID: SettingsTab.battery.highlightID(for: "Show battery indicator")),
@@ -344,7 +343,6 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .shelf, title: "Remove from shelf after dragging", keywords: ["shelf", "drag", "remove"], highlightID: SettingsTab.shelf.highlightID(for: "Remove from shelf after dragging")),
 
         // Appearance
-        SettingsSearchEntry(tab: .appearance, title: "Main screen style", keywords: ["dynamic island", "pill", "non-notch", "display style", "notch style"], highlightID: SettingsTab.appearance.highlightID(for: "Main screen style")),
         SettingsSearchEntry(tab: .appearance, title: "Settings icon in notch", keywords: ["settings button", "toolbar"], highlightID: SettingsTab.appearance.highlightID(for: "Settings icon in notch")),
         SettingsSearchEntry(tab: .appearance, title: "Enable window shadow", keywords: ["shadow", "appearance"], highlightID: SettingsTab.appearance.highlightID(for: "Enable window shadow")),
         SettingsSearchEntry(tab: .appearance, title: "Corner radius scaling", keywords: ["corner radius", "shape"], highlightID: SettingsTab.appearance.highlightID(for: "Corner radius scaling")),
@@ -1026,14 +1024,11 @@ struct GeneralSettings: View {
     @State private var screens: [String] = NSScreen.screens.compactMap { $0.localizedName }
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
-    @Default(.mirrorShape) var mirrorShape
     @Default(.gestureSensitivity) var gestureSensitivity
     @Default(.minimumHoverDuration) var minimumHoverDuration
     @Default(.nonNotchHeight) var nonNotchHeight
     @Default(.nonNotchHeightMode) var nonNotchHeightMode
     @Default(.notchHeight) var notchHeight
-    @Default(.closedNotchWidth) var closedNotchWidth
-    @Default(.customizePhysicalNotchWidth) var customizePhysicalNotchWidth
     @Default(.notchHeightMode) var notchHeightMode
     @Default(.showOnAllDisplays) var showOnAllDisplays
     @Default(.automaticallySwitchDisplay) var automaticallySwitchDisplay
@@ -1041,10 +1036,7 @@ struct GeneralSettings: View {
     @Default(.openNotchOnHover) var openNotchOnHover
     @Default(.enableHorizontalMusicGestures) var enableHorizontalMusicGestures
     @Default(.musicGestureBehavior) var musicGestureBehavior
-    @Default(.reverseSwipeGestures) var reverseSwipeGestures
-    @Default(.reverseScrollGestures) var reverseScrollGestures
     @Default(.externalDisplayStyle) var externalDisplayStyle
-    @Default(.hideNonNotchUntilHover) var hideNonNotchUntilHover
 
     private func highlightID(_ title: String) -> String {
         SettingsTab.general.highlightID(for: title)
@@ -1209,7 +1201,7 @@ struct GeneralSettings: View {
                     HStack {
                         Text("Gesture sensitivity")
                         Spacer()
-                        Text(Defaults[.gestureSensitivity] == 100 ? "High" : Defaults[.gestureSensitivity] == 200 ? "Medium" : "Low")
+                        Text(gestureSensitivity == 100 ? "High" : gestureSensitivity == 200 ? "Medium" : "Low")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -1375,16 +1367,19 @@ struct Charge: View {
                     Defaults.Toggle(key: .showChargingBatteryHUD) {
                         Text("Charging HUD")
                     }
+                    .disabled(!showPowerStatusNotifications)
                     .settingsHighlight(id: highlightID("Charging HUD"))
 
                     Defaults.Toggle(key: .showLowBatteryHUD) {
                         Text("Low battery HUD")
                     }
+                    .disabled(!showPowerStatusNotifications)
                     .settingsHighlight(id: highlightID("Low battery HUD"))
 
                     Defaults.Toggle(key: .showFullBatteryHUD) {
                         Text("Fully charged HUD")
                     }
+                    .disabled(!showPowerStatusNotifications)
                     .settingsHighlight(id: highlightID("Fully charged HUD"))
                 } header: {
                     Text("Battery HUDs")
@@ -1819,6 +1814,8 @@ struct HUD: View {
     @EnvironmentObject var vm: DynamicIslandViewModel
     @Default(.inlineHUD) var inlineHUD
     @Default(.progressBarStyle) var progressBarStyle
+    @Default(.useColorCodedVolumeDisplay) private var useColorCodedVolumeDisplay
+    @Default(.useColorCodedBatteryDisplay) private var useColorCodedBatteryDisplay
     @Default(.enableSystemHUD) var enableSystemHUD
     @Default(.enableVolumeHUD) var enableVolumeHUD
     @Default(.enableBrightnessHUD) var enableBrightnessHUD
@@ -1884,7 +1881,7 @@ struct HUD: View {
                 .disabled(colorCodingDisabled)
                 .settingsHighlight(id: highlightID("Color-coded volume display"))
 
-                if !colorCodingDisabled && (Defaults[.useColorCodedBatteryDisplay] || Defaults[.useColorCodedVolumeDisplay]) {
+                if !colorCodingDisabled && (useColorCodedBatteryDisplay || useColorCodedVolumeDisplay) {
                     Defaults.Toggle(key: .useSmoothColorGradient) {
                         Text("Smooth color transitions")
                     }
@@ -1911,8 +1908,8 @@ struct HUD: View {
                         .tag(true)
                 }
                 .settingsHighlight(id: highlightID("HUD style"))
-                .onChange(of: Defaults[.inlineHUD]) {
-                    if Defaults[.inlineHUD] {
+                .onChange(of: inlineHUD) {
+                    if inlineHUD {
                         withAnimation {
                             Defaults[.systemEventIndicatorShadow] = false
                             Defaults[.progressBarStyle] = .hierarchical
@@ -2033,6 +2030,7 @@ struct Media: View {
                     isOn: $coordinator.musicLiveActivityEnabled.animation()
                 )
                 .disabled(!showStandardMediaControls)
+                .settingsHighlight(id: SettingsTab.media.highlightID(for: "Enable music live activity"))
                 Defaults.Toggle(key: .musicControlWindowEnabled) {
                     SettingsInfoLabel("Show floating media controls", info: "Shows play, pause and skip buttons beside the notch while music plays.")
                 }
@@ -2116,7 +2114,7 @@ struct Media: View {
                     HStack {
                         Text("Media inactivity timeout")
                         Spacer()
-                        Text("\(Defaults[.waitInterval], specifier: "%.0f") seconds")
+                        Text("\(waitInterval, specifier: "%.0f") seconds")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -2163,59 +2161,20 @@ struct Media: View {
 struct CalendarSettings: View {
     @ObservedObject private var calendarManager = CalendarManager.shared
     @Default(.showCalendar) var showCalendar: Bool
-    @Default(.enableLyrics) private var enableLyrics
     @Default(.enableReminderLiveActivity) var enableReminderLiveActivity
     @Default(.reminderPresentationStyle) var reminderPresentationStyle
     @Default(.reminderLeadTime) var reminderLeadTime
     @Default(.reminderSneakPeekDuration) var reminderSneakPeekDuration
-    @Default(.enableLockScreenReminderWidget) var enableLockScreenReminderWidget
-    @Default(.lockScreenReminderChipStyle) var lockScreenReminderChipStyle
     @Default(.hideAllDayEvents) var hideAllDayEvents
     @Default(.hideCompletedReminders) var hideCompletedReminders
     @Default(.showFullEventTitles) var showFullEventTitles
     @Default(.autoScrollToNextEvent) var autoScrollToNextEvent
-    @Default(.lockScreenShowCalendarCountdown) private var lockScreenShowCalendarCountdown
-    @Default(.lockScreenShowCalendarEvent) private var lockScreenShowCalendarEvent
-    @Default(.lockScreenShowCalendarEventEntireDuration) private var lockScreenShowCalendarEventEntireDuration
-    @Default(.lockScreenShowCalendarEventAfterStartWindow) private var lockScreenShowCalendarEventAfterStartWindow
-    @Default(.lockScreenShowCalendarTimeRemaining) private var lockScreenShowCalendarTimeRemaining
-    @Default(.lockScreenShowCalendarStartTimeAfterBegins) private var lockScreenShowCalendarStartTimeAfterBegins
-    @Default(.lockScreenCalendarEventLookaheadWindow) private var lockScreenCalendarEventLookaheadWindow
-    @Default(.lockScreenCalendarSelectionMode) private var lockScreenCalendarSelectionMode
-    @Default(.lockScreenSelectedCalendarIDs) private var lockScreenSelectedCalendarIDs
-    @Default(.lockScreenShowCalendarEventAfterStartEnabled) private var lockScreenShowCalendarEventAfterStartEnabled
     @Default(.enableThirdPartyCalendarApp) private var enableThirdPartyCalendarApp
     @Default(.selectedCalendarApp) private var selectedCalendarApp
     @Default(.fantasticalDefaultView) private var fantasticalDefaultView
 
     private func highlightID(_ title: String) -> String {
         SettingsTab.calendar.highlightID(for: title)
-    }
-
-    private enum CalendarLookaheadOption: String, CaseIterable, Identifiable {
-        case mins15 = "15m"
-        case mins30 = "30m"
-        case hour1 = "1h"
-        case hours3 = "3h"
-        case hours6 = "6h"
-        case hours12 = "12h"
-        case restOfDay = "rest_of_day"
-        case allTime = "all_time"
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .mins15: return String(localized: "15 mins")
-            case .mins30: return String(localized: "30 mins")
-            case .hour1: return String(localized: "1 hour")
-            case .hours3: return String(localized: "3 hours")
-            case .hours6: return String(localized: "6 hours")
-            case .hours12: return String(localized: "12 hours")
-            case .restOfDay: return String(localized: "Rest of the day")
-            case .allTime: return String(localized: "All time")
-            }
-        }
     }
 
     var body: some View {
@@ -2230,10 +2189,13 @@ struct CalendarSettings: View {
 
                 Section(header: Text("Event List")) {
                     Toggle("Hide completed reminders", isOn: $hideCompletedReminders)
+                        .disabled(!showCalendar)
                         .settingsHighlight(id: highlightID("Hide completed reminders"))
                     Toggle("Show full event titles", isOn: $showFullEventTitles)
+                        .disabled(!showCalendar)
                         .settingsHighlight(id: highlightID("Show full event titles"))
                     Toggle("Auto-scroll to next event", isOn: $autoScrollToNextEvent)
+                        .disabled(!showCalendar)
                         .settingsHighlight(id: highlightID("Auto-scroll to next event"))
                 }
 
@@ -2677,11 +2639,11 @@ struct LiveActivitiesSettings: View {
     @ObservedObject private var fullDiskAccessPermission = FullDiskAccessPermissionStore.shared
 
     @Default(.enableScreenRecordingDetection) var enableScreenRecordingDetection
-    @Default(.showRecordingIndicator) var showRecordingIndicator
     @Default(.recordingControlMode) var recordingControlMode
     @Default(.enableDoNotDisturbDetection) var enableDoNotDisturbDetection
     @Default(.focusIndicatorNonPersistent) var focusIndicatorNonPersistent
     @Default(.capsLockIndicatorTintMode) var capsLockTintMode
+    @Default(.enableCapsLockIndicator) private var enableCapsLockIndicator
 
     private func highlightID(_ title: String) -> String {
         SettingsTab.liveActivities.highlightID(for: title)
@@ -2795,7 +2757,7 @@ struct LiveActivitiesSettings: View {
                 Defaults.Toggle(key: .showCapsLockLabel) {
                     Text("Show Caps Lock label")
                 }
-                .disabled(!Defaults[.enableCapsLockIndicator])
+                .disabled(!enableCapsLockIndicator)
                 .settingsHighlight(id: highlightID("Show Caps Lock label"))
 
                 SettingsSegmentedPicker(
@@ -2803,7 +2765,7 @@ struct LiveActivitiesSettings: View {
                     selection: $capsLockTintMode,
                     items: Array(CapsLockIndicatorTintMode.allCases)
                 ) { $0.displayName }
-                .disabled(!Defaults[.enableCapsLockIndicator])
+                .disabled(!enableCapsLockIndicator)
                 .settingsHighlight(id: highlightID("Caps Lock color"))
             } header: {
                 Text("Caps Lock Indicator")
@@ -2858,24 +2820,6 @@ struct LiveActivitiesSettings: View {
                 Text("Privacy Indicators")
             }
 
-            Section {
-                Toggle(
-                    "Enable music live activity",
-                    isOn: $coordinator.musicLiveActivityEnabled.animation()
-                )
-                .settingsHighlight(id: highlightID("Enable music live activity"))
-            } header: {
-                Text("Media Live Activity")
-            }
-
-            Section {
-                Defaults.Toggle(key: .enableReminderLiveActivity) {
-                    Text("Enable reminder live activity")
-                }
-                .settingsHighlight(id: highlightID("Enable reminder live activity"))
-            } header: {
-                Text("Reminder Live Activity")
-            }
         }
         .navigationTitle("Live Activities")
         .onAppear {
@@ -2895,9 +2839,6 @@ struct Appearance: View {
     @Default(.openNotchWidth) var openNotchWidth
     @Default(.closedNotchWidth) var closedNotchWidth
     @Default(.customizePhysicalNotchWidth) var customizePhysicalNotchWidth
-    @Default(.lockScreenGlassCustomizationMode) private var lockScreenGlassCustomizationMode
-    @Default(.lockScreenGlassStyle) private var lockScreenGlassStyle
-    @Default(.externalDisplayStyle) private var externalDisplayStyle
 
     @State private var isIconImporterPresented = false
     @State private var isIconDropTarget = false
@@ -2947,24 +2888,6 @@ struct Appearance: View {
                 .settingsHighlight(id: highlightID("Use simpler close animation"))
             } header: {
                 Text("General")
-            }
-
-            // Show display style picker only on non-notch Macs (main screen has no physical notch)
-            if !mainScreenHasPhysicalNotch {
-                Section {
-                    Picker("Main screen style", selection: $externalDisplayStyle) {
-                        ForEach(ExternalDisplayStyle.allCases) { style in
-                            Text(style.localizedName)
-                                .tag(style)
-                        }
-                    }
-                    .onChange(of: externalDisplayStyle) {
-                        NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
-                    }
-                    .settingsHighlight(id: highlightID("Main screen style"))
-                } header: {
-                    Text("Display Style")
-                }
             }
 
             notchWidthControls()
@@ -3095,9 +3018,6 @@ struct Appearance: View {
                 Text("App icon")
             }
         }
-        .onAppear(perform: enforceLockScreenGlassConsistency)
-        .onChange(of: lockScreenGlassStyle) { _, _ in enforceLockScreenGlassConsistency() }
-        .onChange(of: lockScreenGlassCustomizationMode) { _, _ in enforceLockScreenGlassConsistency() }
         .fileImporter(
             isPresented: $isIconImporterPresented,
             allowedContentTypes: [.png, .jpeg, .tiff, .icns, .image]
@@ -3284,6 +3204,8 @@ struct Appearance: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                // Beside a camera notch the width only applies with the switch on.
+                .disabled(mainScreenHasPhysicalNotch && !customizePhysicalNotchWidth)
                 .settingsHighlight(id: highlightID("Closed notch / pill width"))
 
                 Divider().padding(.vertical, 4)
@@ -3319,15 +3241,6 @@ struct Appearance: View {
             }
         } header: {
             Text("Notch Width")
-        }
-    }
-
-    private func enforceLockScreenGlassConsistency() {
-        if lockScreenGlassStyle == .frosted && lockScreenGlassCustomizationMode != .standard {
-            lockScreenGlassCustomizationMode = .standard
-        }
-        if lockScreenGlassCustomizationMode == .customLiquid && lockScreenGlassStyle != .liquid {
-            lockScreenGlassStyle = .liquid
         }
     }
 }
@@ -3466,7 +3379,6 @@ struct LockScreenSettings: View {
     @Default(.enableLockScreenMediaWidget) private var enableLockScreenMediaWidget
     @Default(.enableLockScreenTimerWidget) private var enableLockScreenTimerWidget
     @Default(.enableLockScreenWeatherWidget) private var enableLockScreenWeatherWidget
-    @Default(.enableLockScreenFocusWidget) private var enableLockScreenFocusWidget
     @Default(.siriResponsivenessMode) private var siriResponsivenessMode
     @Default(.lockScreenWeatherWidgetStyle) private var lockScreenWeatherWidgetStyle
     @Default(.lockScreenWeatherProviderSource) private var lockScreenWeatherProviderSource
@@ -3474,24 +3386,19 @@ struct LockScreenSettings: View {
     @Default(.lockScreenBatteryShowsCharging) private var lockScreenWeatherShowsCharging
     @Default(.lockScreenBatteryShowsBatteryGauge) private var lockScreenWeatherShowsBatteryGauge
     @Default(.lockScreenWeatherShowsAQI) private var lockScreenWeatherShowsAQI
-    @Default(.lockScreenWeatherShowsSunrise) private var lockScreenWeatherShowsSunrise
     @Default(.lockScreenWeatherAQIScale) private var lockScreenWeatherAQIScale
     @Default(.enableLockScreenReminderWidget) private var enableLockScreenReminderWidget
     @Default(.lockScreenReminderChipStyle) private var lockScreenReminderChipStyle
     @Default(.lockScreenReminderWidgetHorizontalAlignment) private var lockScreenReminderWidgetHorizontalAlignment
     @Default(.lockScreenReminderWidgetVerticalOffset) private var lockScreenReminderWidgetVerticalOffset
     @Default(.showStandardMediaControls) private var showStandardMediaControls
-    @Default(.lockScreenShowCalendarCountdown) private var lockScreenShowCalendarCountdown
     @Default(.lockScreenShowCalendarEvent) private var lockScreenShowCalendarEvent
     @Default(.lockScreenShowCalendarEventEntireDuration) private var lockScreenShowCalendarEventEntireDuration
     @Default(.lockScreenShowCalendarEventAfterStartWindow) private var lockScreenShowCalendarEventAfterStartWindow
-    @Default(.lockScreenShowCalendarTimeRemaining) private var lockScreenShowCalendarTimeRemaining
-    @Default(.lockScreenShowCalendarStartTimeAfterBegins) private var lockScreenShowCalendarStartTimeAfterBegins
     @Default(.lockScreenCalendarEventLookaheadWindow) private var lockScreenCalendarEventLookaheadWindow
     @Default(.lockScreenCalendarSelectionMode) private var lockScreenCalendarSelectionMode
     @Default(.lockScreenSelectedCalendarIDs) private var lockScreenSelectedCalendarIDs
     @Default(.lockScreenShowCalendarEventAfterStartEnabled) private var lockScreenShowCalendarEventAfterStartEnabled
-    @Default(.lockScreenMusicMergedAirPlayOutput) private var lockScreenMusicMergedAirPlayOutput
     @Default(.lockScreenWidgetAppearance) private var lockScreenWidgetAppearance
     @Default(.lockScreenCustomTextColor) private var lockScreenCustomTextColor
     @Default(.lockScreenFontStyle) private var lockScreenFontStyle
@@ -4004,7 +3911,7 @@ struct LockScreenSettings: View {
                     Text("Reminder Widget")
                 } footer: {
                     if !enableReminderLiveActivity {
-                        Text("Needs the reminder live activity in Live Activities.")
+                        Text("Needs the reminder live activity in Calendar.")
                     }
                 }
 
@@ -4135,7 +4042,7 @@ struct LockScreenSettings: View {
                     }
                     .disabled(!lockScreenShowCalendarEvent)
                     .settingsHighlight(id: highlightID("Show event for entire duration"))
-                    .onChange(of: Defaults[.lockScreenShowCalendarEventEntireDuration]) { _, newValue in
+                    .onChange(of: lockScreenShowCalendarEventEntireDuration) { _, newValue in
                         if newValue {
                             Defaults[.lockScreenShowCalendarEventAfterStartEnabled] = false
                         }
@@ -4878,7 +4785,7 @@ private func copyLatestCrashReport() {
 struct Shortcuts: View {
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableShortcuts) var enableShortcuts
-    @Default(.enableStatsFeature) var enableStatsFeature
+    @Default(.enableAgentsFeature) private var enableAgentsFeature
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
     @Default(.enableExtraSpaceFeature) private var enableExtraSpaceFeature
     @Default(.shortcutDefaultTab) var shortcutDefaultTab
@@ -4908,7 +4815,7 @@ struct Shortcuts: View {
 
                 Section {
                     KeyboardShortcuts.Recorder("Ask About Screen:", name: .askAboutScreen)
-                        .disabled(!enableShortcuts || !Defaults[.enableAgentsFeature])
+                        .disabled(!enableShortcuts || !enableAgentsFeature)
                 } header: {
                     SettingsInfoLabel("Screen Questions", info: "Drag over part of the screen, then ask an agent about it in the notch. Needs Agents to be on.")
                 }
@@ -5030,7 +4937,6 @@ struct TimerSettings: View {
     @Default(.timerProgressStyle) private var progressStyle
     @Default(.showTimerPresetsInNotchTab) private var showTimerPresetsInNotchTab
     @Default(.timerControlWindowEnabled) private var controlWindowEnabled
-    @Default(.mirrorSystemTimer) private var mirrorSystemTimer
     @Default(.timerDisplayMode) private var timerDisplayMode
     @Default(.timerInputStyle) private var timerInputStyle
     @AppStorage("customTimerDuration") private var customTimerDuration: Double = 600
@@ -5759,9 +5665,7 @@ struct StatsSettings: View {
 struct ColorPickerSettings: View {
     @ObservedObject var colorPickerManager = ColorPickerManager.shared
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
-    @Default(.showColorFormats) var showColorFormats
     @Default(.colorPickerDisplayMode) var colorPickerDisplayMode
-    @Default(.showColorPickerIcon) var showColorPickerIcon
 
     private func highlightID(_ title: String) -> String {
         SettingsTab.colorPicker.highlightID(for: title)
