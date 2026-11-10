@@ -43,7 +43,7 @@ struct OnboardingFinishView: View {
                 OnboardingFeatureRow(icon: "cursorarrow", title: "Open the island",
                                      detail: "Use the menu bar icon to reach Settings at any time.")
                 OnboardingFeatureRow(icon: "slider.horizontal.3", title: "Make it yours",
-                                     detail: "Choose your tools in Feature Management. Permissions stay optional.")
+                                     detail: "Choose your tools in Settings. Permissions stay optional.")
                 OnboardingFeatureRow(icon: "arrow.uturn.backward", title: "Come back anytime",
                                      detail: "Reopen this guide from the YC Island menu. Your settings stay as you left them.")
             }

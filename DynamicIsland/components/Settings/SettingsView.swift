@@ -45,7 +45,6 @@ private enum SettingsTabGroup: String, CaseIterable, Identifiable {
 
 private enum SettingsTab: String, CaseIterable, Identifiable {
     case general
-    case features
     case liveActivities
     case appearance
     case lockScreen
@@ -70,7 +69,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     /// Which sidebar group this tab belongs to.
     var group: SettingsTabGroup {
         switch self {
-        case .general, .features, .appearance:                                          return .core
+        case .general, .appearance:                                          return .core
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
         case .timer, .calendar, .microEvents:                                return .productivity
@@ -84,7 +83,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .features: return String(localized: "Feature Management")
         case .general: return String(localized: "General")
         case .liveActivities: return String(localized: "Live Activities")
         case .appearance: return String(localized: "Appearance")
@@ -109,7 +107,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .features: return "checklist"
         case .general: return "gear"
         case .liveActivities: return "waveform.path.ecg"
         case .appearance: return "paintpalette"
@@ -134,7 +131,6 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
 
     var tint: Color {
         switch self {
-        case .features: return .teal
         case .general: return .blue
         case .liveActivities: return .pink
         case .appearance: return .purple
@@ -220,9 +216,40 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .extraSpace, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: SettingsTab.extraSpace.highlightID(for: "Enable Extra Space")),
         SettingsSearchEntry(tab: .microEvents, title: "Enable Micro Events", keywords: ["reminder", "recurring", "daily", "weekly", "monthly", "todo", "提醒", "每周", "每月", "待办"], highlightID: SettingsTab.microEvents.highlightID(for: "Enable Micro Events")),
         SettingsSearchEntry(tab: .microEvents, title: "Reminder sound", keywords: ["chime", "sound", "alert", "声音", "提示音"], highlightID: SettingsTab.microEvents.highlightID(for: "Reminder sound")),
+        SettingsSearchEntry(tab: .agents, title: "Enable agent tracking", keywords: ["agents", "claude", "codex", "sessions"], highlightID: SettingsTab.agents.highlightID(for: "Enable agent tracking")),
+        SettingsSearchEntry(tab: .agents, title: "Show agent activity in the closed notch", keywords: ["agents", "closed notch", "activity"], highlightID: SettingsTab.agents.highlightID(for: "Show agent activity in the closed notch")),
+        SettingsSearchEntry(tab: .agents, title: "Screen question agent", keywords: ["ask", "screen question", "model"], highlightID: SettingsTab.agents.highlightID(for: "Screen question agent")),
+        SettingsSearchEntry(tab: .appearance, title: "Customize physical notch width", keywords: ["notch width", "camera", "closed"], highlightID: SettingsTab.appearance.highlightID(for: "Customize physical notch width")),
+        SettingsSearchEntry(tab: .appearance, title: "Closed notch / pill width", keywords: ["closed width", "pill", "notch width"], highlightID: SettingsTab.appearance.highlightID(for: "Closed notch / pill width")),
+        SettingsSearchEntry(tab: .appearance, title: "Mirror Camera", keywords: ["camera", "webcam", "mirror"], highlightID: SettingsTab.appearance.highlightID(for: "Mirror Camera")),
+        SettingsSearchEntry(tab: .calendar, title: "Open events in another calendar app", keywords: ["fantastical", "third party", "calendar app"], highlightID: SettingsTab.calendar.highlightID(for: "Open events in another calendar app")),
+        SettingsSearchEntry(tab: .calendar, title: "Calendar App", keywords: ["fantastical", "calendar app"], highlightID: SettingsTab.calendar.highlightID(for: "Calendar App")),
+        SettingsSearchEntry(tab: .calendar, title: "Fantastical Default View", keywords: ["fantastical", "view"], highlightID: SettingsTab.calendar.highlightID(for: "Fantastical Default View")),
+        SettingsSearchEntry(tab: .devices, title: "Show AirPods listening mode changes", keywords: ["airpods", "noise cancellation", "transparency"], highlightID: SettingsTab.devices.highlightID(for: "Show AirPods listening mode changes")),
+        SettingsSearchEntry(tab: .downloads, title: "Enable download detection", keywords: ["downloads", "progress", "browser"], highlightID: SettingsTab.downloads.highlightID(for: "Enable download detection")),
+        SettingsSearchEntry(tab: .downloads, title: "Download indicator style", keywords: ["downloads", "progress", "circle"], highlightID: SettingsTab.downloads.highlightID(for: "Download indicator style")),
+        SettingsSearchEntry(tab: .downloads, title: "Show download speed", keywords: ["downloads", "speed"], highlightID: SettingsTab.downloads.highlightID(for: "Show download speed")),
+        SettingsSearchEntry(tab: .general, title: "Horizontal media gestures", keywords: ["swipe", "gesture", "skip", "media"], highlightID: SettingsTab.general.highlightID(for: "Horizontal media gestures")),
+        SettingsSearchEntry(tab: .general, title: "Gesture skip behavior", keywords: ["swipe", "gesture", "skip", "seek"], highlightID: SettingsTab.general.highlightID(for: "Gesture skip behavior")),
+        SettingsSearchEntry(tab: .hudAndOSD, title: "Play feedback when volume is changed", keywords: ["volume", "sound", "feedback"], highlightID: SettingsTab.hudAndOSD.highlightID(for: "Play feedback when volume is changed")),
+        SettingsSearchEntry(tab: .liveActivities, title: "Show Caps Lock Indicator", keywords: ["caps lock", "keyboard"], highlightID: SettingsTab.liveActivities.highlightID(for: "Show Caps Lock Indicator")),
+        SettingsSearchEntry(tab: .liveActivities, title: "Show Caps Lock label", keywords: ["caps lock", "label", "text"], highlightID: SettingsTab.liveActivities.highlightID(for: "Show Caps Lock label")),
+        SettingsSearchEntry(tab: .liveActivities, title: "Caps Lock color", keywords: ["caps lock", "tint", "color"], highlightID: SettingsTab.liveActivities.highlightID(for: "Caps Lock color")),
+        SettingsSearchEntry(tab: .liveActivities, title: "Show Focus as brief toast", keywords: ["focus", "do not disturb", "toast"], highlightID: SettingsTab.liveActivities.highlightID(for: "Show Focus as brief toast")),
+        SettingsSearchEntry(tab: .lockScreen, title: "Glass mode", keywords: ["glass", "liquid", "material"], highlightID: SettingsTab.lockScreen.highlightID(for: "Glass mode")),
+        SettingsSearchEntry(tab: .lockScreen, title: "Use enhanced liquid border", keywords: ["glass", "liquid", "border"], highlightID: SettingsTab.lockScreen.highlightID(for: "Use enhanced liquid border")),
+        SettingsSearchEntry(tab: .lockScreen, title: "Show focus widget", keywords: ["focus", "widget", "do not disturb"], highlightID: SettingsTab.lockScreen.highlightID(for: "Show focus widget")),
+        SettingsSearchEntry(tab: .lockScreen, title: "Show sunrise time", keywords: ["weather", "sunrise", "sunset"], highlightID: SettingsTab.lockScreen.highlightID(for: "Show sunrise time")),
+        SettingsSearchEntry(tab: .lockScreen, title: "Show merged AirPlay and output devices", keywords: ["airplay", "output", "music"], highlightID: SettingsTab.lockScreen.highlightID(for: "Show merged AirPlay and output devices")),
+        SettingsSearchEntry(tab: .lockScreen, title: "Siri detection speed", keywords: ["siri", "detection"], highlightID: SettingsTab.lockScreen.highlightID(for: "Siri detection speed")),
+        SettingsSearchEntry(tab: .media, title: "Show media controls in Dynamic Island", keywords: ["music", "controls", "pill"], highlightID: SettingsTab.media.highlightID(for: "Show media controls in Dynamic Island")),
+        SettingsSearchEntry(tab: .media, title: "Show song title and artist in closed notch", keywords: ["sneak peek", "song", "title", "artist"], highlightID: SettingsTab.media.highlightID(for: "Show song title and artist in closed notch")),
+        SettingsSearchEntry(tab: .media, title: "Enable real-time waveform", keywords: ["visualizer", "waveform", "audio"], highlightID: SettingsTab.media.highlightID(for: "Enable real-time waveform")),
+        SettingsSearchEntry(tab: .timer, title: "Timer controls appear as", keywords: ["timer", "tab", "popover"], highlightID: SettingsTab.timer.highlightID(for: "Timer controls appear as")),
+        SettingsSearchEntry(tab: .timer, title: "Custom timer style", keywords: ["timer", "style"], highlightID: SettingsTab.timer.highlightID(for: "Custom timer style")),
+        SettingsSearchEntry(tab: .timer, title: "Show preset list in timer tab", keywords: ["timer", "presets"], highlightID: SettingsTab.timer.highlightID(for: "Show preset list in timer tab")),
+        SettingsSearchEntry(tab: .timer, title: "Show pause/stop controls in the notch", keywords: ["timer", "pause", "stop"], highlightID: SettingsTab.timer.highlightID(for: "Show pause/stop controls in the notch")),
         // General
-        SettingsSearchEntry(tab: .features, title: "Feature Management", keywords: ["features", "lightweight", "performance", "功能管理", "轻量"], highlightID: nil),
-        SettingsSearchEntry(tab: .features, title: "Lightweight suggestions", keywords: ["preset", "undo", "cache", "storage", "轻量", "缓存", "储存"], highlightID: "features-Lightweight suggestions"),
         SettingsSearchEntry(tab: .shortcuts, title: "Open Extra Space", keywords: ["scratchpad", "shortcut", "extra space", "快捷键"], highlightID: "shortcuts-Open Extra Space"),
         SettingsSearchEntry(tab: .general, title: "Menubar icon", keywords: ["menu bar", "status bar", "icon"], highlightID: SettingsTab.general.highlightID(for: "Menubar icon")),
         SettingsSearchEntry(tab: .general, title: "Launch at login", keywords: ["autostart", "startup"], highlightID: SettingsTab.general.highlightID(for: "Launch at login")),
@@ -265,9 +292,6 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .battery, title: "Charging duration", keywords: ["charging", "duration", "seconds"], highlightID: SettingsTab.battery.highlightID(for: "Charging duration")),
         SettingsSearchEntry(tab: .battery, title: "Low battery duration", keywords: ["low battery", "duration", "seconds"], highlightID: SettingsTab.battery.highlightID(for: "Low battery duration")),
         SettingsSearchEntry(tab: .battery, title: "Full battery duration", keywords: ["full battery", "duration", "seconds"], highlightID: SettingsTab.battery.highlightID(for: "Full battery duration")),
-        SettingsSearchEntry(tab: .battery, title: "Test charging HUD", keywords: ["battery", "test", "charging", "preview"], highlightID: nil),
-        SettingsSearchEntry(tab: .battery, title: "Test low battery HUD", keywords: ["battery", "test", "low", "preview"], highlightID: nil),
-        SettingsSearchEntry(tab: .battery, title: "Test full battery HUD", keywords: ["battery", "test", "full", "preview"], highlightID: nil),
         SettingsSearchEntry(tab: .battery, title: "Low battery style", keywords: ["battery", "style", "compact", "standard"], highlightID: SettingsTab.battery.highlightID(for: "Low battery style")),
         SettingsSearchEntry(tab: .battery, title: "Low battery threshold", keywords: ["battery", "threshold", "percent"], highlightID: SettingsTab.battery.highlightID(for: "Low battery threshold")),
         SettingsSearchEntry(tab: .battery, title: "Full battery style", keywords: ["battery", "style", "compact", "standard"], highlightID: SettingsTab.battery.highlightID(for: "Full battery style")),
@@ -717,7 +741,6 @@ struct SettingsView: View {
         let ordered: [SettingsTab] = [
             // Core
             .general,
-            .features,
             .appearance,
             // Media & Display
             .media,
@@ -777,11 +800,10 @@ struct SettingsView: View {
     }
 
     private var searchSuggestions: [SettingsSearchEntry] {
-        Array(searchEntries(matching: searchText).filter { $0.tab != .downloads }.prefix(8))
+        Array(searchEntries(matching: searchText).prefix(8))
     }
 
     private func handleSearchSuggestionSelection(_ suggestion: SettingsSearchEntry) {
-        guard suggestion.tab != .downloads else { return }
         highlightCoordinator.focus(on: suggestion)
         selectedTab = suggestion.tab
     }
@@ -932,14 +954,6 @@ struct SettingsView: View {
     @ViewBuilder
     private func detailView(for tab: SettingsTab) -> some View {
         switch tab {
-        case .features:
-            SettingsForm(tab: .features) {
-                FeatureManagementSettings { target in
-                    guard let tab = SettingsTab(rawValue: target) else { return }
-                    searchText = ""
-                    selectedTab = tab
-                }
-            }
         case .general:
             SettingsForm(tab: .general) {
                 GeneralSettings()
@@ -1266,7 +1280,6 @@ struct GeneralSettings: View {
 }
 
 struct Charge: View {
-    @ObservedObject private var batteryStatusViewModel = BatteryStatusViewModel.shared
     @Default(.showBatteryIndicator) private var showBatteryIndicator
     @Default(.showPowerStatusNotifications) private var showPowerStatusNotifications
     @Default(.showChargingBatteryHUD) private var showChargingBatteryHUD
@@ -1425,30 +1438,6 @@ struct Charge: View {
                     .opacity(sectionOpacity(showPowerStatusNotifications && showFullBatteryHUD))
                 } header: {
                     Text("HUD Duration")
-                }
-                Section {
-                    Button {
-                        batteryStatusViewModel.triggerTestHUD(kind: .charging)
-                    } label: {
-                        Label("Test charging HUD", systemImage: "bolt.fill")
-                    }
-                    .disabled(!showPowerStatusNotifications || !showChargingBatteryHUD)
-
-                    Button {
-                        batteryStatusViewModel.triggerTestHUD(kind: .lowBattery)
-                    } label: {
-                        Label("Test low battery HUD", systemImage: "battery.25")
-                    }
-                    .disabled(!showPowerStatusNotifications || !showLowBatteryHUD)
-
-                    Button {
-                        batteryStatusViewModel.triggerTestHUD(kind: .fullBattery)
-                    } label: {
-                        Label("Test full battery HUD", systemImage: "battery.100")
-                    }
-                    .disabled(!showPowerStatusNotifications || !showFullBatteryHUD)
-                } header: {
-                    Text("HUD Tests")
                 }
                 Section {
                     SettingsSegmentedPicker(
@@ -2608,12 +2597,8 @@ struct Shelf: View {
             FileConvertSettings()
                 .disabled(!shelfEnabled || !convertEnabled)
             Section {
-                LabeledContent("Items", value: "\(shelfState.items.count) / 200")
                 Button("Clear Shelf items…", role: .destructive) { confirmingClear = true }
                     .disabled(shelfState.isEmpty)
-                Button("Show Saved Shelf Data") {
-                    NSWorkspace.shared.open(ShelfPersistenceService.shared.directory)
-                }
                 if let feedback = shelfState.feedback { Text(feedback).foregroundStyle(.secondary).textSelection(.enabled) }
             } header: {
                 SettingsInfoLabel("Storage", info: "Text: up to 1 MB per item and 4 MB in total. Copied files: up to 100 MB per import and 250 MB in total. Files dragged from Finder stay where they are. Turning Shelf off hides it and keeps its items. Clearing never deletes your original files.")
@@ -2633,9 +2618,6 @@ struct Shelf: View {
 
 struct LiveActivitiesSettings: View {
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
-    @ObservedObject var recordingManager = ScreenRecordingManager.shared
-    @ObservedObject var privacyManager = PrivacyIndicatorManager.shared
-    @ObservedObject var doNotDisturbManager = DoNotDisturbManager.shared
     @ObservedObject private var fullDiskAccessPermission = FullDiskAccessPermissionStore.shared
 
     @Default(.enableScreenRecordingDetection) var enableScreenRecordingDetection
@@ -2671,25 +2653,6 @@ struct LiveActivitiesSettings: View {
                 ) { $0.title }
                 .disabled(!enableScreenRecordingDetection)
                 .settingsHighlight(id: highlightID("Recording Controls"))
-
-                if recordingManager.isMonitoring {
-                    HStack {
-                        Text("Detection Status")
-                        Spacer()
-                        if recordingManager.isRecording {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 8, height: 8)
-                                Text("Recording")
-                                    .foregroundColor(.red)
-                            }
-                        } else {
-                            Text("Not recording")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
             } header: {
                 Text("Screen Recording")
             }
@@ -2723,25 +2686,6 @@ struct LiveActivitiesSettings: View {
                         Button("Grant Access…") { fullDiskAccessPermission.requestAccessPrompt() }
                     } label: {
                         SettingsInfoLabel("Full Disk Access (optional)", info: "Lets the Focus indicator show your custom Focus icons, colors and names. Focus detection works without it.")
-                    }
-                }
-
-                if doNotDisturbManager.isMonitoring {
-                    HStack {
-                        Text("Focus Status")
-                        Spacer()
-                        if doNotDisturbManager.isDoNotDisturbActive {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.purple)
-                                    .frame(width: 8, height: 8)
-                                Text(doNotDisturbManager.currentFocusModeName.isEmpty ? "Focus Enabled" : doNotDisturbManager.currentFocusModeName)
-                                    .foregroundColor(.purple)
-                            }
-                        } else {
-                            Text("Off")
-                                .foregroundStyle(.secondary)
-                        }
                     }
                 }
             } header: {
@@ -2780,42 +2724,6 @@ struct LiveActivitiesSettings: View {
                     Text("Enable Microphone Detection")
                 }
                 .settingsHighlight(id: highlightID("Enable Microphone Detection"))
-
-                if privacyManager.isMonitoring {
-                    HStack {
-                        Text("Camera Status")
-                        Spacer()
-                        if privacyManager.cameraActive {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 8, height: 8)
-                                Text("Camera Active")
-                                    .foregroundColor(.green)
-                            }
-                        } else {
-                            Text("Inactive")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    HStack {
-                        Text("Microphone Status")
-                        Spacer()
-                        if privacyManager.microphoneActive {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.yellow)
-                                    .frame(width: 8, height: 8)
-                                Text("Microphone Active")
-                                    .foregroundColor(.yellow)
-                            }
-                        } else {
-                            Text("Inactive")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
             } header: {
                 Text("Privacy Indicators")
             }
@@ -2842,6 +2750,7 @@ struct Appearance: View {
 
     @State private var isIconImporterPresented = false
     @State private var isIconDropTarget = false
+    @State private var iconPendingRemoval: CustomAppIcon?
     @State private var iconImportGeneration = UUID()
     @State private var iconImportError: String?
 
@@ -2971,9 +2880,7 @@ struct Appearance: View {
                                 applySelectedAppIcon()
                             }
                             .contextMenu {
-                                Button("Remove") {
-                                    removeCustomIcon(icon)
-                                }
+                                Button("Remove…") { iconPendingRemoval = icon }
                             }
                         }
                     }
@@ -2997,11 +2904,8 @@ struct Appearance: View {
                         }
                         .buttonStyle(.borderedProminent)
 
-                        Button("Remove selected") {
-                            if let id = selectedAppIconID,
-                               let icon = customAppIcons.first(where: { $0.id.uuidString == id }) {
-                                removeCustomIcon(icon)
-                            }
+                        Button("Remove selected…") {
+                            iconPendingRemoval = customAppIcons.first { $0.id.uuidString == selectedAppIconID }
                         }
                         .buttonStyle(.bordered)
                         .disabled(selectedAppIconID == nil)
@@ -3030,6 +2934,15 @@ struct Appearance: View {
             }
         }
         .navigationTitle("Appearance")
+        .alert("Remove this icon?", isPresented: Binding(
+            get: { iconPendingRemoval != nil },
+            set: { if !$0 { iconPendingRemoval = nil } }
+        ), presenting: iconPendingRemoval) { icon in
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) { removeCustomIcon(icon) }
+        } message: { _ in
+            Text("Atoll's copy of the image is deleted. Your original file is not touched.")
+        }
     }
 
     private func defaultAppIconImage() -> NSImage? {
@@ -3607,14 +3520,6 @@ struct LockScreenSettings: View {
                     }
                 } header: {
                     Text("Lock Screen Glass")
-                }
-
-                Section {
-                    Button("Copy Latest Crash Report") {
-                        copyLatestCrashReport()
-                    }
-                } header: {
-                    Text("Diagnostics")
                 }
 
             } else {
@@ -4745,43 +4650,6 @@ private struct LockScreenPositioningPreview: View {
     }
 }
 
-private func copyLatestCrashReport() {
-    let crashReportsPath = NSString(string: "~/Library/Logs/DiagnosticReports").expandingTildeInPath
-    let fileManager = FileManager.default
-
-    do {
-        let files = try fileManager.contentsOfDirectory(atPath: crashReportsPath)
-        let crashFiles = files.filter { $0.contains("DynamicIsland") && $0.hasSuffix(".crash") }
-
-        guard let latestCrash = crashFiles.sorted(by: >).first else {
-            let alert = NSAlert()
-            alert.messageText = String(localized: "No Crash Reports Found")
-            alert.informativeText = String(localized: "No crash reports found for DynamicIsland")
-            alert.alertStyle = .informational
-            alert.runModal()
-            return
-        }
-
-        let crashPath = (crashReportsPath as NSString).appendingPathComponent(latestCrash)
-        let crashContent = try String(contentsOfFile: crashPath, encoding: .utf8)
-
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(crashContent, forType: .string)
-
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Crash Report Copied")
-        alert.informativeText = String(localized: "Crash report '\(latestCrash)' has been copied to clipboard")
-        alert.alertStyle = .informational
-        alert.runModal()
-    } catch {
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Error")
-        alert.informativeText = String(localized: "Failed to read crash reports: \(error.localizedDescription)")
-        alert.alertStyle = .warning
-        alert.runModal()
-    }
-}
-
 struct Shortcuts: View {
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableShortcuts) var enableShortcuts
@@ -4929,6 +4797,7 @@ struct TimerSettings: View {
     @Default(.customTimerSoundPath) private var customTimerSoundPath
     @State private var isTimerSoundImporting = false
     @State private var timerSoundImportError: String?
+    @State private var confirmingSoundReset = false
     @Default(.timerIconColorMode) private var colorMode
     @Default(.timerSolidColor) private var solidColor
     @Default(.timerShowsCountdown) private var showsCountdown
@@ -4958,6 +4827,16 @@ struct TimerSettings: View {
             }
         }
         .navigationTitle("Timer")
+        .alert("Use the default timer sound?", isPresented: $confirmingSoundReset) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                TimerSoundStore.shared.removeImportedSounds()
+                customTimerSoundPath = nil
+                timerSoundImportError = nil
+            }
+        } message: {
+            Text("Atoll's copy of your sound is deleted. Your original file is not touched.")
+        }
         .onAppear { syncCustomDuration() }
         .onChange(of: customTimerDuration) { _, newValue in syncCustomDuration(newValue) }
     }
@@ -5145,11 +5024,7 @@ struct TimerSettings: View {
                         .foregroundStyle(.red)
                 }
 
-                Button("Reset to Default") {
-                    TimerSoundStore.shared.removeImportedSounds()
-                    customTimerSoundPath = nil
-                    timerSoundImportError = nil
-                }
+                Button("Reset to Default…") { confirmingSoundReset = true }
                 .buttonStyle(.bordered)
                 .disabled(customTimerSoundPath == nil)
             }
@@ -5428,7 +5303,6 @@ private struct TimerPresetComponentControl: View {
 }
 
 struct StatsSettings: View {
-    @ObservedObject var statsManager = StatsManager.shared
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.statsStopWhenNotchCloses) var statsStopWhenNotchCloses
     @Default(.statsUpdateInterval) var statsUpdateInterval
@@ -5471,7 +5345,7 @@ struct StatsSettings: View {
                 .settingsHighlight(id: highlightID("Enable system stats monitoring"))
                 .onChange(of: enableStatsFeature) { _, newValue in
                     if !newValue {
-                        statsManager.stopMonitoring()
+                        StatsManager.shared.stopMonitoring()
                     }
                     // Note: Smart monitoring will handle starting when switching to stats tab
                 }
@@ -5547,123 +5421,13 @@ struct StatsSettings: View {
                     SettingsInfoLabel("Graph Visibility", info: "With four or more graphs, the open notch gets wider to fit them in one row.")
                 }
 
-                Section {
-                    HStack {
-                        Text("Monitoring Status")
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(statsManager.isMonitoring ? Color.green : Color.secondary)
-                                .frame(width: 8, height: 8)
-                            Text(statsManager.isMonitoring ? "Active" : "Paused")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    if statsManager.isMonitoring {
-                        if showCpuGraph {
-                            HStack {
-                                Text("CPU Usage")
-                                Spacer()
-                                Text(statsManager.cpuUsageString)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        if showMemoryGraph {
-                            HStack {
-                                Text("Memory Usage")
-                                Spacer()
-                                Text(statsManager.memoryUsageString)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        if showGpuGraph {
-                            HStack {
-                                Text("GPU Usage")
-                                Spacer()
-                                Text(statsManager.gpuUsageString)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        if showNetworkGraph {
-                            HStack {
-                                Text("Network Download")
-                                Spacer()
-                                Text(String(format: "%.1f MB/s", statsManager.networkDownload))
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            HStack {
-                                Text("Network Upload")
-                                Spacer()
-                                Text(String(format: "%.1f MB/s", statsManager.networkUpload))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        if showDiskGraph {
-                            HStack {
-                                Text("Disk Read")
-                                Spacer()
-                                Text(String(format: "%.1f MB/s", statsManager.diskRead))
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            HStack {
-                                Text("Disk Write")
-                                Spacer()
-                                Text(String(format: "%.1f MB/s", statsManager.diskWrite))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        HStack {
-                            Text("Last Updated")
-                            Spacer()
-                            Text(statsManager.lastUpdated, style: .relative)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("Live Performance Data")
-                }
-
-                Section {
-                    HStack {
-                        Button(statsManager.isMonitoring ? "Stop Monitoring" : "Start Monitoring") {
-                            if statsManager.isMonitoring {
-                                statsManager.stopMonitoring()
-                            } else {
-                                statsManager.startMonitoring()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .foregroundColor(statsManager.isMonitoring ? .red : .blue)
-
-                        Spacer()
-
-                        Button("Clear Data") {
-                            statsManager.clearHistory()
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(statsManager.isMonitoring)
-                    }
-                } header: {
-                    Text("Controls")
-                }
             }
         }
         .navigationTitle("Stats")
-        .onAppear { RuntimePolicyMonitor.shared.setStatsSurface("stats-settings", visible: true) }
-        .onDisappear { RuntimePolicyMonitor.shared.setStatsSurface("stats-settings", visible: false) }
     }
 }
 
 struct ColorPickerSettings: View {
-    @ObservedObject var colorPickerManager = ColorPickerManager.shared
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
     @Default(.colorPickerDisplayMode) var colorPickerDisplayMode
 
@@ -5711,45 +5475,6 @@ struct ColorPickerSettings: View {
                     Text("Settings")
                 }
 
-                Section {
-                    HStack {
-                        Text("Color History")
-                        Spacer()
-                        Text("\(colorPickerManager.colorHistory.count)")
-                            .foregroundColor(.secondary)
-                    }
-
-                    HStack {
-                        Text("Picking Status")
-                        Spacer()
-                        Text(colorPickerManager.isPickingColor ? "Active" : "Ready")
-                            .foregroundColor(colorPickerManager.isPickingColor ? .green : .secondary)
-                    }
-
-                    Button("Show Color Picker Panel") {
-                        ColorPickerPanelManager.shared.showColorPickerPanel()
-                    }
-                    .disabled(!enableColorPickerFeature)
-
-                } header: {
-                    Text("Status & Actions")
-                }
-
-                Section {
-                    Button("Clear Color History") {
-                        colorPickerManager.clearHistory()
-                    }
-                    .foregroundColor(.red)
-                    .disabled(colorPickerManager.colorHistory.isEmpty)
-
-                    Button("Start Color Picking") {
-                        colorPickerManager.startColorPicking()
-                    }
-                    .disabled(!enableColorPickerFeature || colorPickerManager.isPickingColor)
-
-                } header: {
-                    Text("Quick Actions")
-                }
             }
         }
         .navigationTitle("Color Picker")

@@ -593,7 +593,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !Self.isHostingUnitTests else { return }
-        _ = FeaturePresetController.shared
         removeTemporaryFiles()
         // Network responses stay in memory only. Replacing the cache before
         // anything touches the default one keeps its database off disk too.
@@ -1146,7 +1145,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         "codex": AgentConversationService.shared.isLive ? "connected" : "disconnected",
                         "extraSpace": ExtraSpaceStore.shared.isDirty ? "unsaved" : "saved",
                         "timer": TimerManager.shared.isTimerActive ? "active" : "idle",
-                        "cameraPermission": String(FeaturePermissionSnapshot.read().camera.rawValue),
+                        "cameraPermission": String(AVCaptureDevice.authorizationStatus(for: .video).rawValue),
                         "systemHUD": SystemOSDManager.policy
                     ] }
                     try AtollDiagnostics.snapshotData(states: states).write(to: tempDir.appendingPathComponent("diagnostics.json"), options: .atomic)
@@ -1401,7 +1400,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingWindowController?.close()
         onboardingWindowController = nil
         if openSettings {
-            SettingsWindowController.shared.showWindow(tab: "features")
+            SettingsWindowController.shared.showWindow()
         } else if SettingsWindowController.shared.window?.isVisible != true {
             NSApp.setActivationPolicy(.accessory)
             NSApp.deactivate()

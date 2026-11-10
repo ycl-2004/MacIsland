@@ -6,7 +6,7 @@ import XCTest
 
 @MainActor
 final class LightweightPolicyTests: XCTestCase {
-    func testFeatureManagementDestinationRendersInTheSettingsWindow() async throws {
+    func testSettingsDestinationRendersInTheSettingsWindow() async throws {
         // The rendered detail page names the window, so the title shows which
         // page actually appeared. SwiftUI-drawn buttons get no accessibility
         // nodes until an assistive client asks (macOS 27), so labels cannot.
@@ -23,58 +23,13 @@ final class LightweightPolicyTests: XCTestCase {
         }
         try await waitForTitle("General")
         XCTAssertEqual(window.title, "General", "Settings opens on General before any destination arrives")
-        NotificationCenter.default.post(name: .atollSettingsDestination, object: "features")
-        try await waitForTitle("Feature Management")
+        NotificationCenter.default.post(name: .atollSettingsDestination, object: "microEvents")
+        try await waitForTitle("Micro Events")
         let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
         hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
         // Kept in the result bundle only when the test fails.
         add(XCTAttachment(data: try XCTUnwrap(bitmap.representation(using: .png, properties: [:])), uniformTypeIdentifier: "public.png"))
-        XCTAssertEqual(window.title, "Feature Management", "The destination must display Feature Management, not fall back to General")
-        NotificationCenter.default.post(name: .atollSettingsDestination, object: "microEvents")
-        try await waitForTitle("Micro Events")
-        XCTAssertEqual(window.title, "Micro Events", "Micro Events must exist in the sidebar and be reachable from Details")
-    }
-
-    func testRealDefaultsTransactionRejectsStalePreviewAndPreservesLaterEdits() throws {
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: try temporaryDefaultsSuite()))
-        let stats = Defaults.Key<Bool>("stats", default: true, suite: defaults)
-        let lyrics = Defaults.Key<Bool>("lyrics", default: true, suite: defaults)
-        let keys = [("Stats", stats), ("Lyrics", lyrics)]
-        var controller: FeaturePresetController? = FeaturePresetController(defaults: defaults, candidates: keys)
-        let stale = try XCTUnwrap(controller).preview
-        Defaults[lyrics] = false
-        XCTAssertFalse(try XCTUnwrap(controller).apply(stale))
-        XCTAssertTrue(Defaults[stats])
-        Defaults[lyrics] = true
-        XCTAssertTrue(try XCTUnwrap(controller).apply(try XCTUnwrap(controller).preview))
-        XCTAssertFalse(Defaults[stats]); XCTAssertFalse(Defaults[lyrics])
-        Defaults[stats] = true
-        Defaults[stats] = false
-        // Round-trip manual changes are excluded from Undo, even though their
-        // final value equals the preset. Unchanged settings survive relaunch.
-        controller = nil
-        let reopened = FeaturePresetController(defaults: defaults, candidates: keys)
-        reopened.restore()
-        XCTAssertFalse(Defaults[stats]); XCTAssertTrue(Defaults[lyrics])
-        XCTAssertNil(reopened.snapshot)
-    }
-
-    func testPresetUndoProtectsManualEditsIncludingRoundTrips() {
-        var snapshot = FeaturePresetSnapshot(changes: [
-            .init(id: "stats", before: true, applied: false),
-            .init(id: "lyrics", before: true, applied: false)
-        ])
-        // A later manual off → on → off must still remain the user's choice.
-        snapshot.userChanged("stats")
-        XCTAssertEqual(snapshot.restorable(current: { _ in false }).map(\.id), ["lyrics"])
-        XCTAssertTrue(snapshot.restorable(current: { _ in true }).isEmpty)
-    }
-
-    func testPresetRoundTripAndShelfExclusion() throws {
-        let snapshot = FeaturePresetSnapshot(changes: [.init(id: "lyrics", before: true, applied: false)])
-        XCTAssertEqual(try JSONDecoder().decode(FeaturePresetSnapshot.self, from: JSONEncoder().encode(snapshot)), snapshot)
-        XCTAssertFalse(FeaturePresetController.candidates.contains { $0.1.name == "dynamicShelf" })
-        XCTAssertFalse(FeaturePresetController.candidates.contains { $0.1.name == "enableExtraSpaceFeature" })
+        XCTAssertEqual(window.title, "Micro Events", "The destination must display its page, not fall back to General")
     }
 
     func testStatsGateAndBackgroundCadence() {

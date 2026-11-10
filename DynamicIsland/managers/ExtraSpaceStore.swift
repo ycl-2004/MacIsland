@@ -147,7 +147,6 @@ final class ExtraSpaceStore: ObservableObject {
 
     func reportSizeLimit() { errorMessage = "Extra Space holds up to 5 MB of text. This change was not applied." }
 
-    func revealContent() { NSWorkspace.shared.activateFileViewerSelecting([fileURL]) }
 
     /// Explicit recovery; a bad primary is kept separately before replacement.
     func recoverPrevious() {

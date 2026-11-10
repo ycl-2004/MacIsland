@@ -165,26 +165,6 @@ class BatteryStatusViewModel: ObservableObject {
         presentTemporaryBatteryHUDIfNeeded(kind: kind, force: false)
     }
 
-    func triggerTestHUD(kind: BatteryTemporaryHUDKind) {
-        let previewLevel: Int
-
-        switch kind {
-        case .charging:
-            previewLevel = max(12, min(95, Int(levelBattery.rounded())))
-        case .lowBattery:
-            previewLevel = max(5, min(20, Defaults[.lowBatteryHUDThreshold]))
-        case .fullBattery:
-            previewLevel = 100
-        }
-
-        presentTemporaryBatteryHUDIfNeeded(
-            kind: kind,
-            force: true,
-            levelOverride: previewLevel,
-            lowPowerModeOverride: kind == .lowBattery ? isInLowPowerMode : nil
-        )
-    }
-
     private func presentTemporaryBatteryHUDIfNeeded(
         kind: BatteryTemporaryHUDKind,
         force: Bool,

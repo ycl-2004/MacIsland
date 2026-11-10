@@ -2071,25 +2071,25 @@
         }
       }
     },
-    "Choose your tools in Feature Management. Permissions stay optional.": {
+    "Choose your tools in Settings. Permissions stay optional.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose your tools in Feature Management. Permissions stay optional."
+            "value": "Choose your tools in Settings. Permissions stay optional."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在功能管理中选择需要的工具，权限始终按需开启。"
+            "value": "在设置中选择需要的工具，权限始终按需开启。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在功能管理中選擇需要的工具，權限始終按需開啟。"
+            "value": "在設定中選擇需要的工具，權限始終按需開啟。"
           }
         }
       }

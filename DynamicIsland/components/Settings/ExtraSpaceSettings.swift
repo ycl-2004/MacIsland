@@ -23,8 +23,6 @@ struct ExtraSpaceSettings: View {
             }
 
             Section {
-                LabeledContent("Text storage", value: "\(ByteCountFormatter.string(fromByteCount: Int64(store.byteCount), countStyle: .binary)) / 5 MB")
-                Button("Show Local Content File") { store.revealContent() }
                 if store.hasPreviousVersion {
                     Button("Restore Previous Saved Version") { store.recoverPrevious() }
                 }

@@ -175,18 +175,6 @@ final class NextVersionReliabilityTests: XCTestCase {
         } catch { XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original) }
     }
 
-    func testPermissionSnapshotRequiresReadAccessAndDistinguishesCameraDenial() {
-        var snapshot = FeaturePermissionSnapshot()
-        snapshot.events = .writeOnly
-        XCTAssertFalse(snapshot.canReadCalendar)
-        snapshot.reminders = .fullAccess
-        XCTAssertTrue(snapshot.canReadCalendar)
-        snapshot.camera = .denied
-        XCTAssertNotNil(snapshot.cameraMessage)
-        snapshot.camera = .authorized
-        XCTAssertNil(snapshot.cameraMessage)
-    }
-
     func testReduceMotionRemovesTheActualCoreAnimationPulse() async throws {
         func root(_ reduced: Bool) -> some View {
             LayerPulse(isActive: true, reduceMotionOverride: reduced) { Text("Working").foregroundStyle(.white) }

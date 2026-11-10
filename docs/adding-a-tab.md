@@ -38,8 +38,8 @@ by `SavedRowOrder.apply`, which is the intended behaviour.
 
 `resolve(_:)` returns the first enabled tab for any disabled, remembered or
 shortcut target. Home is special: when no standard tab is enabled, `tabs` is
-empty, `resolve` returns `.home`, and `ContentView` renders Feature Management
-access instead of hidden feature content.
+empty, `resolve` returns `.home`, and `ContentView` renders a button to
+Settings instead of hidden feature content.
 
 ## 3. Add the preference
 
@@ -104,7 +104,7 @@ full example; Timer and Color Picker are smaller ones.
 - Add a focused test for the combination matrix. `FileConvertTests` has the
   template (`testOptionalToolCombinationsNeverStoreDropsInAHiddenFileTray`).
 
-## 9. Settings and Feature Management
+## 9. Settings
 
 - `DynamicIsland/components/Settings/SettingsView.swift`
   - `SettingsTab` case, section group, title, icon, tint, sidebar list, and
@@ -114,8 +114,6 @@ full example; Timer and Color Picker are smaller ones.
     focuses the right row.
 - A settings page under `DynamicIsland/components/Settings/`, wired into the
   detail switch.
-- `DynamicIsland/components/Settings/FeatureManagementSettings.swift`: add a
-  row with its permission and background note, pointing at the settings tab.
 - If the tab replaces an old destination, alias the old name in
   `SettingsWindowController.showWindow(tab:)` so existing links keep working.
 

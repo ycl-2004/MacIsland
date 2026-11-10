@@ -1190,7 +1190,7 @@ struct ContentView: View {
                 if !NotchTabAvailability.current.contains(coordinator.currentView) {
                     VStack(spacing: 10) {
                         Text("Choose the tools you want to use").font(.notch(.body))
-                        Button("Open Feature Management") { SettingsWindowController.shared.showWindow(tab: "features") }
+                        Button("Open Settings") { SettingsWindowController.shared.showWindow() }
                     }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                 switch coordinator.currentView {

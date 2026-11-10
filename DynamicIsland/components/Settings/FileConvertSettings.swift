@@ -29,16 +29,6 @@ struct FileConvertSettings: View {
             } header: {
                 SettingsInfoLabel("Optional engines", info: "Built-in formats work without them. LibreOffice adds Word, Excel and PowerPoint to PDF with their layout. FFmpeg adds MP3, FLAC, WebM, WebP and GIF. Only copies you installed are used; nothing is downloaded.")
             }
-
-            Section {
-                LabeledContent("Images") { Text("JPEG, PNG, HEIC, TIFF, GIF, BMP, PDF · WebP with FFmpeg") }
-                LabeledContent("PDF") { Text("PNG or JPEG, one image per page (up to 100 pages)") }
-                LabeledContent("Documents") { Text("Word, ODT, RTF, HTML, Text · PDF with LibreOffice") }
-                LabeledContent("Audio") { Text("M4A, WAV, AIFF · MP3, FLAC with FFmpeg") }
-                LabeledContent("Video") { Text("MP4, MOV, M4A audio · WebM, MP3, GIF (first 60 s) with FFmpeg") }
-            } header: {
-                Text("Formats")
-            }
         }
         .onAppear(perform: refreshEngines)
     }

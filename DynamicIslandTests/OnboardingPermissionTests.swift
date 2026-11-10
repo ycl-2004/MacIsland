@@ -38,15 +38,6 @@ final class OnboardingPermissionTests: XCTestCase {
         XCTAssertFalse(reopened.bool(forKey: "showCalendar"))
     }
 
-    func testCalendarAndRemindersRemainIndependentlyUsable() {
-        let calendarOnly = FeaturePermissionSnapshot(events: .fullAccess, reminders: .denied)
-        let remindersOnly = FeaturePermissionSnapshot(events: .denied, reminders: .fullAccess)
-        let writeOnly = FeaturePermissionSnapshot(events: .writeOnly, reminders: .denied)
-        XCTAssertTrue(calendarOnly.canReadCalendar)
-        XCTAssertTrue(remindersOnly.canReadCalendar)
-        XCTAssertFalse(writeOnly.canReadCalendar)
-    }
-
     func testRenderSetupPagesInEnglishAndChinese() async throws {
         // Render actual SwiftUI pages in an isolated XCTest host. This exercises
         // native layout without opening system permission prompts or live agents.

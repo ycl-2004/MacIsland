@@ -295,10 +295,6 @@ slows when hidden or in low-power mode. Codex connection refresh uses the same
 signals; its event receiver and Timer deadlines are not paused. This is gradual
 integration of Stats, Codex refresh and Calendar queries, not a claim that every manager shares the policy.
 
-`FeaturePresetController` previews optional switch changes and stores a small
-settings-only undo snapshot. Candidate preference observers invalidate undo
-for subsequent manual edits, including value round trips. Shelf and Extra Space
-are excluded from the preset; no content removal is part of this transaction.
 
 ## Verification
 
@@ -329,7 +325,7 @@ exercised through the regression scripts under `tests/`.
 The standard tabs are Home, Shelf, Timer, Stats, Agents and Extra Space. Color Picker remains a separate
 header utility. File Convert is a panel inside Shelf, not a tab, so enabling it changes no tab width and
 no tab-switch size. Invalid current/remembered/shortcut targets resolve to the first enabled tab in saved
-order. With no enabled tabs, Home is a sentinel that renders Feature Management access rather than hidden
+order. With no enabled tabs, Home is a sentinel that renders a button to Settings rather than hidden
 feature content. Adding or removing a standard tab changes `enabledStandardTabCount()`, the minimum open
 width and the housing-clearance budget; follow [adding a notch tab](adding-a-tab.md).
 
