@@ -41,11 +41,14 @@ Lyrics are kept in memory only: at most 80 tracks, dropped when the app quits.
   requirement; normal exit of the previous copy (pid 44830), no Atoll crash
   report; Shelf and Extra Space content unchanged; launched as pid 60254.
 
+## Confirmed by the owner
+
+After the install the owner played a track in NetEase and replayed "Money
+Focused Freestyle" in YouTube Music, and reported that lyrics appeared and
+followed line by line in both.
+
 ## Not checked
 
-- The installed build was not watched showing lyrics for a NetEase track or
-  for "Money Focused Freestyle"; YouTube Music was playing something else
-  after the install.
 - The 1.5 s second read rests on an assumption about when the app writes the
   queue. It was not observed.
 
