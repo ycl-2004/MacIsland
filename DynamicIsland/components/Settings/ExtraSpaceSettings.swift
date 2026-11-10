@@ -12,25 +12,17 @@ struct ExtraSpaceSettings: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                Defaults.Toggle(key: .enableExtraSpaceFeature) {
-                    Text("Enable Extra Space")
-                }
-                .settingsHighlight(id: "extraSpace-Enable Extra Space")
-            } header: {
-                SettingsInfoLabel("Extra Space", info: "Adds a text tab to the notch. Turning it off hides the tab and keeps your text.")
+        Section {
+            Defaults.Toggle(key: .enableExtraSpaceFeature) {
+                Text("Enable Extra Space")
             }
-
-            Section {
-                if store.hasPreviousVersion {
-                    Button("Restore Previous Saved Version") { store.recoverPrevious() }
-                }
-                if let error = store.errorMessage { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            } header: {
-                SettingsInfoLabel("Text", info: "Double-click the text, or click Edit or Paste, to change it. Press ⌘S or click Save when you're done. \(closeHint) Press ⌘F to find text; Export saves a .txt copy. Your text is saved automatically on this Mac.")
+            .settingsHighlight(id: "extraSpace-Enable Extra Space")
+            if store.hasPreviousVersion {
+                Button("Restore Previous Saved Version") { store.recoverPrevious() }
             }
+            if let error = store.errorMessage { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+        } header: {
+            SettingsInfoLabel("Extra Space", info: "Adds a text tab to the notch. Turning it off hides the tab and keeps your text. Double-click the text, or click Edit or Paste, to change it. Press ⌘S or click Save when you're done. \(closeHint) Press ⌘F to find text; Export saves a .txt copy. Your text is saved automatically on this Mac.")
         }
-        .navigationTitle("Extra Space")
     }
 }

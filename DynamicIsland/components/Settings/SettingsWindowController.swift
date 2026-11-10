@@ -75,10 +75,15 @@ class SettingsWindowController: NSWindowController {
         ScreenCaptureVisibilityManager.shared.register(window, scope: .panelsOnly)
     }
     
+    /// Pages that were folded into another keep their old name as a destination.
+    private static let foldedTabs = [
+        "fileConvert": "shelf", "extraSpace": "tools", "colorPicker": "tools", "downloads": "liveActivities"
+    ]
+
     func showWindow(tab: String) {
         showWindow()
         DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .atollSettingsDestination, object: tab == "fileConvert" ? "shelf" : tab)
+            NotificationCenter.default.post(name: .atollSettingsDestination, object: Self.foldedTabs[tab] ?? tab)
         }
     }
 

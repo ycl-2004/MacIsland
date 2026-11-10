@@ -56,10 +56,8 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case hudAndOSD
     case battery
     case stats
-    case colorPicker
-    case extraSpace
+    case tools
     case microEvents
-    case downloads
     case shelf
     case shortcuts
     case about
@@ -73,8 +71,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
         case .timer, .calendar, .microEvents:                                return .productivity
-        case .colorPicker, .extraSpace, .shelf,
-             .downloads, .shortcuts:                                         return .utilities
+        case .tools, .shelf, .shortcuts:                                     return .utilities
         case .stats:                                                         return .developer
         case .agents:                                                        return .integrations
         case .about:                                                         return .info
@@ -95,10 +92,8 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .hudAndOSD: return String(localized: "Controls")
         case .battery: return String(localized: "Battery")
         case .stats: return String(localized: "Stats")
-        case .colorPicker: return String(localized: "Color Picker")
-        case .extraSpace: return String(localized: "Extra Space")
+        case .tools: return String(localized: "Tools")
         case .microEvents: return String(localized: "Micro Events")
-        case .downloads: return String(localized: "Downloads")
         case .shelf: return String(localized: "Shelf")
         case .shortcuts: return String(localized: "Shortcuts")
         case .about: return String(localized: "About")
@@ -119,10 +114,8 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .hudAndOSD: return "dial.medium.fill"
         case .battery: return "battery.100.bolt"
         case .stats: return "chart.xyaxis.line"
-        case .colorPicker: return "eyedropper"
-        case .extraSpace: return "text.alignleft"
+        case .tools: return "wrench.and.screwdriver"
         case .microEvents: return "checklist"
-        case .downloads: return "square.and.arrow.down"
         case .shelf: return "books.vertical"
         case .shortcuts: return "keyboard"
         case .about: return "info.circle"
@@ -143,10 +136,8 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .hudAndOSD: return .indigo
         case .battery: return Color(red: 0.202, green: 0.783, blue: 0.348, opacity: 1.000)
         case .stats: return .teal
-        case .colorPicker: return .accentColor
-        case .extraSpace: return .teal
+        case .tools: return .teal
         case .microEvents: return .mint
-        case .downloads: return .gray
         case .shelf: return .brown
         case .shortcuts: return .orange
         case .about: return .secondary
@@ -213,7 +204,7 @@ private enum SettingsSearchIndex {
     static let entries: [SettingsSearchEntry] = [
         SettingsSearchEntry(tab: .shelf, title: "Enable File Convert", keywords: ["convert", "format", "pdf", "word", "jpg", "heic", "mp3", "转换", "格式", "轉換"], highlightID: SettingsTab.shelf.highlightID(for: "Enable File Convert")),
         SettingsSearchEntry(tab: .shelf, title: "Keep original file", keywords: ["replace", "trash", "original", "保留原文件", "原始檔案"], highlightID: SettingsTab.shelf.highlightID(for: "Keep original file")),
-        SettingsSearchEntry(tab: .extraSpace, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: SettingsTab.extraSpace.highlightID(for: "Enable Extra Space")),
+        SettingsSearchEntry(tab: .tools, title: "Enable Extra Space", keywords: ["scratchpad", "notes", "paste", "text", "临时文字", "暂存", "笔记"], highlightID: "extraSpace-Enable Extra Space"),
         SettingsSearchEntry(tab: .microEvents, title: "Enable Micro Events", keywords: ["reminder", "recurring", "daily", "weekly", "monthly", "todo", "提醒", "每周", "每月", "待办"], highlightID: SettingsTab.microEvents.highlightID(for: "Enable Micro Events")),
         SettingsSearchEntry(tab: .microEvents, title: "Reminder sound", keywords: ["chime", "sound", "alert", "声音", "提示音"], highlightID: SettingsTab.microEvents.highlightID(for: "Reminder sound")),
         SettingsSearchEntry(tab: .agents, title: "Enable agent tracking", keywords: ["agents", "claude", "codex", "sessions"], highlightID: SettingsTab.agents.highlightID(for: "Enable agent tracking")),
@@ -226,9 +217,9 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .calendar, title: "Calendar App", keywords: ["fantastical", "calendar app"], highlightID: SettingsTab.calendar.highlightID(for: "Calendar App")),
         SettingsSearchEntry(tab: .calendar, title: "Fantastical Default View", keywords: ["fantastical", "view"], highlightID: SettingsTab.calendar.highlightID(for: "Fantastical Default View")),
         SettingsSearchEntry(tab: .devices, title: "Show AirPods listening mode changes", keywords: ["airpods", "noise cancellation", "transparency"], highlightID: SettingsTab.devices.highlightID(for: "Show AirPods listening mode changes")),
-        SettingsSearchEntry(tab: .downloads, title: "Enable download detection", keywords: ["downloads", "progress", "browser"], highlightID: SettingsTab.downloads.highlightID(for: "Enable download detection")),
-        SettingsSearchEntry(tab: .downloads, title: "Download indicator style", keywords: ["downloads", "progress", "circle"], highlightID: SettingsTab.downloads.highlightID(for: "Download indicator style")),
-        SettingsSearchEntry(tab: .downloads, title: "Show download speed", keywords: ["downloads", "speed"], highlightID: SettingsTab.downloads.highlightID(for: "Show download speed")),
+        SettingsSearchEntry(tab: .liveActivities, title: "Enable download detection", keywords: ["downloads", "progress", "browser"], highlightID: "downloads-Enable download detection"),
+        SettingsSearchEntry(tab: .liveActivities, title: "Download indicator style", keywords: ["downloads", "progress", "circle"], highlightID: "downloads-Download indicator style"),
+        SettingsSearchEntry(tab: .liveActivities, title: "Show download speed", keywords: ["downloads", "speed"], highlightID: "downloads-Show download speed"),
         SettingsSearchEntry(tab: .general, title: "Horizontal media gestures", keywords: ["swipe", "gesture", "skip", "media"], highlightID: SettingsTab.general.highlightID(for: "Horizontal media gestures")),
         SettingsSearchEntry(tab: .general, title: "Gesture skip behavior", keywords: ["swipe", "gesture", "skip", "seek"], highlightID: SettingsTab.general.highlightID(for: "Gesture skip behavior")),
         SettingsSearchEntry(tab: .hudAndOSD, title: "Play feedback when volume is changed", keywords: ["volume", "sound", "feedback"], highlightID: SettingsTab.hudAndOSD.highlightID(for: "Play feedback when volume is changed")),
@@ -444,10 +435,10 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .stats, title: "Disk I/O", keywords: ["disk", "io"], highlightID: SettingsTab.stats.highlightID(for: "Disk I/O")),
 
         // Color Picker
-        SettingsSearchEntry(tab: .colorPicker, title: "Enable Color Picker", keywords: ["color picker", "eyedropper"], highlightID: SettingsTab.colorPicker.highlightID(for: "Enable Color Picker")),
-        SettingsSearchEntry(tab: .colorPicker, title: "Show Color Picker Icon", keywords: ["color icon", "toolbar"], highlightID: SettingsTab.colorPicker.highlightID(for: "Show Color Picker Icon")),
-        SettingsSearchEntry(tab: .colorPicker, title: "Display Mode", keywords: ["color", "list"], highlightID: SettingsTab.colorPicker.highlightID(for: "Display Mode")),
-        SettingsSearchEntry(tab: .colorPicker, title: "Show All Color Formats", keywords: ["hex", "hsl", "color formats"], highlightID: SettingsTab.colorPicker.highlightID(for: "Show All Color Formats")),
+        SettingsSearchEntry(tab: .tools, title: "Enable Color Picker", keywords: ["color picker", "eyedropper"], highlightID: "colorPicker-Enable Color Picker"),
+        SettingsSearchEntry(tab: .tools, title: "Show Color Picker Icon", keywords: ["color icon", "toolbar"], highlightID: "colorPicker-Show Color Picker Icon"),
+        SettingsSearchEntry(tab: .tools, title: "Display Mode", keywords: ["color", "list"], highlightID: "colorPicker-Display Mode"),
+        SettingsSearchEntry(tab: .tools, title: "Show All Color Formats", keywords: ["hex", "hsl", "color formats"], highlightID: "colorPicker-Show All Color Formats"),
     ]
 
     /// Which segment of the Lock Screen tab a search result lives on, or nil
@@ -755,10 +746,8 @@ struct SettingsView: View {
             .calendar,
             .microEvents,
             // Utilities
-            .colorPicker,
-            .extraSpace,
+            .tools,
             .shelf,
-            .downloads,
             .shortcuts,
             // Developer
             .stats,
@@ -1002,21 +991,17 @@ struct SettingsView: View {
             SettingsForm(tab: .stats) {
                 StatsSettings()
             }
-        case .colorPicker:
-            SettingsForm(tab: .colorPicker) {
-                ColorPickerSettings()
-            }
-        case .extraSpace:
-            SettingsForm(tab: .extraSpace) {
-                ExtraSpaceSettings()
+        case .tools:
+            SettingsForm(tab: .tools) {
+                Form {
+                    ColorPickerSettings()
+                    ExtraSpaceSettings()
+                }
+                .navigationTitle("Tools")
             }
         case .microEvents:
             SettingsForm(tab: .microEvents) {
                 MicroEventSettings()
-            }
-        case .downloads:
-            SettingsForm(tab: .downloads) {
-                Downloads()
             }
         case .shelf:
             SettingsForm(tab: .shelf) {
@@ -1509,54 +1494,52 @@ struct Downloads: View {
     @Default(.selectedDownloadIndicatorStyle) var selectedDownloadIndicatorStyle
     @Default(.enableDownloadListener) var enableDownloadListener
 
+    /// Kept from when this was its own page, so search still finds the rows.
     private func highlightID(_ title: String) -> String {
-        SettingsTab.downloads.highlightID(for: title)
+        "downloads-\(title)"
     }
 
     var body: some View {
-        SwiftUI.Form {
-            Section {
-                Defaults.Toggle(key: .enableDownloadListener) {
-                    Text("Enable download detection")
-                }
-                .settingsHighlight(id: highlightID("Enable download detection"))
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Download indicator style")
-                        .font(.system(size: 13, weight: .semibold))
-                        // .white is invisible against a light Settings window;
-                        // the label follows the appearance like every other one.
-                        .foregroundStyle(enableDownloadListener ? Color.primary : Color.secondary)
+        Section {
+            Defaults.Toggle(key: .enableDownloadListener) {
+                Text("Enable download detection")
+            }
+            .settingsHighlight(id: highlightID("Enable download detection"))
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Download indicator style")
+                    .font(.system(size: 13, weight: .semibold))
+                    // .white is invisible against a light Settings window;
+                    // the label follows the appearance like every other one.
+                    .foregroundStyle(enableDownloadListener ? Color.primary : Color.secondary)
 
-                    HStack(spacing: 16) {
-                        DownloadStyleButton(
-                            style: .progress,
-                            isSelected: selectedDownloadIndicatorStyle == .progress,
-                            disabled: !enableDownloadListener
-                        ) {
-                            selectedDownloadIndicatorStyle = .progress
-                        }
+                HStack(spacing: 16) {
+                    DownloadStyleButton(
+                        style: .progress,
+                        isSelected: selectedDownloadIndicatorStyle == .progress,
+                        disabled: !enableDownloadListener
+                    ) {
+                        selectedDownloadIndicatorStyle = .progress
+                    }
 
-                        DownloadStyleButton(
-                            style: .circle,
-                            isSelected: selectedDownloadIndicatorStyle == .circle,
-                            disabled: !enableDownloadListener
-                        ) {
-                            selectedDownloadIndicatorStyle = .circle
-                        }
+                    DownloadStyleButton(
+                        style: .circle,
+                        isSelected: selectedDownloadIndicatorStyle == .circle,
+                        disabled: !enableDownloadListener
+                    ) {
+                        selectedDownloadIndicatorStyle = .circle
                     }
                 }
-                .settingsHighlight(id: highlightID("Download indicator style"))
-
-                Defaults.Toggle(key: .showDownloadSpeed) {
-                    Text("Show download speed")
-                }
-                .disabled(!enableDownloadListener)
-                .settingsHighlight(id: highlightID("Show download speed"))
-            } header: {
-                SettingsInfoLabel("Download Detection", info: "Shows progress in the notch while a file downloads. Works with Safari, Firefox, Chrome and Chrome-based browsers such as Edge, Brave, Arc, Vivaldi and Opera. Only the Downloads folder is watched.")
             }
+            .settingsHighlight(id: highlightID("Download indicator style"))
+
+            Defaults.Toggle(key: .showDownloadSpeed) {
+                Text("Show download speed")
+            }
+            .disabled(!enableDownloadListener)
+            .settingsHighlight(id: highlightID("Show download speed"))
+        } header: {
+            SettingsInfoLabel("Downloads", info: "Shows progress in the notch while a file downloads. Works with Safari, Firefox, Chrome and Chrome-based browsers such as Edge, Brave, Arc, Vivaldi and Opera. Only the Downloads folder is watched.")
         }
-        .navigationTitle("Downloads")
     }
 
     struct DownloadStyleButton: View {
@@ -2728,6 +2711,7 @@ struct LiveActivitiesSettings: View {
                 Text("Privacy Indicators")
             }
 
+            Downloads()
         }
         .navigationTitle("Live Activities")
         .onAppear {
@@ -5431,53 +5415,42 @@ struct ColorPickerSettings: View {
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
     @Default(.colorPickerDisplayMode) var colorPickerDisplayMode
 
+    /// Kept from when this was its own page, so search still finds the rows.
     private func highlightID(_ title: String) -> String {
-        SettingsTab.colorPicker.highlightID(for: title)
+        "colorPicker-\(title)"
     }
 
     var body: some View {
-        Form {
-            Section {
-                Defaults.Toggle(key: .enableColorPickerFeature) {
-                    Text("Enable Color Picker")
-                }
-                .settingsHighlight(id: highlightID("Enable Color Picker"))
-            } header: {
-                SettingsInfoLabel("Color Picker", info: "Picks any color on screen. Press ⌘⇧P to open it; you can change the shortcut in Shortcuts.")
+        Section {
+            Defaults.Toggle(key: .enableColorPickerFeature) {
+                Text("Enable Color Picker")
             }
+            .settingsHighlight(id: highlightID("Enable Color Picker"))
 
             if enableColorPickerFeature {
-                Section {
-                    Defaults.Toggle(key: .showColorPickerIcon) {
-                        Text("Show Color Picker Icon")
-                    }
-                    .settingsHighlight(id: highlightID("Show Color Picker Icon"))
-
-                    HStack {
-                        SettingsInfoLabel("Display Mode", info: "Popover opens under the color picker button. Panel opens a floating window.")
-                        Spacer()
-                        Picker("", selection: $colorPickerDisplayMode) {
-                            ForEach(ColorPickerDisplayMode.allCases, id: \.self) { mode in
-                                Text(mode.displayName).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(minWidth: 100)
-                    }
-                    .settingsHighlight(id: highlightID("Display Mode"))
-
-                    Defaults.Toggle(key: .showColorFormats) {
-                        Text("Show All Color Formats")
-                    }
-                    .settingsHighlight(id: highlightID("Show All Color Formats"))
-
-                } header: {
-                    Text("Settings")
+                Defaults.Toggle(key: .showColorPickerIcon) {
+                    Text("Show Color Picker Icon")
                 }
+                .settingsHighlight(id: highlightID("Show Color Picker Icon"))
 
+                Picker(selection: $colorPickerDisplayMode) {
+                    ForEach(ColorPickerDisplayMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                } label: {
+                    SettingsInfoLabel("Display Mode", info: "Popover opens under the color picker button. Panel opens a floating window.")
+                }
+                .pickerStyle(.menu)
+                .settingsHighlight(id: highlightID("Display Mode"))
+
+                Defaults.Toggle(key: .showColorFormats) {
+                    Text("Show All Color Formats")
+                }
+                .settingsHighlight(id: highlightID("Show All Color Formats"))
             }
+        } header: {
+            SettingsInfoLabel("Color Picker", info: "Picks any color on screen. Press ⌘⇧P to open it; you can change the shortcut in Shortcuts.")
         }
-        .navigationTitle("Color Picker")
     }
 }
 
