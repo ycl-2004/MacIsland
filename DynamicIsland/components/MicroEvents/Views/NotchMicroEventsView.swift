@@ -125,7 +125,7 @@ struct NotchMicroEventsView: View {
             disabledState
         } else if let error = store.errorMessage {
             Text(error)
-                .font(.notch(.caption))
+                .font(.notch(.footnote))
                 .foregroundStyle(.statusAttention)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else if !store.isLoaded, store.events.isEmpty {
@@ -174,10 +174,10 @@ struct NotchMicroEventsView: View {
     private var emptyState: some View {
         VStack(spacing: 4) {
             Text("Nothing scheduled yet")
-                .font(.notch(.body))
+                .font(.notch(.callout))
                 .foregroundStyle(.inkSecondary)
             Text("Add something you want to be reminded of every day, week or month.")
-                .font(.notch(.caption))
+                .font(.notch(.footnote))
                 .foregroundStyle(.inkTertiary)
                 .multilineTextAlignment(.center)
         }
@@ -187,13 +187,13 @@ struct NotchMicroEventsView: View {
     private var disabledState: some View {
         VStack(spacing: 6) {
             Text("Micro Events is off")
-                .font(.notch(.body))
+                .font(.notch(.callout))
                 .foregroundStyle(.inkSecondary)
             Button("Turn it on in Settings") {
                 SettingsWindowController.shared.showWindow(tab: "microEvents")
             }
             .buttonStyle(.plain)
-            .font(.notch(.caption))
+            .font(.notch(.footnote))
             .foregroundStyle(Color.accentColor)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -211,10 +211,10 @@ struct NotchMicroEventsView: View {
                 .textFieldStyle(.plain)
                 .focused($focusedField, equals: .title)
                 .simultaneousGesture(TapGesture().onEnded { focus(.title) })
-                .font(.notch(.body))
+                .font(.notch(.callout))
                 .foregroundStyle(.inkPrimary)
                 .padding(.horizontal, 8)
-                .frame(height: 26)
+                .frame(height: 28)
                 .background(RoundedRectangle(cornerRadius: NotchRadius.control).fill(.fillControl))
 
             HStack(spacing: 8) {
@@ -225,7 +225,7 @@ struct NotchMicroEventsView: View {
                         Text(binding.wrappedValue.recurrence.localizedName)
                         Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
                     }
-                    .font(.notch(.caption, weight: .medium))
+                    .font(.notch(.footnote, weight: .medium))
                     .foregroundStyle(.inkPrimary)
                     .padding(.horizontal, 7)
                     .frame(height: 24)
@@ -268,18 +268,18 @@ struct NotchMicroEventsView: View {
             HStack(spacing: 8) {
                 if let message = validationMessage(for: draft) {
                     Text(message)
-                        .font(.notch(.caption))
+                        .font(.notch(.footnote))
                         .foregroundStyle(.statusAttention)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
                 Button("Cancel") { cancelEditing() }
                     .buttonStyle(.plain)
-                    .font(.notch(.caption))
+                    .font(.notch(.footnote))
                     .foregroundStyle(.inkSecondary)
-                Button(draftIsNew ? "Add" : "Save") { commit(draft) }
+                Button(draftIsNew ? "Add" : "Save") { commit() }
                     .buttonStyle(.plain)
-                    .font(.notch(.caption, weight: .semibold))
+                    .font(.notch(.footnote, weight: .semibold))
                     .foregroundStyle(canCommit(draft) ? Color.accentColor : .inkQuaternary)
                     .disabled(!canCommit(draft))
             }
@@ -292,7 +292,7 @@ struct NotchMicroEventsView: View {
     private var timeField: some View {
         HStack(spacing: 4) {
             Image(systemName: "clock")
-                .font(.notch(.caption))
+                .font(.notch(.footnote))
                 .foregroundStyle(.inkTertiary)
             TextField("09:00", text: $timeText)
                 .textFieldStyle(.plain)
@@ -342,7 +342,7 @@ struct NotchMicroEventsView: View {
                         }
                     } label: {
                         Text(MicroEvent.weekdaySymbol(for: weekday))
-                            .font(.notch(.caption, weight: .medium))
+                            .font(.notch(.footnote, weight: .medium))
                             .frame(width: 20, height: 20)
                             .background(
                                 RoundedRectangle(cornerRadius: 5)
@@ -358,7 +358,7 @@ struct NotchMicroEventsView: View {
         case .monthly:
             HStack(spacing: 6) {
                 Text(String(localized: "Day"))
-                    .font(.notch(.caption))
+                    .font(.notch(.footnote))
                     .foregroundStyle(.inkTertiary)
                 Stepper(value: binding.dayOfMonth, in: 1...31) {
                     Text("\(binding.wrappedValue.dayOfMonth)")
@@ -391,11 +391,7 @@ struct NotchMicroEventsView: View {
     private func beginEditing(_ event: MicroEvent) {
         vm.setAutoCloseSuppression(true, token: autoCloseToken)
         store.beginEditing(id: event.id, token: editingToken)
-        var event = event
-        if event.recurrence == .once {
-            event.hour = Calendar.autoupdatingCurrent.component(.hour, from: event.startDate)
-            event.minute = Calendar.autoupdatingCurrent.component(.minute, from: event.startDate)
-        }
+        let event = event.preparedForEditing()
         draft = event
         draftIsNew = false
         timeText = Self.timeText(hour: event.hour, minute: event.minute)
@@ -418,23 +414,14 @@ struct NotchMicroEventsView: View {
         draft = event
     }
 
-    private func commit(_ event: MicroEvent) {
+    private func commit() {
         applyTimeToDraft()
-        guard let current = draft else { return }
-        var normalized = current.normalized()
-        if normalized.recurrence == .once {
-            guard let date = normalized.onceDate(), date > Date() else { return }
-            if !draftIsNew, let original = store.events.first(where: { $0.id == normalized.id }),
-               original.recurrence != .once || original.startDate != date {
-                normalized.completedKeys.removeAll { $0 == MicroEvent.onceKey }
-                normalized.completedAt = nil
-            }
-            normalized.startDate = date
-        }
+        let original = draftIsNew ? nil : store.events.first { $0.id == draft?.id }
+        guard let prepared = draft?.preparedForSaving(replacing: original) else { return }
         if draftIsNew {
-            store.add(normalized)
+            store.add(prepared)
         } else {
-            store.update(normalized)
+            store.update(prepared)
         }
         store.saveNow()
         showingRecurrenceOptions = false
@@ -537,6 +524,10 @@ struct MicroEventRow: View {
         return event.isCompleted(occurrence)
     }
 
+    private static let height: CGFloat = 30
+
+    @State private var isHovering = false
+
     var isOverdue: Bool {
         guard let occurrence, event.isEnabled, !isDone else { return false }
         return occurrence < now
@@ -546,9 +537,9 @@ struct MicroEventRow: View {
         HStack(spacing: 8) {
             Button(action: onToggle) {
                 Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.notch(.headline))
                     .foregroundStyle(isDone ? AnyShapeStyle(.statusSuccess) : (isOverdue ? AnyShapeStyle(.statusDanger) : AnyShapeStyle(.inkTertiary)))
-                    .frame(width: 18, height: 18)
+                    .frame(width: 20, height: 20)
             }
             .buttonStyle(.plain)
             .disabled(occurrence == nil)
@@ -558,41 +549,47 @@ struct MicroEventRow: View {
 
             HStack(spacing: 8) {
                 Text(event.title)
-                    .font(.notch(.body, weight: .medium))
+                    .font(.notch(.callout, weight: .medium))
                     .foregroundStyle(isOverdue ? AnyShapeStyle(.statusDanger) : (event.isEnabled ? (isDone ? AnyShapeStyle(.inkTertiary) : AnyShapeStyle(.inkPrimary)) : AnyShapeStyle(.inkTertiary)))
                     .strikethrough(isDone || !event.isEnabled, color: .inkTertiary)
                     .lineLimit(1)
                 Text(scheduleLabel)
-                    .font(.notch(.caption))
+                    .font(.notch(.footnote))
                     .foregroundStyle(isOverdue ? AnyShapeStyle(.statusDanger) : AnyShapeStyle(.inkTertiary))
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                if let occurrence, !isDone && event.isEnabled {
-                    Text(isOverdue ? String(localized: "Overdue") : MicroEvent.relativeDescription(for: occurrence, now: now))
-                        .font(.notch(.caption, weight: isOverdue ? .semibold : .regular))
-                        .foregroundStyle(isOverdue ? AnyShapeStyle(.statusDanger) : AnyShapeStyle(.inkTertiary))
+                // Red already says overdue; the countdown is for what is still ahead.
+                if let occurrence, !isDone, event.isEnabled, !isOverdue, !isHovering {
+                    Text(MicroEvent.relativeDescription(for: occurrence, now: now))
+                        .font(.notch(.footnote))
+                        .foregroundStyle(.inkTertiary)
                         .lineLimit(1)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: Self.height, alignment: .leading)
             .contentShape(Rectangle())
             .onTapGesture(count: 2, perform: onEdit)
 
-            Button(action: onEdit) {
-                Image(systemName: "pencil").frame(width: 20, height: 20)
-            }
-            .help(String(localized: "Edit"))
-            .accessibilityLabel(String(format: String(localized: "Edit %@"), event.title))
+            // Only on the row under the pointer, so the list reads as a list.
+            // Double-click and the context menu reach the same actions.
+            if isHovering {
+                Button(action: onEdit) {
+                    Image(systemName: "pencil").frame(width: 20, height: 20)
+                }
+                .help(String(localized: "Edit"))
+                .accessibilityLabel(String(format: String(localized: "Edit %@"), event.title))
 
-            Button(action: onDelete) {
-                Image(systemName: "trash").frame(width: 20, height: 20)
+                Button(action: onDelete) {
+                    Image(systemName: "trash").frame(width: 20, height: 20)
+                }
+                .help(String(localized: "Delete"))
+                .accessibilityLabel(String(format: String(localized: "Delete %@"), event.title))
             }
-            .help(String(localized: "Delete"))
-            .accessibilityLabel(String(format: String(localized: "Delete %@"), event.title))
         }
-        .frame(height: 28)
+        .frame(height: Self.height)
+        .onHover { isHovering = $0 }
         .buttonStyle(.plain)
-        .font(.notch(.caption, weight: .semibold))
+        .font(.notch(.footnote, weight: .semibold))
         .foregroundStyle(.inkSecondary)
         .contentShape(Rectangle())
         .contextMenu {
@@ -604,13 +601,7 @@ struct MicroEventRow: View {
     }
 
     private var scheduleLabel: String {
-        if !event.isEnabled {
-            return String(localized: "Paused")
-        }
-        if let occurrence, Calendar.autoupdatingCurrent.isDate(occurrence, inSameDayAs: now) {
-            return "\(String(localized: "Today")) · \(event.scheduleDescription)"
-        }
-        return event.scheduleDescription
+        event.isEnabled ? event.scheduleDescription : String(localized: "Paused")
     }
 }
 

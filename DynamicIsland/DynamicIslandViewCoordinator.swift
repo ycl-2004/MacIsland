@@ -249,6 +249,22 @@ class DynamicIslandViewCoordinator: ObservableObject {
             return
         }
         DispatchQueue.main.async {
+            // A Micro Event reminder is delivered once, so a volume change or a
+            // new track may borrow the notch but not swallow the reminder: it
+            // comes back when the interruption ends. A hide meant for another
+            // type leaves it alone.
+            if type != .microEvent, self.sneakPeek.show, self.sneakPeek.type == .microEvent {
+                guard status else { return }
+                self.interruptedReminder = self.sneakPeek
+            }
+            if !status, let reminder = self.interruptedReminder {
+                self.interruptedReminder = nil
+                self.sneakPeekDuration = MicroEventManager.peekDuration
+                withAnimation(.smooth(duration: 0.3)) {
+                    self.sneakPeek = reminder
+                }
+                return
+            }
             // Single write so `sneakPeek.didSet` (which schedules the auto-hide)
             // fires once, not once per field — the per-field writes raced the hide
             // Task and could wedge `show == true` with no pending hide.
@@ -269,6 +285,7 @@ class DynamicIslandViewCoordinator: ObservableObject {
     }
     
     private var sneakPeekDuration: TimeInterval = 1.5
+    private var interruptedReminder: SneakPeek?
     private var sneakPeekTask: Task<Void, Never>?
 
     // Helper function to manage sneakPeek timer using Swift Concurrency

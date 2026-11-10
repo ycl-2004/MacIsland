@@ -114,7 +114,7 @@ struct TabSelectionView: View {
     private func badge(for view: NotchViews) -> Color? {
         switch view {
         case .agents: return agentsNeedYou ? .statusAttention : nil
-        case .microEvents: return microEvents.dueTodayCount() > 0 ? .statusAttention : nil
+        case .microEvents: return microEvents.hasOverdueItem() ? .statusAttention : nil
         case .shelf: return fileDropEnabled && shelfHasItems && coordinator.currentView != .shelf ? .inkTertiary : nil
         default: return nil
         }

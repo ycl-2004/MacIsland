@@ -35,13 +35,6 @@ struct MicroEventSettings: View {
         _store = ObservedObject(wrappedValue: store ?? .shared)
     }
 
-    private var nextReminderText: String {
-        guard let next = manager.nextFireDate, next > now else {
-            return String(localized: "None scheduled")
-        }
-        return next.formatted(date: .abbreviated, time: .shortened)
-    }
-
     var body: some View {
         Form {
             Section {
@@ -54,6 +47,7 @@ struct MicroEventSettings: View {
                     Text("Reminder sound")
                 }
                 .settingsHighlight(id: "microEvents-Reminder sound")
+                .disabled(!isEnabled)
 
                 Picker("Remind me", selection: $leadMinutes) {
                     Text("At the time").tag(0)
@@ -105,31 +99,15 @@ struct MicroEventSettings: View {
             } header: {
                 Text("Your Micro Events")
             } footer: {
-                Text("Add, edit, or delete reminders here or from the Micro Events tab in the notch.")
+                Text("A tick belongs to one occurrence: a daily item starts unchecked tomorrow. Reminders only fire while Atoll is running.")
             }
 
-            Section {
-                LabeledContent("Items", value: "\(store.events.count)")
-                LabeledContent("Due today", value: "\(manager.dueTodayCount(now: now))")
-                LabeledContent("Next reminder", value: nextReminderText)
-                Button("Show Local Content File") {
-                    NSWorkspace.shared.activateFileViewerSelecting([store.fileURL])
-                }
-                .disabled(!FileManager.default.fileExists(atPath: store.fileURL.path))
-                if let error = store.errorMessage {
+            if let error = store.errorMessage {
+                Section {
                     Text(error)
                         .foregroundStyle(.red)
                         .textSelection(.enabled)
                 }
-            } header: {
-                SettingsInfoLabel(
-                    "Schedule",
-                    info: "Repeats are Once, Daily, Weekly and Monthly. A tick belongs to one occurrence: tomorrow's copy starts unchecked. Pausing keeps the item but stops its reminders."
-                )
-            } footer: {
-                Text("Atoll has to be running: nothing fires while the app is closed. Items are stored in one local JSON file and no permission is requested.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .navigationTitle("Micro Events")
@@ -187,14 +165,9 @@ struct MicroEventSettingsEditor: View {
         self.editing = editing
         self.onSave = onSave
         self.onCancel = onCancel
-        var value = editing.event
-        let calendar = Calendar.autoupdatingCurrent
-        if value.recurrence == .once {
-            value.hour = calendar.component(.hour, from: value.startDate)
-            value.minute = calendar.component(.minute, from: value.startDate)
-        }
+        let value = editing.event.preparedForEditing()
         _event = State(initialValue: value)
-        _time = State(initialValue: calendar.date(bySettingHour: value.hour, minute: value.minute, second: 0, of: Date()) ?? Date())
+        _time = State(initialValue: Calendar.autoupdatingCurrent.date(bySettingHour: value.hour, minute: value.minute, second: 0, of: Date()) ?? Date())
     }
 
     private var prepared: MicroEvent? {
@@ -202,17 +175,7 @@ struct MicroEventSettingsEditor: View {
         let calendar = Calendar.autoupdatingCurrent
         value.hour = calendar.component(.hour, from: time)
         value.minute = calendar.component(.minute, from: time)
-        guard value.isValid else { return nil }
-        value = value.normalized()
-        if value.recurrence == .once {
-            guard let date = value.onceDate(), date > Date() else { return nil }
-            if !editing.isNew && (editing.event.recurrence != .once || editing.event.startDate != date) {
-                value.completedKeys.removeAll { $0 == MicroEvent.onceKey }
-                value.completedAt = nil
-            }
-            value.startDate = date
-        }
-        return value
+        return value.preparedForSaving(replacing: editing.isNew ? nil : editing.event)
     }
 
     var body: some View {

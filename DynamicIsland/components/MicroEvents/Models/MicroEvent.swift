@@ -122,6 +122,42 @@ struct MicroEvent: Codable, Identifiable, Equatable {
             && (recurrence != .weekly || !weekdays.isEmpty)
     }
 
+    /// The editor's working copy of a stored item: a one-off shows the time it
+    /// was saved with.
+    func preparedForEditing(calendar: Calendar = .autoupdatingCurrent) -> MicroEvent {
+        guard recurrence == .once else { return self }
+        var copy = self
+        copy.hour = calendar.component(.hour, from: startDate)
+        copy.minute = calendar.component(.minute, from: startDate)
+        return copy
+    }
+
+    /// What an editor saves, or nil when the draft cannot be saved yet. Both
+    /// editors go through here so the rules exist once.
+    ///
+    /// `original` is the stored item being replaced, nil for a new one.
+    func preparedForSaving(replacing original: MicroEvent?, now: Date = Date(),
+                           calendar: Calendar = .autoupdatingCurrent) -> MicroEvent? {
+        guard isValid else { return nil }
+        var value = normalized(calendar: calendar)
+        if value.recurrence == .once {
+            guard let date = value.onceDate(calendar: calendar), date > now else { return nil }
+            if let original, original.recurrence != .once || original.startDate != date {
+                value.completedKeys.removeAll { $0 == Self.onceKey }
+                value.completedAt = nil
+            }
+            value.startDate = date
+        } else {
+            value.completedKeys.removeAll { $0 == Self.onceKey }
+            // A repeating rule has no start date in the editor. One inherited
+            // from a one-off would silence the rule until that day.
+            if original?.recurrence == .once || value.startDate > now {
+                value.startDate = calendar.startOfDay(for: now)
+            }
+        }
+        return value
+    }
+
     var timeDescription: String {
         let components = DateComponents(hour: hour, minute: minute)
         let calendar = Calendar.autoupdatingCurrent

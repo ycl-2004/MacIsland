@@ -781,16 +781,6 @@ struct ContentView: View {
                 Button("Settings") {
                     SettingsWindowController.shared.showWindow()
                 }
-//                Button("Edit") { // Doesnt work....
-//                    let dn = DynamicNotch(content: EditPanelView())
-//                    dn.toggle()
-//                }
-//                #if DEBUG
-//                .disabled(false)
-//                #else
-//                .disabled(true)
-//                #endif
-//                .keyboardShortcut("E", modifiers: .command)
             }
     }
 
@@ -899,6 +889,7 @@ struct ContentView: View {
                 }
             }
             .onChange(of: vm.hideOnClosed) { _, hidden in
+                microEventManager.isNotchHidden = hidden || lockScreenManager.isLocked
                 if hidden {
                     cancelMusicControlWindowSync()
                     hideMusicControlWindow()
@@ -907,6 +898,7 @@ struct ContentView: View {
                 }
             }
             .onChange(of: lockScreenManager.isLocked) { _, locked in
+                microEventManager.isNotchHidden = locked || vm.hideOnClosed
                 if locked {
                     suppressMusicControlWindowUpdates()
                     cancelMusicControlWindowSync()

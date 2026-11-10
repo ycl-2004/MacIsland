@@ -23,8 +23,8 @@ import Foundation
 ///
 /// Deliberately not `Defaults` (these are content, not settings) and not
 /// `EventKit` (writing there would make this another Reminders list and ask for
-/// another permission). The file is replaced atomically and the previous
-/// snapshot is backed up, so removed occurrences do not remain in the backup.
+/// another permission). The file is replaced atomically and no older revision
+/// is kept, so a removed item does not linger on disk.
 @MainActor
 final class MicroEventStore: ObservableObject {
     static let shared = MicroEventStore()
@@ -69,14 +69,14 @@ final class MicroEventStore: ObservableObject {
             // Legacy documents have no completion timestamp. A past due date
             // lets startup clear an old completion; a future due date starts
             // the grace period now instead of deleting it immediately.
+            var migrated = false
             for index in events.indices where events[index].recurrence == .once
                 && events[index].completedKeys.contains(MicroEvent.onceKey)
                 && events[index].completedAt == nil {
                 events[index].completedAt = min(Date(), events[index].startDate)
+                migrated = true
             }
-            // Refresh older backups too: they may contain items deleted by an
-            // earlier version of the app even when the current list is clean.
-            scheduleSave()
+            if migrated { scheduleSave() }
         } catch {
             // Keep the unreadable file next to the new one instead of letting the
             // first edit overwrite a list we could not parse.
@@ -235,15 +235,12 @@ final class MicroEventStore: ObservableObject {
 
     /// Returns an error message, or nil on success.
     private nonisolated static func write(_ data: Data, to url: URL) -> String? {
-        let directory = url.deletingLastPathComponent()
         do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let temporary = directory.appendingPathComponent("events.json.tmp")
-            try data.write(to: temporary, options: .atomic)
-            _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary)
-            // Keep a redundant copy of the latest successful snapshot, never a
-            // previous list that can resurrect deleted or expired records.
-            try data.write(to: directory.appendingPathComponent("events.previous.json"), options: .atomic)
+            // No previous revision: it would keep deleted and expired records.
+            try PrivateContentFile.write(data, to: url, keepingPrevious: false)
+            // Earlier builds wrote a second copy that nothing ever read.
+            try? FileManager.default.removeItem(
+                at: url.deletingLastPathComponent().appendingPathComponent("events.previous.json"))
             return nil
         } catch {
             return String(localized: "Your Micro Events could not be saved. The previous version is kept.")

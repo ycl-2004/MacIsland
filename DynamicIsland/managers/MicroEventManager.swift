@@ -39,9 +39,10 @@ final class MicroEventManager: ObservableObject {
     /// How late a missed item may still be delivered (for example after a short
     /// sleep). Anything older is not replayed.
     static let lateDeliveryWindow: TimeInterval = 120
+    /// How long the closed-notch peek stays up.
+    static let peekDuration: TimeInterval = 8
 
     @Published private(set) var refreshToken = UUID()
-    @Published private(set) var nextFireDate: Date?
 
     private let store: MicroEventStore
     private let calendar: Calendar
@@ -55,6 +56,20 @@ final class MicroEventManager: ObservableObject {
     /// "id|occurrenceKey", kept for this launch only, so a reschedule cannot
     /// deliver the same occurrence twice.
     private var deliveredKeys: Set<String> = []
+    /// A reminder that came due while the closed notch could not draw (a
+    /// full-screen app, the lock screen). Shown once when the notch is back.
+    private var missedPeek: (eventID: UUID, occurrence: Date)?
+
+    /// Told by the notch view. Nothing is observed or polled for this.
+    var isNotchHidden = false {
+        didSet {
+            guard oldValue, !isNotchHidden, let missed = missedPeek else { return }
+            missedPeek = nil
+            guard isEnabled, let event = store.events.first(where: { $0.id == missed.eventID }),
+                  event.isEnabled, !event.isCompleted(missed.occurrence, calendar: calendar) else { return }
+            showPeek(for: event)
+        }
+    }
 
     private init() {
         self.store = .shared
@@ -68,16 +83,16 @@ final class MicroEventManager: ObservableObject {
 
     var isEnabled: Bool { Defaults[.enableMicroEventsFeature] }
 
-    /// Number of enabled items whose occurrence today is not ticked off yet.
-    /// Computed rather than stored so a midnight rollover cannot leave a stale
-    /// badge behind; `refreshToken` tells SwiftUI when to ask again.
-    func dueTodayCount(now: Date = Date()) -> Int {
-        guard isEnabled else { return 0 }
-        return store.events.reduce(into: 0) { count, event in
+    /// Whether an enabled item has come due today and is not ticked off yet:
+    /// what the tab's dot means. An item due tonight does not light it in the
+    /// morning. Computed rather than stored so a midnight rollover cannot leave
+    /// a stale dot behind; `refreshToken` tells SwiftUI when to ask again.
+    func hasOverdueItem(now: Date = Date()) -> Bool {
+        guard isEnabled else { return false }
+        return store.events.contains { event in
             guard event.isEnabled,
-                  let occurrence = event.occurrence(onDayOf: now, calendar: calendar),
-                  !event.isCompleted(occurrence, calendar: calendar) else { return }
-            count += 1
+                  let occurrence = event.occurrence(onDayOf: now, calendar: calendar) else { return false }
+            return occurrence <= now && !event.isCompleted(occurrence, calendar: calendar)
         }
     }
 
@@ -90,7 +105,6 @@ final class MicroEventManager: ObservableObject {
         deliveryTask = nil
         dayBoundaryTask = nil
         dueStateTask = nil
-        nextFireDate = nil
         refreshToken = UUID()
 
         guard isEnabled else { return }
@@ -99,7 +113,7 @@ final class MicroEventManager: ObservableObject {
 
         let lead = TimeInterval(max(0, Defaults[.microEventsLeadMinutes]) * 60)
         // An early reminder fires before the item becomes overdue. Refresh once
-        // at its actual due time even while the notch stays open.
+        // at its actual due time, so the tab's dot and the open list turn then.
         if lead > 0, let due = Self.nextDueStateChange(events: store.events, now: now, calendar: calendar) {
             let delay = max(0, due.timeIntervalSince(now))
             dueStateTask = Task { [weak self] in
@@ -122,7 +136,6 @@ final class MicroEventManager: ObservableObject {
             return
         }
 
-        nextFireDate = next.delivery
         let delay = max(0, next.delivery.timeIntervalSince(now))
         logger.debug("Next Micro Event in \(Int(delay), privacy: .public)s")
         deliveryTask = Task { [weak self] in
@@ -209,16 +222,23 @@ final class MicroEventManager: ObservableObject {
             playChime()
         }
 
+        if isNotchHidden {
+            missedPeek = (event.id, occurrence)
+        } else {
+            showPeek(for: event)
+        }
+        reschedule()
+    }
+
+    private func showPeek(for event: MicroEvent) {
         DynamicIslandViewCoordinator.shared.toggleSneakPeek(
             status: true,
             type: .microEvent,
-            duration: 8,
+            duration: Self.peekDuration,
             icon: "checklist",
             title: event.title,
             subtitle: event.scheduleDescription
         )
-        refreshToken = UUID()
-        reschedule()
     }
 
     private static func deliveryKey(eventID: UUID, occurrence: Date) -> String {
@@ -265,7 +285,6 @@ final class MicroEventManager: ObservableObject {
                     self.dayBoundaryTask = nil
                     self.dueStateTask?.cancel()
                     self.dueStateTask = nil
-                    self.nextFireDate = nil
                     self.refreshToken = UUID()
                 }
             }

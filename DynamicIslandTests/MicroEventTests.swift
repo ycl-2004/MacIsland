@@ -230,6 +230,31 @@ final class MicroEventTests: XCTestCase {
         }
     }
 
+    func testOneOffTurnedIntoRepeatingRuleStartsNow() throws {
+        let now = date(2026, 3, 10, 10)
+        let oneOff = MicroEvent(title: "Trip", recurrence: .once, hour: 9, startDate: date(2026, 4, 1, 9),
+                                completedKeys: [MicroEvent.onceKey])
+        var draft = oneOff.preparedForEditing(calendar: calendar)
+        draft.recurrence = .daily
+        let saved = try XCTUnwrap(draft.preparedForSaving(replacing: oneOff, now: now, calendar: calendar))
+        XCTAssertEqual(saved.nextOccurrence(after: now, calendar: calendar), date(2026, 3, 11, 9),
+                       "The rule must not wait for the old one-off date")
+        XCTAssertTrue(saved.completedKeys.isEmpty)
+
+        let recurring = MicroEvent(title: "Water", recurrence: .daily, hour: 9, startDate: date(2026, 3, 1))
+        let renamed = try XCTUnwrap(recurring.preparedForSaving(replacing: recurring, now: now, calendar: calendar))
+        XCTAssertEqual(renamed.startDate, recurring.startDate, "An ordinary edit keeps the rule's start")
+    }
+
+    func testSavingRejectsInvalidDraftsAndPastOneOffs() {
+        let now = date(2026, 3, 10, 10)
+        XCTAssertNil(MicroEvent(title: " ", recurrence: .daily).preparedForSaving(replacing: nil, now: now, calendar: calendar))
+        let past = MicroEvent(title: "Late", recurrence: .once, hour: 9, startDate: date(2026, 3, 10))
+        XCTAssertNil(past.preparedForSaving(replacing: nil, now: now, calendar: calendar))
+        let future = MicroEvent(title: "Soon", recurrence: .once, hour: 11, startDate: date(2026, 3, 10))
+        XCTAssertEqual(future.preparedForSaving(replacing: nil, now: now, calendar: calendar)?.startDate, date(2026, 3, 10, 11))
+    }
+
     func testOverdueStateExcludesCompletedAndPausedItems() {
         let now = date(2026, 3, 10, 10)
         let due = date(2026, 3, 10, 9)
@@ -315,7 +340,8 @@ final class MicroEventTests: XCTestCase {
                 try await Task.sleep(for: .milliseconds(20))
             }
         }
-        try await click(NSPoint(x: 120, y: 107))
+        // The middle of the schedule row, where the time field sits.
+        try await click(NSPoint(x: 120, y: 99))
         try await Task.sleep(for: .milliseconds(120))
         XCTAssertTrue(vm.isAutoCloseSuppressed)
         let focusedBeforeTyping = String(describing: window.firstResponder)
@@ -324,6 +350,11 @@ final class MicroEventTests: XCTestCase {
         // contents directly so the test does not depend on a global key-window
         // shortcut, then exercise actual key events for the time and Return.
         let fieldEditor = try XCTUnwrap(window.firstResponder as? NSTextView, "The time field must receive focus")
+        // AppKit checks the text when the field gives up focus, and the first
+        // check in a process can wait on a slower system thread. XCTest records
+        // that wait as a failure, so whether this test passed depended on which
+        // tests ran before it. Nothing here needs spelling or data detection.
+        fieldEditor.enabledTextCheckingTypes = 0
         fieldEditor.selectAll(nil)
         try await key("9", code: 25)
         try await key("3", code: 20)
@@ -493,12 +524,14 @@ final class MicroEventTests: XCTestCase {
         XCTAssertNil(saveFailure)
         XCTAssertEqual(restarted.events.map(\.title), ["Keep recurring"])
         XCTAssertEqual(restarted.events.first?.completedKeys, ["2026-11-01"])
-        for name in ["events.json", "events.previous.json"] {
-            let contents = try String(contentsOf: directory.appendingPathComponent(name), encoding: .utf8)
-            XCTAssertFalse(contents.contains("Expired one-off"), "\(name) must not retain the deleted item")
-            XCTAssertFalse(contents.contains("2026-10-31"), "\(name) must not retain old occurrence markers")
-            XCTAssertTrue(contents.contains("Keep recurring"))
-        }
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertFalse(contents.contains("Expired one-off"), "The deleted item must not remain on disk")
+        XCTAssertFalse(contents.contains("2026-10-31"), "Old occurrence markers must not remain on disk")
+        XCTAssertTrue(contents.contains("Keep recurring"))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["events.json"],
+                       "No second copy that could keep removed items")
+        let permissions = try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int
+        XCTAssertEqual(permissions, 0o600, "The list is private like Atoll's other content files")
         let reloaded = MicroEventStore(fileURL: url, saveDelay: 30)
         reloaded.loadIfNeeded()
         XCTAssertEqual(reloaded.events.map(\.title), ["Keep recurring"])
