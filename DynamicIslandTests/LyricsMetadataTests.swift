@@ -348,3 +348,27 @@ final class InstrumentalRecordingMatchTests: XCTestCase {
         XCTAssertNotNil(selected)
     }
 }
+
+/// One artist, two spellings: the player publishes simplified Chinese, lrclib
+/// files the timed lyrics under the traditional form.
+final class LyricsScriptFoldingTests: XCTestCase {
+
+    func testTraditionalAndSimplifiedNormalizeAlike() {
+        XCTAssertEqual(
+            LyricsSearchResults.normalizedForMatching("艾志恆Asen"),
+            LyricsSearchResults.normalizedForMatching("艾志恒Asen")
+        )
+        XCTAssertEqual(LyricsSearchResults.normalizedForMatching("後來"), "后来")
+    }
+
+    func testTimedRowUnderTheOtherScriptWins() {
+        let rows: [[String: Any]] = [
+            ["trackName": "Money Focused Freestyle", "artistName": "艾志恒Asen", "plainLyrics": "words"],
+            ["trackName": "Money Focused Freestyle", "artistName": "艾志恆Asen", "syncedLyrics": "[00:10.00]words"],
+        ]
+        let selected = LyricsSearchResults.bestMatch(
+            in: rows, artist: "艾志恒Asen", title: "Money Focused Freestyle", album: ""
+        )
+        XCTAssertEqual(selected?["artistName"] as? String, "艾志恆Asen")
+    }
+}

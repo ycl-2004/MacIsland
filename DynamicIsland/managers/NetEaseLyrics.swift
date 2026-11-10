@@ -10,18 +10,31 @@
 
 import Foundation
 
-/// Lyrics from NetEase Cloud Music, asked only after LRCLIB has come up empty.
+/// Lyrics from NetEase Cloud Music, for tracks its desktop app is playing.
 ///
 /// LRCLIB is a community catalogue and most Chinese-language releases were
 /// never submitted to it, so a NetEase Cloud Music user with lyrics switched on
 /// saw "No lyrics found" for most of what they played (#713). NetEase's own
 /// lyric store covers its own catalogue, but the player publishes only title,
-/// artist, album and duration through Now Playing -- never a song id -- so
-/// the track has to be found again by search before its lyrics can be asked
-/// for. The duration is what makes that search trustworthy: a title-and-artist
-/// hit whose length is off by more than a couple of seconds is a different
-/// recording, and its timestamps would land every line at the wrong moment.
+/// artist, album and duration through Now Playing -- never a song id.
+///
+/// The id used to be recovered by searching NetEase for the title and artist.
+/// That endpoint now answers with an encrypted body, so the id is read from
+/// where the app itself keeps it: the play queue it writes to disk as plain
+/// JSON. The duration still guards the match -- a queue can hold two cuts of
+/// one song, and the wrong cut's timestamps would land every line at the
+/// wrong moment.
 enum NetEaseLyrics {
+
+    /// The desktop app's play queue. It holds every queued track, so the one
+    /// playing is in it whichever way playback moves.
+    static let playQueueURL = URL.applicationSupportDirectory
+        .appending(path: "com.netease.163music/Documents/storage/file_storage/webdata/file/playingList")
+
+    /// How long to wait before reading the queue a second time. Starting a
+    /// track from a search replaces the queue, and Now Playing can announce
+    /// the track before the app has written the new one.
+    static let queueRetryDelay: Duration = .seconds(1.5)
 
     struct Song: Equatable {
         let id: Int
@@ -37,31 +50,25 @@ enum NetEaseLyrics {
     static let durationTolerance: TimeInterval = 2
 
     /// Returns lyrics or an explicit instrumental/unavailable result for the
-    /// closest matching track. Throws only on transport
+    /// queued track that matches. Throws only on transport
     /// failure, so the caller can tell "nothing there" from "could not ask".
     static func fetch(
         title: String,
         artist: String,
         duration: TimeInterval,
+        queueURL: URL = playQueueURL,
         session: URLSession = .shared
     ) async throws -> LyricsResolution {
-        guard let searchURL = searchURL(title: title, artist: artist) else { return LyricsResolution() }
-
-        let (searchData, searchResponse) = try await BoundedHTTP.data(from: searchURL, session: session)
-        let searchStatus = (searchResponse as? HTTPURLResponse)?.statusCode
-        guard searchStatus == 200 else {
-            Logger.log("NetEase lyrics: search HTTP \(searchStatus ?? -1) title=\(title) artist=\(artist) duration=\(duration)", category: .network)
+        var song = queuedSong(at: queueURL, title: title, artist: artist, duration: duration)
+        if song == nil {
+            try await Task.sleep(for: queueRetryDelay)
+            song = queuedSong(at: queueURL, title: title, artist: artist, duration: duration)
+        }
+        guard let song, let lyricURL = lyricURL(songID: song.id) else {
+            Logger.log("NetEase lyrics: not in play queue title=\(title) artist=\(artist) duration=\(duration)", category: .debug)
             return LyricsResolution()
         }
-
-        let songs = parseSearchResponse(searchData)
-        guard let song = bestMatch(in: songs, title: title, artist: artist, duration: duration),
-              let lyricURL = lyricURL(songID: song.id)
-        else {
-            Logger.log("NetEase lyrics: no match title=\(title) artist=\(artist) duration=\(duration) songs=\(songs.count)", category: .debug)
-            return LyricsResolution()
-        }
-        Logger.log("NetEase lyrics: match id=\(song.id) name=\(song.name) duration=\(song.duration) for title=\(title) artist=\(artist) duration=\(duration) songs=\(songs.count)", category: .debug)
+        Logger.log("NetEase lyrics: match id=\(song.id) name=\(song.name) duration=\(song.duration) for title=\(title) artist=\(artist) duration=\(duration)", category: .debug)
 
         let (lyricData, lyricResponse) = try await BoundedHTTP.data(from: lyricURL, session: session)
         let lyricStatus = (lyricResponse as? HTTPURLResponse)?.statusCode
@@ -75,24 +82,9 @@ enum NetEaseLyrics {
 
     // MARK: - Requests
 
-    /// Characters allowed unescaped in a query *value*. `urlQueryAllowed` keeps
-    /// `&`, `+`, `=` and `/` literal because they are structural in a query --
-    /// which is exactly why a title containing one must have it escaped.
-    private static let queryValueAllowed: CharacterSet = {
-        var allowed = CharacterSet.urlQueryAllowed
-        allowed.remove(charactersIn: "&+=/?#")
-        return allowed
-    }()
-
-    static func searchURL(title: String, artist: String) -> URL? {
-        // NetEase joins collaborating artists with "/" when it publishes the
-        // track; as a search term that is one token nobody is filed under.
-        let query = "\(title) \(artist.replacingOccurrences(of: "/", with: " "))"
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty,
-              let encoded = query.addingPercentEncoding(withAllowedCharacters: queryValueAllowed)
-        else { return nil }
-        return URL(string: "https://music.163.com/api/search/get/web?s=\(encoded)&type=1&limit=10")
+    private static func queuedSong(at queueURL: URL, title: String, artist: String, duration: TimeInterval) -> Song? {
+        guard let data = try? Data(contentsOf: queueURL) else { return nil }
+        return bestMatch(in: parsePlayQueue(data), title: title, artist: artist, duration: duration)
     }
 
     static func lyricURL(songID: Int) -> URL? {
@@ -105,16 +97,19 @@ enum NetEaseLyrics {
 
     // MARK: - Responses
 
-    static func parseSearchResponse(_ data: Data) -> [Song] {
+    /// The tracks in the app's play queue file. The app writes ids as strings.
+    static func parsePlayQueue(_ data: Data) -> [Song] {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let result = json["result"] as? [String: Any],
-              let songs = result["songs"] as? [[String: Any]]
+              let entries = json["list"] as? [[String: Any]]
         else { return [] }
 
-        return songs.compactMap { song in
-            guard let id = song["id"] as? Int, let name = song["name"] as? String else { return nil }
-            let artists = (song["artists"] as? [[String: Any]])?.compactMap { $0["name"] as? String } ?? []
-            let milliseconds = (song["duration"] as? Double) ?? 0
+        return entries.compactMap { entry in
+            guard let track = entry["track"] as? [String: Any],
+                  let id = (track["id"] as? String).flatMap(Int.init) ?? (track["id"] as? Int),
+                  let name = track["name"] as? String
+            else { return nil }
+            let artists = (track["artists"] as? [[String: Any]])?.compactMap { $0["name"] as? String } ?? []
+            let milliseconds = (track["duration"] as? Double) ?? 0
             return Song(id: id, name: name, artists: artists, duration: milliseconds / 1000)
         }
     }
@@ -150,8 +145,8 @@ enum NetEaseLyrics {
     // MARK: - Matching
 
     /// Filter first, then rank, for the same reason `LyricsSearchResults`
-    /// does: search returns its closest guess even when that guess is another
-    /// song, so the winner has to be a candidate before it can be the best one.
+    /// does: the queue holds every other song too, so the winner has to be a
+    /// candidate before it can be the best one.
     static func bestMatch(in songs: [Song], title: String, artist: String, duration: TimeInterval) -> Song? {
         let title = LyricsSearchResults.normalizedForMatching(title)
         let artist = LyricsSearchResults.normalizedForMatching(artist)

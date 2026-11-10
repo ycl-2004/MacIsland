@@ -244,8 +244,12 @@ enum LyricsSearchResults {
     /// only one side made the two disagree, which cost a scoring bonus quietly
     /// and, once agreement became mandatory, rejected the correct lyrics
     /// outright.
+    ///
+    /// Traditional and simplified Chinese are folded together for the same
+    /// reason: YouTube Music and NetEase publish one artist as 艾志恒 where
+    /// lrclib files the timed lyrics under 艾志恆.
     static func normalizedForMatching(_ value: String) -> String {
-        value
+        (value.applyingTransform(StringTransform("Hant-Hans"), reverse: false) ?? value)
             .folding(options: .diacriticInsensitive, locale: .current)
             .lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -288,7 +292,7 @@ struct LyricsResolution {
     }
 }
 
-/// LRCLIB is asked first. A thrown request there is the same as an empty
+/// A thrown request to the first provider is the same as an empty
 /// catalogue: neither produced words, so the fallback still has to run.
 /// Folding both calls into one `do` meant a transport failure skipped the
 /// only provider that had the track, and the catch showed "No lyrics found".

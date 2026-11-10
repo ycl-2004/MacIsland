@@ -19,8 +19,8 @@
 import XCTest
 @testable import Atoll
 
-/// Finding the playing track again in NetEase's catalogue from nothing but
-/// the metadata a player publishes.
+/// Finding the playing track again in NetEase's play queue from nothing but
+/// the metadata the player publishes.
 ///
 /// The bug these guard: NetEase Cloud Music users saw "No lyrics found" for
 /// most of their library because LRCLIB never had those songs, and the
@@ -81,18 +81,17 @@ final class NetEaseLyricsTests: XCTestCase {
         XCTAssertEqual(NetEaseLyrics.bestMatch(in: [song], title: "deja vu", artist: "olivia rodrigo", duration: 215), song)
     }
 
-    /// Live catalogue shape for the GRe4N BOYZ re-credit of キセキ: integer
-    /// millisecond duration, a Live cut in the same page, and 275 s playing.
-    func testKisekiSearchPagePicksTheStudioCut() throws {
+    /// A queue holding several cuts of キセキ: integer millisecond duration,
+    /// a Live cut beside the studio one, and 275 s playing.
+    func testKisekiQueuePicksTheStudioCut() throws {
         let json = """
-        {"result":{"songs":[
-          {"id":733149,"name":"キセキ","artists":[{"name":"GRe4N BOYZ"}],"duration":275826},
-          {"id":733203,"name":"キセキ","artists":[{"name":"GRe4N BOYZ"}],"duration":275826},
-          {"id":732841,"name":"キセキ (Live)","artists":[{"name":"GRe4N BOYZ"}],"duration":289645},
-          {"id":1393124571,"name":"キセキ (For Basketballers)","artists":[{"name":"GRe4N BOYZ"}],"duration":93112}
-        ]},"code":200}
+        {"list":[
+          {"id":"733149","track":{"id":"733149","name":"キセキ","artists":[{"name":"GRe4N BOYZ"}],"duration":275826}},
+          {"id":"732841","track":{"id":"732841","name":"キセキ (Live)","artists":[{"name":"GRe4N BOYZ"}],"duration":289645}},
+          {"id":"1393124571","track":{"id":"1393124571","name":"キセキ (For Basketballers)","artists":[{"name":"GRe4N BOYZ"}],"duration":93112}}
+        ]}
         """
-        let songs = NetEaseLyrics.parseSearchResponse(Data(json.utf8))
+        let songs = NetEaseLyrics.parsePlayQueue(Data(json.utf8))
         XCTAssertEqual(songs.first?.duration ?? 0, 275.826, accuracy: 0.001)
         let match = try XCTUnwrap(NetEaseLyrics.bestMatch(
             in: songs, title: "キセキ", artist: "GRe4N BOYZ", duration: 275
@@ -104,24 +103,31 @@ final class NetEaseLyricsTests: XCTestCase {
 
     // MARK: - Reading responses
 
-    func testSearchResponseParsesSongs() throws {
+    /// The shape the desktop app writes: ids as strings, the track nested
+    /// under each queue entry, and a spaced title exactly as it is published.
+    func testPlayQueueParsesTracks() throws {
         let json = """
-        {"result":{"songs":[
-          {"id":186016,"name":"晴天","artists":[{"id":6452,"name":"周杰伦"}],"duration":269000},
-          {"id":186001,"name":"千里之外","artists":[{"name":"周杰伦"},{"name":"费玉清"}],"duration":254533},
-          {"name":"no id"}
-        ],"songCount":2},"code":200}
+        {"list":[
+          {"id":"2163210456","displayOrder":0,"track":{"id":"2163210456","name":"两 难","artists":[{"id":"49320722","name":"加木"}],"duration":170000}},
+          {"id":"186001","track":{"id":186001,"name":"千里之外","artists":[{"name":"周杰伦"},{"name":"费玉清"}],"duration":254533}},
+          {"id":"1","track":{"name":"no id"}},
+          {"id":"2","localTrack":{}}
+        ]}
         """
-        let songs = NetEaseLyrics.parseSearchResponse(Data(json.utf8))
+        let songs = NetEaseLyrics.parsePlayQueue(Data(json.utf8))
         XCTAssertEqual(songs, [
-            Song(id: 186016, name: "晴天", artists: ["周杰伦"], duration: 269.0),
+            Song(id: 2163210456, name: "两 难", artists: ["加木"], duration: 170.0),
             Song(id: 186001, name: "千里之外", artists: ["周杰伦", "费玉清"], duration: 254.533),
         ])
+        XCTAssertEqual(
+            NetEaseLyrics.bestMatch(in: songs, title: "两 难", artist: "加木", duration: 170.048)?.id,
+            2163210456
+        )
     }
 
-    func testSearchResponseWithoutSongsIsEmpty() {
-        XCTAssertEqual(NetEaseLyrics.parseSearchResponse(Data("{\"result\":{\"songCount\":0},\"code\":200}".utf8)), [])
-        XCTAssertEqual(NetEaseLyrics.parseSearchResponse(Data("not json".utf8)), [])
+    func testPlayQueueWithoutTracksIsEmpty() {
+        XCTAssertEqual(NetEaseLyrics.parsePlayQueue(Data("{\"list\":[]}".utf8)), [])
+        XCTAssertEqual(NetEaseLyrics.parsePlayQueue(Data("not json".utf8)), [])
     }
 
     func testLyricResponseReturnsTheLRCAsServed() {
@@ -143,22 +149,11 @@ final class NetEaseLyricsTests: XCTestCase {
 
     // MARK: - Building requests
 
-    func testSearchQueryEscapesStructuralCharacters() throws {
-        let url = try XCTUnwrap(NetEaseLyrics.searchURL(title: "Snow + Rain & Sun", artist: "A/B"))
-        let query = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
-        XCTAssertEqual(query.first { $0.name == "s" }?.value, "Snow + Rain & Sun A B")
-        XCTAssertEqual(query.first { $0.name == "type" }?.value, "1")
-    }
-
     func testLyricRequestAsksForTheLRCOnly() throws {
         let url = try XCTUnwrap(NetEaseLyrics.lyricURL(songID: 186016))
         let query = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
         XCTAssertEqual(query.map(\.name), ["id", "lv"])
         XCTAssertEqual(query.first { $0.name == "id" }?.value, "186016")
         XCTAssertEqual(query.first { $0.name == "lv" }?.value, "-1")
-    }
-
-    func testEmptyQueryBuildsNoRequest() {
-        XCTAssertNil(NetEaseLyrics.searchURL(title: "  ", artist: ""))
     }
 }

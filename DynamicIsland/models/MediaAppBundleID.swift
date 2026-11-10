@@ -28,4 +28,5 @@ enum MediaAppBundleID {
     static let appleMusic = "com.apple.Music"
     static let spotify = "com.spotify.client"
     static let amazonMusic = "com.amazon.music"
+    static let neteaseMusic = "com.netease.163music"
 }

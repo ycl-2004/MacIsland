@@ -1635,20 +1635,24 @@ class MusicManager: ObservableObject {
         let requestArtist = lookup.requestArtist
         let requestTitle = lookup.requestTitle
         let requestAlbum = lookup.requestAlbum
+        let playingInNetEase = lastArtworkBundleIdentifier == MediaAppBundleID.neteaseMusic
 
         lyricsFetchTask = Task { [weak self] in
             guard let self else { return }
 
+            // NetEase's app names the exact recording it is playing, so its
+            // lyrics are asked for first; every other player has only LRCLIB.
             let lyrics = await LyricsProviderFallback.resolve(
                 primary: {
+                    guard playingInNetEase else { return LyricsResolution() }
+                    return try await self.fetchLyricsFromNetEase(artist: requestArtist, title: requestTitle)
+                },
+                fallback: {
                     try await self.fetchLyricsFromAPI(
                         artist: requestArtist,
                         title: requestTitle,
                         album: requestAlbum
                     )
-                },
-                fallback: {
-                    try await self.fetchLyricsFromNetEase(artist: requestArtist, title: requestTitle)
                 }
             )
             guard !Task.isCancelled else { return }
@@ -1656,8 +1660,7 @@ class MusicManager: ObservableObject {
             await MainActor.run {
                 guard self.lyricsFetchID == fetchID, self.activeLyricsKey == key else { return }
                 // Empty is not a fact about the track. Caching it would stick a
-                // transport blip — including the old path where LRCLIB threw
-                // and NetEase was never asked — and hide a later hit.
+                // transport blip and hide a later hit.
                 if lyrics.availability != .unavailable {
                     self.storeLyricsInCache(lyrics, for: key)
                 }
@@ -1672,8 +1675,8 @@ class MusicManager: ObservableObject {
     /// All media sources share this fallback and semantic result.
     private func fetchLyricsFromNetEase(artist: String, title: String) async throws -> LyricsResolution {
         guard !artist.isEmpty, !title.isEmpty else { return LyricsResolution() }
-        // Track updates assign duration after preparing lyrics; read it only
-        // after LRCLIB has answered, as in the existing fallback.
+        // Track updates assign duration after preparing lyrics, so it may
+        // still be unreported here; the match then rests on title and artist.
         let duration = await MainActor.run { self.songDuration }
         return try await NetEaseLyrics.fetch(title: title, artist: artist, duration: duration)
     }
@@ -1681,39 +1684,46 @@ class MusicManager: ObservableObject {
     private func fetchLyricsFromAPI(artist: String, title: String, album: String) async throws -> LyricsResolution {
         guard !artist.isEmpty, !title.isEmpty else { return LyricsResolution() }
 
-        // Normalize input and percent-encode
         let cleanArtist = artist.folding(options: .diacriticInsensitive, locale: .current)
         let cleanTitle = title.folding(options: .diacriticInsensitive, locale: .current)
         let cleanAlbum = album.folding(options: .diacriticInsensitive, locale: .current)
-        guard let encodedArtist = cleanArtist.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let encodedTitle = cleanTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+
+        var rows = try await searchLRCLIB(title: cleanTitle, artist: cleanArtist)
+        // Metadata updates assign duration after preparing lyrics. Read it
+        // after the request, before trusting a whole-track instrumental flag.
+        let duration = await MainActor.run { self.songDuration }
+        var bestMatch = bestLyricsMatch(in: rows, artist: cleanArtist, title: cleanTitle, album: cleanAlbum, duration: duration)
+
+        // LRCLIB filters on the artist as spelled, so a timed entry filed
+        // under 艾志恆 is not returned for a player that says 艾志恒. When the
+        // artist search has no timings to offer, ask by title alone and let
+        // the local match, which folds the two scripts together, decide.
+        if bestMatch.map(LyricsSearchResults.carriesSyncedLyrics) != true {
+            rows += (try? await searchLRCLIB(title: cleanTitle, artist: nil)) ?? []
+            bestMatch = bestLyricsMatch(in: rows, artist: cleanArtist, title: cleanTitle, album: cleanAlbum, duration: duration)
+        }
+
+        guard let bestMatch else { return LyricsResolution() }
+        let resolution = LyricsResolution.lrclib(bestMatch)
+        // Text-only instrumental placeholders need the same recording
+        // identity check as structured provider flags.
+        if resolution.availability == .instrumental,
+           !LyricsSearchResults.isReliableInstrumentalMatch(bestMatch, title: cleanTitle, duration: duration) {
             return LyricsResolution()
         }
+        return resolution
+    }
 
-        // Use LRCLIB search endpoint which returns an array JSON with `plainLyrics` and/or `syncedLyrics`.
-        let urlString = "https://lrclib.net/api/search?track_name=\(encodedTitle)&artist_name=\(encodedArtist)"
-        guard let url = URL(string: urlString) else { return LyricsResolution() }
+    /// One LRCLIB search. Each row carries `plainLyrics` and/or `syncedLyrics`.
+    private func searchLRCLIB(title: String, artist: String?) async throws -> [[String: Any]] {
+        var components = URLComponents(string: "https://lrclib.net/api/search")
+        components?.queryItems = [URLQueryItem(name: "track_name", value: title)]
+            + (artist.map { [URLQueryItem(name: "artist_name", value: $0)] } ?? [])
+        guard let url = components?.url else { return [] }
 
         let (data, response) = try await BoundedHTTP.data(from: url)
-        if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-            // Metadata updates assign duration after preparing lyrics. Read it
-            // after the request, before trusting a whole-track instrumental flag.
-            let duration = await MainActor.run { self.songDuration }
-            // Try parse as array JSON (preferred)
-            if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-               let bestMatch = bestLyricsMatch(in: jsonArray, artist: cleanArtist, title: cleanTitle, album: cleanAlbum, duration: duration) {
-                let resolution = LyricsResolution.lrclib(bestMatch)
-                // Text-only instrumental placeholders need the same recording
-                // identity check as structured provider flags.
-                if resolution.availability == .instrumental,
-                   !LyricsSearchResults.isReliableInstrumentalMatch(bestMatch, title: cleanTitle, duration: duration) {
-                    return LyricsResolution()
-                }
-                return resolution
-            }
-        }
-        // A search response with no matching recording is not a plain lyric body.
-        return LyricsResolution()
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return [] }
+        return (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
     }
 
     // pi-lens-ignore: large_tuple
