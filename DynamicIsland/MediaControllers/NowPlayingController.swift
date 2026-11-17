@@ -34,6 +34,18 @@ final class NowPlayingController: ObservableObject {
     /// minutes apart, not seconds.
     private static let currentSampleWindow: TimeInterval = 2
 
+    /// Players whose "nothing is playing" is not believed while they are
+    /// still running.
+    ///
+    /// NetEase Cloud Music 3.1.14 clears its own Now Playing info a few
+    /// seconds after it launches and resumes a song. Its log shows "Clearing
+    /// nowPlayingInfo" within 2.2 s of playback starting on each of three
+    /// launches, and the song plays on. It publishes nothing more until
+    /// something changes -- 124 seconds later in one of them, when the next
+    /// track began -- so believing the clear takes the song off the notch for
+    /// the rest of the track.
+    private static let sourcesWithUnreliableClear: Set<String> = [MediaAppBundleID.neteaseMusic]
+
     // MARK: - Properties
     @Published private(set) var playbackState: PlaybackState = .init(
         bundleIdentifier: MediaAppBundleID.appleMusic
@@ -59,7 +71,12 @@ final class NowPlayingController: ObservableObject {
     private var generation = UUID()
     private var stopped = false
     private var wakeSubscription: AnyCancellable?
+    private var terminationSubscription: AnyCancellable?
     private let adapterCommand: () -> AdapterCommand?
+    private let isApplicationRunning: (String) -> Bool
+    /// The clear that was not believed, kept so it can be applied if its
+    /// sender quits before publishing anything else.
+    private var withheldClear: NowPlayingUpdate?
     @Published private(set) var connectionStatus = "starting"
 
     /// What the adapter runs: the bundled supervisor and script, unless a test supplies its own.
@@ -84,7 +101,10 @@ final class NowPlayingController: ObservableObject {
 
     // MARK: - Initialization
     init?(adapterCommand: @escaping () -> AdapterCommand? = { AdapterCommand.bundled },
-          retryPolicy: ServiceRetryPolicy = ServiceRetryPolicy()) {
+          retryPolicy: ServiceRetryPolicy = ServiceRetryPolicy(),
+          isApplicationRunning: @escaping (String) -> Bool = {
+              !NSRunningApplication.runningApplications(withBundleIdentifier: $0).isEmpty
+          }) {
         guard
             let bundle = CFBundleCreate(
                 kCFAllocatorDefault,
@@ -111,10 +131,18 @@ final class NowPlayingController: ObservableObject {
             MRMediaRemoteSetRepeatModePointer, to: (@convention(c) (Int) -> Void).self)
         self.adapterCommand = adapterCommand
         self.retryPolicy = retryPolicy
+        self.isApplicationRunning = isApplicationRunning
 
         wakeSubscription = NSWorkspace.shared.notificationCenter
             .publisher(for: NSWorkspace.didWakeNotification)
             .sink { [weak self] _ in Task { @MainActor in self?.reconnectIfUnavailable() } }
+        terminationSubscription = NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didTerminateApplicationNotification)
+            .sink { [weak self] notification in
+                let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                guard let bundleIdentifier = application?.bundleIdentifier else { return }
+                Task { @MainActor in self?.applicationDidTerminate(bundleIdentifier: bundleIdentifier) }
+            }
         Task { [weak self] in await self?.setupNowPlayingObserver() }
     }
 
@@ -130,6 +158,7 @@ final class NowPlayingController: ObservableObject {
         generation = UUID()
         connectionStatus = "stopped"
         wakeSubscription = nil
+        terminationSubscription = nil
         retryTask?.cancel(); retryTask = nil
         closeAdapter()
     }
@@ -290,7 +319,31 @@ final class NowPlayingController: ObservableObject {
     }
 
     // MARK: - Update Methods
-    private func handleAdapterUpdate(_ update: NowPlayingUpdate) async {
+    func handleAdapterUpdate(_ update: NowPlayingUpdate) async {
+        if update.reportsNothingPlaying, isUnreliableClear(from: playbackState.bundleIdentifier) {
+            withheldClear = update
+            return
+        }
+        withheldClear = nil
+        apply(update)
+    }
+
+    /// Whether a clear arriving now comes from a player that sends one while
+    /// it is still playing. Only a running player can be: one that has quit
+    /// has nothing left to play.
+    private func isUnreliableClear(from bundleIdentifier: String) -> Bool {
+        Self.sourcesWithUnreliableClear.contains(bundleIdentifier) && isApplicationRunning(bundleIdentifier)
+    }
+
+    /// A player that has quit is no longer playing, so the clear it was not
+    /// believed about is applied after all.
+    func applicationDidTerminate(bundleIdentifier: String) {
+        guard let clear = withheldClear, bundleIdentifier == playbackState.bundleIdentifier else { return }
+        withheldClear = nil
+        apply(clear)
+    }
+
+    private func apply(_ update: NowPlayingUpdate) {
         let payload = update.payload
         let diff = update.diff ?? false
 
@@ -428,6 +481,16 @@ final class NowPlayingController: ObservableObject {
 struct NowPlayingUpdate: Codable {
     let payload: NowPlayingPayload
     let diff: Bool?
+
+    /// Whether this is the adapter saying no app has anything playing: a
+    /// full update that names neither an app nor a track. On the wire it is
+    /// `{"diff":false,"payload":{}}`.
+    var reportsNothingPlaying: Bool {
+        diff != true
+            && payload.title == nil
+            && payload.bundleIdentifier == nil
+            && payload.parentApplicationBundleIdentifier == nil
+    }
 }
 
 struct NowPlayingPayload: Codable {
