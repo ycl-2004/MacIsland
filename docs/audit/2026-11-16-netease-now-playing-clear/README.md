@@ -4,8 +4,7 @@ The owner reported that with NetEase Cloud Music playing, the music activity
 showed on the notch for about a second and then went away, and later came back
 without anything having been changed.
 
-NetEase Cloud Music 3.1.14 (3459), macOS 27.2.1. Not committed and not
-installed when this was written.
+Commit `beab19ff`. NetEase Cloud Music 3.1.14 (3459), macOS 27.2.1.
 
 ## What was wrong
 
@@ -53,13 +52,33 @@ applied. Every other player's clear is applied as before. Nothing polls.
 
 ## Checked
 
-- `Tools/verify-stability.py --native-only`: 431 tests, 0 failures, including
-  the seven in `NowPlayingClearTests`, which feed the controller the recorded
-  adapter lines.
+- `Tools/verify-stability.py --native-only` on the committed source: 431
+  tests, 0 failures, including the seven in `NowPlayingClearTests`, which feed
+  the controller the recorded adapter lines.
+- Release build of `beab19ff`, `dirty: false`, same identity and designated
+  requirement; Shelf and Extra Space content unchanged; no Atoll crash report;
+  launched as pid 72438.
+
+## Installation
+
+The first quit ended the running copy (pid 1474) normally: its log has
+"Termination complete" at 20:06:12.795 and launchd removed it at 20:06:12.827.
+`Build/InstallTools/ShelfFix-app-lifecycle` still waited its full 30 s and
+reported that termination had not finished, so nothing was installed, and the
+launch step that followed it started the old copy again as pid 72030. That
+binary was built on 2026-10-17 from the `AppLifecycle.swift` of that day, which
+waits on `NSRunningApplication.isTerminated`; the 2026-10-20 source checks the
+pid instead.
+
+The quit and launch on record were made with the 2026-10-20 source compiled
+outside the repository. `quit.json` is the exit of pid 72030;
+`previousInstance` in `installation.json` is pid 1474, from `prepare`. The
+binary in `Build/InstallTools` was left as it is and still answers `status`
+for `install.py`.
 
 ## Not checked
 
-- The fix has not run against NetEase: it is not installed.
+- The installed copy has not yet been seen through a NetEase launch.
 - A pause while the info is cleared. In the one recording made for it NetEase
   had already published again. In its normal state NetEase publishes on every
   pause and resume (19:53:59, 19:54:12, 19:55:15, 19:56:18), and at 19:47:01
